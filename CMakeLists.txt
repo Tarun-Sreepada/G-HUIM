@@ -2,7 +2,7 @@
 
 cmake_minimum_required(VERSION 3.18 FATAL_ERROR)
 
-project(cuEFIM
+project(cuDPEFIM
     VERSION 1.0
     LANGUAGES CXX CUDA
 )
@@ -15,7 +15,7 @@ set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
 # Specify CUDA Architecture
-set(CMAKE_CUDA_ARCHITECTURES 75)
+set(CMAKE_CUDA_ARCHITECTURES 86)
 
 # Automatically collect all .cpp and .cu files in src/
 file(GLOB SRC_FILES "src/*.cpp" "src/*.cu")
@@ -30,10 +30,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 # Add -O3 optimization to both host (CXX) and device (CUDA) code.
-# Note we also keep your existing flags:
-#   -Xcompiler=-DVERBOSE
-#   --expt-relaxed-constexpr
-# and simply insert -O3 for both host and device compilation.
 target_compile_options(${PROJECT_NAME} PRIVATE
     # Host compiler flags (C++):
     $<$<COMPILE_LANGUAGE:CXX>:-O3>
@@ -45,3 +41,14 @@ target_compile_options(${PROJECT_NAME} PRIVATE
 set_target_properties(${PROJECT_NAME} PROPERTIES
     CUDA_SEPARABLE_COMPILATION ON
 )
+
+
+# Dynamic Memory Manager for GPU
+include(cmake/CPM.cmake)
+CPMAddPackage(
+  NAME gallatin
+  GITHUB_REPOSITORY saltsystemslab/gallatin
+  GIT_TAG origin/main
+)
+
+target_link_libraries(${PROJECT_NAME} PRIVATE gallatin)
