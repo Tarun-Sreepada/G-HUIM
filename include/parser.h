@@ -1,14 +1,14 @@
 // parser.h
 
-#ifndef parser_h
-#define parser_h
-
+#pragma once
 #include <map>
 #include <vector>
 #include <string>
 #include <unordered_map>
 #include <utility>
 #include <cstdint>
+#include "timer.h"
+
 
 // Structure to hold the result of the read_file function
 struct ReadFileResult {
@@ -22,6 +22,5 @@ struct ReadFileResult {
 std::vector<std::string> split(const std::string& s, const std::string& delimiter);
 
 // Function to read and parse the input file
-ReadFileResult read_file(const std::string& inputFile, const std::string& sep, int minUtil);
+ReadFileResult read_file(const std::string& inputFile, const std::string& sep, int minUtil, Timer& timer);
 
-#endif // parser_h

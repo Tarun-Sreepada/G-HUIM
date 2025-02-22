@@ -67,8 +67,8 @@ CMAKE_BINARY_DIR = /home/tarun/cuDPEFIM/build
 
 # Special rule for the target edit_cache
 edit_cache:
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "No interactive CMake dialog available..."
-	/usr/bin/cmake -E echo No\ interactive\ CMake\ dialog\ available.
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake cache editor..."
+	/usr/bin/ccmake -S$(CMAKE_SOURCE_DIR) -B$(CMAKE_BINARY_DIR)
 .PHONY : edit_cache
 
 # Special rule for the target edit_cache
@@ -117,24 +117,24 @@ depend:
 .PHONY : depend
 
 #=============================================================================
-# Target rules for targets named cuEFIM
+# Target rules for targets named cuDPEFIM
 
 # Build rule for target.
-cuEFIM: cmake_check_build_system
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 cuEFIM
-.PHONY : cuEFIM
+cuDPEFIM: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 cuDPEFIM
+.PHONY : cuDPEFIM
 
 # fast build rule for target.
-cuEFIM/fast:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/build
-.PHONY : cuEFIM/fast
+cuDPEFIM/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/build
+.PHONY : cuDPEFIM/fast
 
 main.o: main.cu.o
 .PHONY : main.o
 
 # target to build an object file
 main.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/main.cu.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/main.cu.o
 .PHONY : main.cu.o
 
 main.i: main.cu.i
@@ -142,7 +142,7 @@ main.i: main.cu.i
 
 # target to preprocess a source file
 main.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/main.cu.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/main.cu.i
 .PHONY : main.cu.i
 
 main.s: main.cu.s
@@ -150,39 +150,15 @@ main.s: main.cu.s
 
 # target to generate assembly for a file
 main.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/main.cu.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/main.cu.s
 .PHONY : main.cu.s
-
-src/args.o: src/args.cu.o
-.PHONY : src/args.o
-
-# target to build an object file
-src/args.cu.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/args.cu.o
-.PHONY : src/args.cu.o
-
-src/args.i: src/args.cu.i
-.PHONY : src/args.i
-
-# target to preprocess a source file
-src/args.cu.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/args.cu.i
-.PHONY : src/args.cu.i
-
-src/args.s: src/args.cu.s
-.PHONY : src/args.s
-
-# target to generate assembly for a file
-src/args.cu.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/args.cu.s
-.PHONY : src/args.cu.s
 
 src/parser.o: src/parser.cpp.o
 .PHONY : src/parser.o
 
 # target to build an object file
 src/parser.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/parser.cpp.o
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/parser.cpp.o
 .PHONY : src/parser.cpp.o
 
 src/parser.i: src/parser.cpp.i
@@ -190,7 +166,7 @@ src/parser.i: src/parser.cpp.i
 
 # target to preprocess a source file
 src/parser.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/parser.cpp.i
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/parser.cpp.i
 .PHONY : src/parser.cpp.i
 
 src/parser.s: src/parser.cpp.s
@@ -198,7 +174,7 @@ src/parser.s: src/parser.cpp.s
 
 # target to generate assembly for a file
 src/parser.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuEFIM.dir/build.make CMakeFiles/cuEFIM.dir/src/parser.cpp.s
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/parser.cpp.s
 .PHONY : src/parser.cpp.s
 
 # Help Target
@@ -209,13 +185,10 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
-	@echo "... cuEFIM"
+	@echo "... cuDPEFIM"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
-	@echo "... src/args.o"
-	@echo "... src/args.i"
-	@echo "... src/args.s"
 	@echo "... src/parser.o"
 	@echo "... src/parser.i"
 	@echo "... src/parser.s"
