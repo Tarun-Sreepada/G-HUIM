@@ -1,66 +1,121 @@
 #pragma once
-#include <string>
-#include <iostream>
-#include <cstdlib>
-#include <cstring>
-#include <chrono>
 
-struct Args
-{
-    std::string file_path;
-    int min_util;
-    std::string delimiter;
-    int block_size;
-    int num_blocks;
-};
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <vector>
+#include <sstream>
+#include <optional>
 
 // Helper function to map separator string to actual character
-static char delimiter_byte(const std::string &sepStr)
-{
-    if (sepStr == "\\s")
-        return ' ';
-    if (sepStr == "\\t")
-        return '\t';
-    if (sepStr == "\\n")
-        return '\n';
-    if (sepStr == ",")
-        return ',';
-    if (sepStr == ";")
-        return ';';
-    // Add more separators as needed
-    // Default separator
+static char getSeparator(const std::string& sepStr) {
+    if (sepStr == "\\s") return ' ';
+    if (sepStr == "\\t") return '\t';
+    if (sepStr == "\\n") return '\n';
+    if (sepStr == ",") return ',';
+    if (sepStr == ";") return ';';
+    if (sepStr == "|") return '|';
+    
+    // Default separator (fallback to space)
     std::cerr << "Unknown separator: " << sepStr << ". Using space as default.\n";
     return ' ';
 }
 
-Args parse_args(int argc, char *argv[])
-{
-    Args result;
-    // We require at least 3 arguments: filename, min_util, delimiter.
-    if (argc < 4)
-    {
-        std::cerr << "Usage: " << argv[0] << " file_path min_util delimiter [block_size] [num_blocks]" << std::endl;
-        std::exit(1);
+class ArgParser {
+public:
+    struct Argument {
+        std::string name;
+        std::string description;
+        bool required;
+        bool is_flag;
+        std::optional<std::string> default_value;
+        std::optional<std::string> value;
+    };
+
+private:
+    std::unordered_map<std::string, Argument> args;
+    std::vector<std::string> positional_args;
+    std::string program_name;
+
+public:
+    explicit ArgParser(std::string prog_name) : program_name(std::move(prog_name)) {}
+
+    // Adds a required or optional argument
+    void add_argument(const std::string &name, const std::string &desc, bool required = false, std::optional<std::string> default_val = std::nullopt) {
+        args[name] = {name, desc, required, false, default_val, std::nullopt};
     }
 
-    result.file_path = argv[1];
-    result.min_util = std::atoi(argv[2]);
-    result.delimiter = delimiter_byte(argv[3]);
-
-    // Default values for block_size and num_blocks are 512.
-    result.block_size = 512;
-    result.num_blocks = 512;
-
-    // If provided, override the defaults.
-    if (argc >= 5)
-    {
-        result.block_size = std::atoi(argv[4]);
-    }
-    if (argc >= 6)
-    {
-        result.num_blocks = std::atoi(argv[5]);
+    // Adds a flag (boolean switch)
+    void add_flag(const std::string &name, const std::string &desc) {
+        args[name] = {name, desc, false, true, std::nullopt, std::nullopt};
     }
 
-    return result;
-}
+    // Parses command-line arguments
+    void parse(int argc, char *argv[]) {
+        if (argc > 0) program_name = argv[0];
+
+        for (int i = 1; i < argc; ++i) {
+            std::string arg = argv[i];
+
+            if (args.find(arg) != args.end()) {
+                if (args[arg].is_flag) {
+                    args[arg].value = "true";
+                } else if (i + 1 < argc) {
+                    args[arg].value = argv[++i];
+                } else {
+                    throw std::runtime_error("Missing value for argument: " + arg);
+                }
+            } else if (arg == "--help" || arg == "-h") {
+                print_help();
+                std::exit(0);
+            } else {
+                positional_args.push_back(arg);
+            }
+        }
+
+        // Validate required arguments
+        for (const auto &[key, arg] : args) {
+            if (arg.required && !arg.value.has_value()) {
+                throw std::runtime_error("Missing required argument: " + key);
+            }
+        }
+
+        // Apply default values
+        for (auto &[key, arg] : args) {
+            if (!arg.value.has_value() && arg.default_value.has_value()) {
+                arg.value = arg.default_value;
+            }
+        }
+    }
+
+    // Retrieves argument value
+    std::string get(const std::string &name) {
+        if (args.find(name) == args.end()) throw std::runtime_error("Unknown argument: " + name);
+        return args[name].value.value_or("");
+    }
+
+    // Retrieves separator as a character
+    char get_separator(const std::string &name) {
+        return getSeparator(get(name));
+    }
+
+    // Checks if a flag is set
+    bool flag_set(const std::string &name) {
+        if (args.find(name) == args.end()) throw std::runtime_error("Unknown flag: " + name);
+        return args[name].value.has_value();
+    }
+
+    // Prints help documentation
+    void print_help() {
+        std::cout << "Usage: " << program_name << " [options]\n\nOptions:\n";
+        for (const auto &[key, arg] : args) {
+            std::cout << "  " << key;
+            if (!arg.is_flag) std::cout << " <value>";
+            std::cout << "\t" << arg.description;
+            if (arg.default_value.has_value()) std::cout << " (default: " << arg.default_value.value() << ")";
+            std::cout << "\n";
+        }
+        std::cout << "  --help, -h\tShow this help message\n";
+    }
+};
 
