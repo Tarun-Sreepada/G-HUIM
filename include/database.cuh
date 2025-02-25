@@ -1,95 +1,121 @@
 #pragma once
-#include <cstdint>
-#include <stdio.h>
 
-__device__ uint32_t pcg_hash(uint32_t input)
-{
-    uint32_t state = input * 747796405u + 2891336453u;
-    uint32_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
-    return (word >> 22u) ^ word;
-}
+#include <cuda_runtime.h>
+#include <cstdio>
 
-__device__ uint32_t hashFunction(uint32_t key, uint32_t tableSize)
-{
-    return pcg_hash(key) % tableSize;
-}
-
+// Represents an item with key and utility.
 struct Item
 {
     int key;
     int util;
+
+    // define empty key as -1 -1
+    static const int EMPTY_KEY = -1;
+    static const int EMPTY_UTIL = -1;
+
+    static const Item EMPTY_ITEM;
 };
 
-__device__ uint32_t items_hasher(const Item *items, int n, int tableSize)
-{
-    uint32_t hash = 0;
-    for (int i = 0; i < n; i++)
-        hash ^= pcg_hash(items[i].key + i);
-    return hash % tableSize;
-}
+const Item Item::EMPTY_ITEM = {Item::EMPTY_KEY, Item::EMPTY_UTIL};
 
-/*
-Item *items: array of items
-int n: size of the array
-int key: key to search
-*/
-__device__ int find_item(const Item *items, int n, int key)
+struct HashTable
 {
-    uint32_t hash = hashFunction(key, n);
+    Item *table;   // Pointer to the hash table (device memory)
+    int tableSize; // Size of the hash table
 
-    while (true)
+    __device__ bool init(int size)
     {
-        if (items[hash].key == key)
-            return hash;
-        if (items[hash].key == 0)
-            return -1;
-        hash = (hash + 1) % n;
+        tableSize = size;
+        memset(table, Item::EMPTY_KEY, size * sizeof(Item));
+        return true;
     }
-}
 
+    __device__ bool insert(int key, int util)
+    {
+        int index = key % tableSize; // Hash function
+        for (int i = 0; i < tableSize; i++)
+        { // Linear probing
+            int probe = (index + i) % tableSize;
+            int expected = Item::EMPTY_KEY;
+
+            // Try inserting using atomicCAS (only if slot is empty)
+            if (atomicCAS(&table[probe].key, expected, key) == expected)
+            {
+                table[probe].util = util;
+                return true; // Success
+            }
+
+            // If key already exists, update utility value
+            if (table[probe].key == key)
+            {
+                atomicAdd(&table[probe].util, util);
+                return true; // Success
+            }
+        }
+        return false; // Table full
+    }
+
+    // CUDA kernel: Retrieve item
+    __device__ int retrieve(int key)
+    {
+        int index = key % tableSize;
+        for (int i = 0; i < tableSize; i++)
+        {
+            int probe = (index + i) % tableSize;
+
+            if (table[probe].key == key)
+            {
+                return table[probe].util; // Found
+            }
+            if (table[probe].key == Item::EMPTY_KEY)
+            {
+                return -1; // Not found
+            }
+        }
+        return -1; // Not found
+    }
+};
+
+// Represents a transaction containing multiple items.
 struct Transaction
 {
-    // Pointer to the first Item of this transaction’s subarray.
-    Item* data;
-    // Number of items in this transaction.
-    int length;
-    int utility;
+    Item *data;  // Pointer to items array
+    int length;  // Number of items
+    int utility; // Transaction utility value
 
-    __device__ __host__ int size() const { return length; }
+    __device__ __host__ inline int size() const { return length; }
 
-    // Allow treating the transaction like an array.
-    __device__ __host__ Item &operator[](int i) { return data[i]; }
-    
-    __device__ __host__ Item *operator->() { return data; }
-    
-    __device__ __host__ Item *get() { return data; }
+    __device__ __host__ inline Item &operator[](int i) { return data[i]; }
+    __device__ __host__ inline Item *operator->() { return data; }
+    __device__ __host__ inline Item *get() { return data; }
 
-    // Binary search for a given key in this transaction.
-    __device__ int findItem(uint32_t search_id) const
+    // Optimized binary search for a given key.
+    __device__ Item find(int search_id) const
     {
-        int l = 0, r = length - 1;
-        while (l <= r)
+        int left = 0, right = length - 1;
+        while (left <= right)
         {
-            int mid = l + (r - l) / 2;
+            int mid = left + (right - left) / 2;
             if (data[mid].key == search_id)
-                return mid;
-            data[mid].key < search_id ? l = mid + 1 : r = mid - 1;
+                return data[mid];
+            data[mid].key < search_id ? left = mid + 1 : right = mid - 1;
         }
-        return -1;
+        // return -1;
+        return {-1, -1};
     }
 };
 
-
-
+// Represents the database storing transactions.
 struct Database
 {
-    Item *d_data;
-    Transaction *d_transactions;
+    Item *d_data;                // Pointer to item array
+    Transaction *d_transactions; // Pointer to transactions
     int numTransactions;
     int transaction_tracker;
     int numItems;
 
-    __device__ bool sameKey(int t1, int t2)
+    // Checks if two transactions have the same keys
+    __device__ bool sameKey(int t1, int t2) const
     {
         const Transaction &trans1 = d_transactions[t1];
         const Transaction &trans2 = d_transactions[t2];
@@ -106,21 +132,24 @@ struct Database
     }
 };
 
-__device__ __host__ void printDatabase(const Database *db)
+// Prints the database (for debugging)
+__host__ __device__ void printDatabase(const Database *db)
 {
-    if (!db) {
-        printf("Database pointer is NULL!\n");
+    if (!db)
+    {
+        printf("Database pointer is NULL! (Device)\n");
         return;
     }
-    
+
     for (int t = 0; t < db->numTransactions; t++)
     {
         const Transaction &tran = db->d_transactions[t];
-        
-        printf("%d|", tran.utility);
+
+        printf("T%d | Utility: %d | ", t, tran.utility);
+
         for (int i = 0; i < tran.length; i++)
         {
-            printf("%d:%d ", tran.data[i].key, tran.data[i].util);
+            printf("[%d:%d] ", tran.data[i].key, tran.data[i].util);
         }
         printf("\n");
     }
