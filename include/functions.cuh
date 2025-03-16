@@ -25,3 +25,13 @@ __device__ __host__ uint32_t murmur_hash3(const void *key, uint32_t len, uint32_
         return h;
     }
 }
+
+__device__ unsigned int str_to_uint(const char *str, const int start, const int end)
+{
+    unsigned int ret = 0;
+    for (int i = start; i < end; i++)
+    {
+        ret = ret * 10 + (str[i] - '0');
+    }
+    return ret;
+}
