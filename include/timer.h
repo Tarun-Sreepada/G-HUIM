@@ -47,6 +47,24 @@ public:
         std::cout << "Total time: " << total << " ms" << std::endl;
     }
 
+    // get 2 records and return the time difference between them
+    int getTimeDifference(const std::string& label1, const std::string& label2) const {
+        auto it1 = std::find_if(records.begin(), records.end(), [&label1](const TimeRecord& rec) {
+            return rec.label == label1;
+        });
+        auto it2 = std::find_if(records.begin(), records.end(), [&label2](const TimeRecord& rec) {
+            return rec.label == label2;
+        });
+
+        if (it1 == records.end() || it2 == records.end()) {
+            throw std::runtime_error("One or both labels not found.");
+        }
+
+        return std::chrono::duration_cast<std::chrono::milliseconds>(
+            it2->timestamp - it1->timestamp
+        ).count();
+    }
+
 private:
     std::vector<TimeRecord> records;
 };

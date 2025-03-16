@@ -6,17 +6,37 @@
 // Represents an item with key and utility.
 struct Item
 {
-    int key;
-    int util;
+    unsigned int key;
+    unsigned int util;
 
     // define empty key as -1 -1
-    static const int EMPTY_KEY = -1;
-    static const int EMPTY_UTIL = -1;
+    static const unsigned int EMPTY_KEY = 0;
+    static const unsigned int EMPTY_UTIL = 0;
 
     static const Item EMPTY_ITEM;
 };
 
 const Item Item::EMPTY_ITEM = {Item::EMPTY_KEY, Item::EMPTY_UTIL};
+
+
+#define twu local_utility
+#define rename subtree_utility
+
+struct Utilities
+{
+    int key;
+    int local_utility;
+    int subtree_utility;
+
+    static const int EMPTY_KEY = -1;
+    static const int EMPTY_LOCAL_UTILITY = -1;
+    static const int EMPTY_SUBTREE_UTILITY = -1;
+
+    static const Utilities EMPTY_UTILITIES;
+};
+
+const Utilities Utilities::EMPTY_UTILITIES = {Utilities::EMPTY_KEY, Utilities::EMPTY_LOCAL_UTILITY, Utilities::EMPTY_SUBTREE_UTILITY};
+
 
 struct HashTable
 {
@@ -101,7 +121,7 @@ struct Transaction
             data[mid].key < search_id ? left = mid + 1 : right = mid - 1;
         }
         // return -1;
-        return {-1, -1};
+        return {Item::EMPTY_KEY, Item::EMPTY_UTIL};
     }
 };
 
