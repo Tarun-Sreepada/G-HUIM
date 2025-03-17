@@ -18,7 +18,7 @@
 #define total_memory (5 * GIGA)
 
 // make && ./cuEFIM '/home/tarun/testing/test.txt' 5 \\s
-// make && ./cuDPEFIM --input '/home/tarun/cuEFIM/datasets/accidents_utility_spmf.txt' --minutil 1500000
+// make && ./cuDPEFIM --input ../accidents_utility_spmf.txt --minutil 1500000
 
 // make && ./cuDPEFIM --input '/home/tarun/cuDPEFIM/test.txt' --minutil 5
 

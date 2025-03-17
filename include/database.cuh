@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 #include <cstdio>
+#include "functions.cuh"
 
 // Represents an item with key and utility.
 struct Item
@@ -18,81 +19,114 @@ struct Item
 
 const Item Item::EMPTY_ITEM = {Item::EMPTY_KEY, Item::EMPTY_UTIL};
 
-
-#define twu local_utility
-#define rename subtree_utility
-
 struct Utilities
 {
-    int key;
-    int local_utility;
-    int subtree_utility;
+    unsigned int key;
+    unsigned int local_utility;
+    unsigned int subtree_utility;
 
-    static const int EMPTY_KEY = -1;
-    static const int EMPTY_LOCAL_UTILITY = -1;
-    static const int EMPTY_SUBTREE_UTILITY = -1;
+    static const int EMPTY_KEY = 0;
+    static const int EMPTY_LOCAL_UTILITY = 0;
+    static const int EMPTY_SUBTREE_UTILITY = 0;
 
     static const Utilities EMPTY_UTILITIES;
+
+    // enum for local and subtree utility
+    enum UtilityType
+    {
+        LOCAL_UTILITY,
+        SUBTREE_UTILITY
+    };
 };
 
 const Utilities Utilities::EMPTY_UTILITIES = {Utilities::EMPTY_KEY, Utilities::EMPTY_LOCAL_UTILITY, Utilities::EMPTY_SUBTREE_UTILITY};
 
 
-struct HashTable
+template <typename T>
+struct HashTable;
+
+template<>
+struct HashTable<Utilities>
 {
-    Item *table;   // Pointer to the hash table (device memory)
-    int tableSize; // Size of the hash table
+    // Device pointer to an array of `Utilities`
+    Utilities* table;
+    int tableSize;
 
-    __device__ bool init(int size)
+    // Insert or update the key with the given utility
+    __device__ bool insert(int key, int util, Utilities::UtilityType type)
     {
-        tableSize = size;
-        memset(table, Item::EMPTY_KEY, size * sizeof(Item));
-        return true;
-    }
+        // Use MurmurHash3 on the key, then mod by tableSize
+        uint32_t hashVal = murmur_hash3(&key, sizeof(int)) % tableSize;
 
-    __device__ bool insert(int key, int util)
-    {
-        int index = key % tableSize; // Hash function
-        for (int i = 0; i < tableSize; i++)
-        { // Linear probing
-            int probe = (index + i) % tableSize;
-            int expected = Item::EMPTY_KEY;
-
-            // Try inserting using atomicCAS (only if slot is empty)
-            if (atomicCAS(&table[probe].key, expected, key) == expected)
-            {
-                table[probe].util = util;
-                return true; // Success
-            }
-
-            // If key already exists, update utility value
-            if (table[probe].key == key)
-            {
-                atomicAdd(&table[probe].util, util);
-                return true; // Success
-            }
-        }
-        return false; // Table full
-    }
-
-    // CUDA kernel: Retrieve item
-    __device__ int retrieve(int key)
-    {
-        int index = key % tableSize;
         for (int i = 0; i < tableSize; i++)
         {
-            int probe = (index + i) % tableSize;
+            int probe = (hashVal + i) % tableSize;
+
+            // Attempt to claim an empty slot
+            int oldKey = atomicCAS(&table[probe].key, 
+                                   Utilities::EMPTY_KEY, 
+                                   key);
+
+            if (oldKey == Utilities::EMPTY_KEY)
+            {
+                // We own this slot now; set the chosen utility
+                if (type == Utilities::LOCAL_UTILITY)
+                    // table[probe].local_utility += util;
+                    atomicAdd(&table[probe].local_utility, util);
+                else
+                    // table[probe].subtree_utility += util;
+                    atomicAdd(&table[probe].subtree_utility, util);
+
+                return true;
+            }
+
+            // If the key is already in the slot, just update
+            if (table[probe].key == key)
+            {
+                if (type == Utilities::LOCAL_UTILITY)
+                    // table[probe].local_utility += util;
+                    atomicAdd(&table[probe].local_utility, util);
+                else
+                    // table[probe].subtree_utility += util;
+                    atomicAdd(&table[probe].subtree_utility, util);
+
+                return true;
+            }
+        }
+        // Table is full
+        return false;
+    }
+
+    // Retrieve an index for the given key
+    __device__ int retrieve(int key)
+    {
+        uint32_t hashVal = murmur_hash3(&key, sizeof(int)) % tableSize;
+
+        for (int i = 0; i < tableSize; i++)
+        {
+            int probe = (hashVal + i) % tableSize;
 
             if (table[probe].key == key)
             {
-                return table[probe].util; // Found
+                return probe;
             }
-            if (table[probe].key == Item::EMPTY_KEY)
+            // If we hit an empty slot, no need to probe further
+            if (table[probe].key == Utilities::EMPTY_KEY)
             {
-                return -1; // Not found
+                return -1;
             }
         }
+
         return -1; // Not found
+    }
+
+    __host__ __device__ void print()
+    {
+        for (int i = 0; i < tableSize; i++)
+        {
+            if (table[i].key != Utilities::EMPTY_KEY || table[i].local_utility != Utilities::EMPTY_LOCAL_UTILITY || table[i].subtree_utility != Utilities::EMPTY_SUBTREE_UTILITY)
+                printf("Key: %d | Local Utility: %d | Subtree Utility: %d\n", table[i].key, table[i].local_utility, table[i].subtree_utility);
+        }
     }
 };
 

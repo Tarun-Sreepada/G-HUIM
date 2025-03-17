@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -23,6 +25,10 @@
 
 #define new_line 0x0A
 
+#define digits_u32 11 // 10 digits + 1 for null terminator
+
+#define ALIGN_UP(x, align) (((x) + (align) - 1) & ~((align) - 1))
+
 // Error checking macros
 #define CUDA_CHECK(call)                                                                    \
     {                                                                                       \
@@ -45,6 +51,20 @@
             exit(1);                                                                              \
         }                                                                                         \
     }
+
+#define gpuErrchk(ans)                        \
+    {                                         \
+        gpuAssert((ans), __FILE__, __LINE__); \
+    }
+inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort = true)
+{
+    if (code != cudaSuccess)
+    {
+        fprintf(stderr, "GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+        if (abort)
+            exit(code);
+    }
+}
 
 struct FileBuffer
 {
@@ -74,18 +94,19 @@ __global__ void initial_pass(FileBuffer *fd, const char separator, int *buckets)
 
     __shared__ char buffer[BLOCK_SIZE];
 
-    __shared__ int length;
+    char potential[digits_u32];
 
-    int bid = blockIdx.x;
     int g_tid = blockIdx.x * blockDim.x + threadIdx.x; // global thread id
     int l_tid = threadIdx.x;                           // local thread id
+
+    __shared__ int col_index;
 
     // asm set num_lines and num_items to 0
     if (l_tid == 0)
     {
         num_lines = 0;
         num_items = 0;
-        length = 0;
+        col_index = 0;
     }
 
     __syncthreads();
@@ -94,14 +115,6 @@ __global__ void initial_pass(FileBuffer *fd, const char separator, int *buckets)
     if (g_tid < fd->size)
     {
         buffer[l_tid] = fd->data[g_tid];
-        atomicMax(&length, g_tid);
-    }
-
-    __syncthreads();
-
-    // Count number of items and lines
-    if (l_tid < length)
-    {
         if (buffer[l_tid] == separator)
         {
             atomicAdd(&num_items, 1);
@@ -110,6 +123,10 @@ __global__ void initial_pass(FileBuffer *fd, const char separator, int *buckets)
         {
             atomicAdd(&num_lines, 1);
         }
+        if (buffer[l_tid] == ':')
+        {
+            atomicMax(&col_index, l_tid);
+        }
     }
 
     __syncthreads();
@@ -117,28 +134,34 @@ __global__ void initial_pass(FileBuffer *fd, const char separator, int *buckets)
     // Unique Count
     if (l_tid == 0)
     {
-        // start from 0, go until we find either a separator or a newline or a colon, then we hash the key and update the hll
-        int start = 0;
-        int end = 0;
-        for (int i = 0; i < length; i++)
-        {
-            if (buffer[i] == separator || buffer[i] == '\n' || buffer[i] == ':')
-            {
-                end = i;
-                int key = str_to_uint(buffer, start, end);
-                hll(buckets, key);
-                start = i + 1;
-            }
-        }
-        // do the last one
-        int key = str_to_uint(buffer, start, length);
-        hll(buckets, key);
-
         atomicAdd(&fd->num_lines, num_lines);
         atomicAdd(&fd->num_items, num_items);
     }
 
     __syncthreads();
+
+    // HLL
+    if (l_tid > col_index) return;
+
+    // if 0th thread or item at tid is separator or : or \n we hash
+    if (l_tid == 0 || buffer[l_tid] == separator || buffer[l_tid] == '\n' || buffer[l_tid] == ':')
+    {
+        // load 11 characters into potential
+        int end = 0;
+        for (int i = 0; i < digits_u32; i++)
+        {
+            potential[i] = buffer[l_tid + i + 1]; // +1 to skip the separator
+            if (potential[i] == separator || potential[i] == '\n' || potential[i] == ':')
+            {
+                end = i;
+                break;
+            }
+        }
+
+        // convert potential to int
+        int key = str_to_uint(potential, 0, end);
+        hll(buckets, key);
+    }
 
     return;
 }
@@ -158,6 +181,161 @@ __global__ void second_pass(FileBuffer *fd, const char separator)
     }
 
     return;
+}
+
+__global__ void parse(FileBuffer *fd, Database *db, const char separator, HashTable<Utilities> *initial_utils)
+{
+    // Use shared integer indices instead of pointers.
+    __shared__ int twu_start_index;
+    __shared__ int twu_end_index;
+    __shared__ int num_items;
+
+    int bid = blockIdx.x;
+    // int bid = 5; // debug
+    int tid = threadIdx.x;
+
+    int line_start = fd->lines[bid];
+    int line_end = fd->lines[bid + 1];
+    int line_length = line_end - line_start;
+
+    extern __shared__ char line[];
+
+    if (line_start != 0)
+    {
+        line_start++;
+        line_length--;
+    }
+
+    if (tid == 0)
+    {
+        num_items = 1;
+        twu_start_index = line_length;
+        twu_end_index = -1;
+    }
+
+
+    __syncthreads();
+
+    // Load the line into shared memory.
+    for (int i = tid; i < line_length; i += blockDim.x)
+    {
+        line[i] = fd->data[line_start + i];
+        if (line[i] == ':')
+        {
+            atomicMin(&twu_start_index, i);
+            atomicMax(&twu_end_index, i);
+        }
+    }
+
+    __syncthreads();
+
+    // Get number of items
+    for (int i = tid; i < twu_start_index; i += blockDim.x)
+    {
+        if (line[i] == separator)
+        {
+            atomicAdd(&num_items, 1);
+        }
+    }
+
+    __syncthreads();
+
+    if (tid == 0)
+    {
+        int ret = atomicAdd(&db->numTransactions, 1);
+        db->d_transactions[ret].length = num_items;
+
+        unsigned int twu = str_to_uint(line, twu_start_index + 1, twu_end_index);
+
+        int item_ret = atomicAdd(&db->numItems, num_items);
+        db->d_transactions[ret].data = &db->d_data[item_ret];
+
+        // start from 0 go all the way to twu start ptr
+        int item_index = 0;
+        int idx = 0;
+        int key = 0;
+
+        for (int i = 0; i < twu_start_index; i++)
+        {
+            if (line[i] == separator)
+            {
+                key = str_to_uint(line, idx, i);
+                db->d_data[item_ret + item_index].key = key;
+
+                item_index++;
+                idx = i + 1;
+
+                // add twu to hash table
+                // printf("Inserting key: %d, twu: %d\n", key, twu);
+                initial_utils->insert(key, twu, Utilities::UtilityType::LOCAL_UTILITY);
+            }
+        }
+        // do the last item
+        key = str_to_uint(line, idx, twu_start_index); // not including the colon
+        db->d_data[item_ret + item_index].key = key;
+        initial_utils->insert(key, twu, Utilities::UtilityType::LOCAL_UTILITY);
+
+        // start from twu end ptr go all the way to end of line
+        item_index = 0;
+        idx = twu_end_index + 1; // skip the colon
+        for (int i = twu_end_index + 2; i < line_length; i++)
+        {
+            if (line[i] == separator || i == ':')
+            {
+                db->d_data[item_ret + item_index].util = str_to_uint(line, idx, i);
+                idx = i + 1;
+                item_index++;
+            }
+        }
+        // do the last item
+        db->d_data[item_ret + item_index].util = str_to_uint(line, idx, line_length);
+    }
+}
+
+__global__ void computeDifferences(uint64_t *lines, uint64_t *differences, size_t num_lines)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < num_lines - 1)
+    {
+        differences[idx] = lines[idx + 1] - lines[idx];
+    }
+}
+
+uint64_t getMaxDifference(uint64_t *d_lines, size_t num_lines)
+{
+    // Allocate device memory for differences
+    uint64_t *d_differences;
+    cudaMalloc(&d_differences, (num_lines - 1) * sizeof(uint64_t));
+
+    // Compute differences in parallel
+    int threadsPerBlock = BLOCK_SIZE;
+    int blocksPerGrid = (num_lines - 1 + threadsPerBlock - 1) / threadsPerBlock;
+    computeDifferences<<<blocksPerGrid, threadsPerBlock>>>(d_lines, d_differences, num_lines);
+    cudaDeviceSynchronize();
+
+    // Use CUB to find the maximum
+    void *d_temp_storage = NULL;
+    size_t temp_storage_bytes = 0;
+    uint64_t *d_max_diff;
+    cudaMalloc(&d_max_diff, sizeof(uint64_t));
+
+    // Determine storage size
+    cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, d_differences, d_max_diff, num_lines - 1);
+    cudaMalloc(&d_temp_storage, temp_storage_bytes);
+
+    // Compute max
+    cub::DeviceReduce::Max(d_temp_storage, temp_storage_bytes, d_differences, d_max_diff, num_lines - 1);
+
+    // Copy result back to host
+    uint64_t max_diff;
+    cudaMemcpy(&max_diff, d_max_diff, sizeof(uint64_t), cudaMemcpyDeviceToHost);
+
+    // Cleanup
+    cudaFree(d_differences);
+    cudaFree(d_max_diff);
+    cudaFree(d_temp_storage);
+
+    return max_diff;
 }
 
 // CPU function: Estimate Unique Count
@@ -226,6 +404,7 @@ double hll_estimate(int *h_hll_registers)
 
 FileBuffer *load_file(const std::string &filename, Timer &timer)
 {
+    // 1) Open file with O_DIRECT
     int fd = open(filename.c_str(), O_RDONLY | O_DIRECT);
     if (fd == -1)
     {
@@ -233,6 +412,7 @@ FileBuffer *load_file(const std::string &filename, Timer &timer)
         return nullptr;
     }
 
+    // 2) Get file size
     struct stat sb;
     if (fstat(fd, &sb) == -1)
     {
@@ -243,49 +423,62 @@ FileBuffer *load_file(const std::string &filename, Timer &timer)
     size_t file_size = sb.st_size;
     std::cout << "File size: " << file_size << " bytes\n";
 
-    // Allocate FileBuffer structure on host (much lighter than cudaMallocManaged)
-    FileBuffer *data;
-    cudaMallocManaged(&data, sizeof(FileBuffer));
-    memset(data, 0, sizeof(FileBuffer));
+    // 3) Align the size to 4 KB boundaries for O_DIRECT
+    size_t aligned_size = (file_size + 4095) & ~4095;
+
+    // 4) Allocate the FileBuffer struct in managed memory
+    FileBuffer *data = nullptr;
+    CUDA_CHECK(cudaMallocManaged(&data, sizeof(FileBuffer)));
+    std::memset(data, 0, sizeof(FileBuffer));
     data->size = file_size;
-    CUDA_CHECK(cudaMalloc(&data->data, file_size));
 
-    // Register GPU memory with cuFile
-    CUFILE_CHECK(cuFileBufRegister(data->data, file_size, 0));
+    // 5) Allocate device memory for the file contents
+    CUDA_CHECK(cudaMalloc(&data->data, aligned_size));
 
-    // Open file with cuFile
+    // 6) Register GPU memory with cuFile
+    cuFileBufRegister(data->data, aligned_size, 0);
+
+    // 7) Create and register a cuFile handle
     CUfileHandle_t cufileHandle;
-    CUfileDescr_t cufileDescr = {};
-    cufileDescr.handle.fd = fd;
-    cufileDescr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
-    CUFILE_CHECK(cuFileHandleRegister(&cufileHandle, &cufileDescr));
+    {
+        CUfileDescr_t cufileDescr = {};
+        cufileDescr.handle.fd = fd;
+        cufileDescr.type = CU_FILE_HANDLE_TYPE_OPAQUE_FD;
+        CUFILE_CHECK(cuFileHandleRegister(&cufileHandle, &cufileDescr));
+    }
 
+    // Record timing
     timer.recordPoint("File setup");
 
-    // Measure transfer time using high resolution clock (or CUDA events if needed)
-    ssize_t bytes_read = cuFileRead(cufileHandle, data->data, file_size, 0, 0);
-
+    // 8) Perform GDS read
+    ssize_t bytes_read = cuFileRead(cufileHandle, data->data, file_size,
+                                    /*file_offset=*/0, /*devPtr_offset=*/0);
     if (bytes_read != static_cast<ssize_t>(file_size))
     {
         std::cerr << "Error: cuFileRead failed, only " << bytes_read << " bytes read\n";
+
+        // Cleanup so we don't leak resources:
         cuFileHandleDeregister(cufileHandle);
         cuFileBufDeregister(data->data);
+        cudaFree(data->data);
+        cudaFree(data);
         close(fd);
-        delete data;
         return nullptr;
     }
 
+    // Record second point
     timer.recordPoint("File Loaded");
 
-    // get time difference between two points and calculate throughput
-    double time_diff = timer.getTimeDifference("File setup", "File Loaded");
-    double throughput = (file_size / (1024 * 1024)) / (time_diff / 1000);
+    // 9) Show throughput
+    double time_diff = timer.getTimeDifference("File setup", "File Loaded");    // ms
+    double throughput = (file_size / (1024.0 * 1024.0)) / (time_diff / 1000.0); // MB/s
     std::cout << "Throughput: " << throughput << " MB/s\n";
 
-    // Cleanup: deregister and close file handle; leave driver open for reuse
+    // 10) Cleanup file handle registration and close
     cuFileHandleDeregister(cufileHandle);
-    cuFileBufDeregister(data->data);
     close(fd);
+
+    cuFileBufDeregister(data->data);
 
     return data;
 }
@@ -310,6 +503,9 @@ void file_parse(FileBuffer *fd, const char separator, Timer &timer)
     cudaMemset(buckets, 0, HLL_SIZE * sizeof(int));
 
     initial_pass<<<block_count, block_size>>>(fd, separator, buckets);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
     cudaDeviceSynchronize();
 
 #ifdef DEBUG
@@ -332,30 +528,79 @@ void file_parse(FileBuffer *fd, const char separator, Timer &timer)
 
     // get line pointers and number of unique items
     second_pass<<<block_count, block_size>>>(fd, separator);
-    cudaDeviceSynchronize();
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
 
     timer.recordPoint("Second Pass");
 
-    // // set the first line pointer to the start of the file
-    // cudaMemset(&fd->lines[0], 0, sizeof(uint64_t));
+    // set the first line pointer to the start of the file
+    cudaMemset(&fd->lines[0], 0, sizeof(uint64_t));
 
-    // // use cub sort to sort the line pointers
-    // size_t temp_storage_bytes = 0;
-    // void *d_temp_storage = NULL;
+    // use cub sort to sort the line pointers
+    size_t temp_storage_bytes = 0;
+    void *d_temp_storage = NULL;
 
-    // // Determine temporary device storage requirements
-    // cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, fd->lines, fd->lines, fd->line_arr_size);
+    // Determine temporary device storage requirements
+    cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, fd->lines, fd->lines, fd->line_arr_size);
 
-    // // Allocate temporary storage
-    // cudaMalloc(&d_temp_storage, temp_storage_bytes);
+    // Allocate temporary storage
+    cudaMalloc(&d_temp_storage, temp_storage_bytes);
 
-    // // Sort the keys
-    // cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, fd->lines, fd->lines, fd->num_lines + 1);
+    // Sort the keys
+    cub::DeviceRadixSort::SortKeys(d_temp_storage, temp_storage_bytes, fd->lines, fd->lines, fd->num_lines + 1);
 
-    // // Cleanup
-    // cudaFree(d_temp_storage);
+    // Cleanup
+    cudaFree(d_temp_storage);
 
-    // timer.recordPoint("Sort");
+    timer.recordPoint("Sort");
+
+    uint32_t max_diff = getMaxDifference(fd->lines, fd->line_arr_size) + 1;
+    std::cout << "Max Difference: " << max_diff << "\n";
+
+    timer.recordPoint("Max Difference");
+
+    Database *db;
+    cudaMallocManaged(&db, sizeof(Database));
+    cudaMemset(db, 0, sizeof(Database));
+
+    cudaMalloc(&db->d_transactions, fd->num_lines * sizeof(Transaction));
+    cudaMalloc(&db->d_data, fd->num_items * sizeof(Item));
+    cudaMemset(db->d_data, 0, fd->num_items * sizeof(Item));
+    cudaMemset(db->d_transactions, 0, fd->num_lines * sizeof(Transaction));
+
+    std::cout << "Num items: " << db->numItems << "\n";
+    std::cout << "Num transactions: " << db->numTransactions << "\n";
+
+    // Utilities *initial_utils;
+    uint64_t hash_set_size = estimate * INV_LOADFACTOR;
+
+    // Initial utilities
+    HashTable<Utilities> *initial_utils;
+    cudaMallocManaged(&initial_utils, sizeof(HashTable<Utilities>));
+    initial_utils->tableSize = hash_set_size;
+    cudaMallocManaged(&initial_utils->table, hash_set_size * sizeof(Utilities));
+    cudaMemset(initial_utils->table, 0, hash_set_size * sizeof(Utilities));
+
+    parse<<<(fd->num_lines + 1), BLOCK_SIZE>>>(fd, db, separator, initial_utils);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    timer.recordPoint("Parse");
+
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+#ifdef DEBUG
+    std::cout << "Number of Transactions: " << db->numTransactions << "\n";
+    std::cout << "Number of Items: " << db->numItems << "\n";
+    std::cout << "Table Size: " << initial_utils->tableSize << "\n";
+    initial_utils->print();
+#endif
+
+    // cuda free everything except db
+    cudaFree(fd->data);
+    cudaFree(fd->lines);
+    cudaFree(fd);
 
     return;
 }
