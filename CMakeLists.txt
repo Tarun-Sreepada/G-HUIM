@@ -53,16 +53,5 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 )
 
 # Link CUDA cufile library
-find_library(CUFILE_LIBRARY cufile PATHS /usr/local/cuda-12.6/lib64)
+find_library(CUFILE_LIBRARY cufile PATHS /usr/local/cuda-12.8/lib64)
 target_link_libraries(${PROJECT_NAME} PRIVATE ${CUFILE_LIBRARY})
-
-# # Include CPM for dependency management
-# include(cmake/CPM.cmake)
-# CPMAddPackage(
-#   NAME gallatin
-#   GITHUB_REPOSITORY saltsystemslab/gallatin
-#   GIT_TAG origin/main
-# )
-
-# # Link external library gallatin
-# target_link_libraries(${PROJECT_NAME} PRIVATE gallatin)
