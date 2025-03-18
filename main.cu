@@ -57,7 +57,7 @@ int main(int argc, char *argv[])
     FileBuffer *fd = load_file(parser.get("--input"), timer);
 
     // get number of transactions and total item count
-    file_parse(fd, parser.get_separator("--separator"), timer);
+    file_parse(fd, parser.get_separator("--separator"), parser.get_uint32("--minutil"), timer);
 
 
     timer.recordPoint("End");

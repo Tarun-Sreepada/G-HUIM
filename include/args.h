@@ -94,6 +94,10 @@ public:
         return args[name].value.value_or("");
     }
 
+    uint32_t get_uint32(const std::string &name) {
+        return std::stoul(get(name));
+    }
+
     // Retrieves separator as a character
     char get_separator(const std::string &name) {
         return getSeparator(get(name));
