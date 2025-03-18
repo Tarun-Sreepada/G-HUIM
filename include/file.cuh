@@ -301,6 +301,21 @@ __global__ void computeDifferences(uint64_t *lines, uint64_t *differences, size_
     }
 }
 
+__global__ void valid_utils(HashTable<Utilities> *initial_utils, uint32_t min_util)
+{
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < initial_utils->tableSize)
+    {
+        if (initial_utils->table[idx].key != Utilities::EMPTY_KEY)
+        {
+            if (initial_utils->table[idx].local_utility >= min_util)
+            {
+                initial_utils->table[idx].subtree_utility = 1;
+            }
+        }
+    }
+}
+
 uint64_t getMaxDifference(uint64_t *d_lines, size_t num_lines)
 {
     // Allocate device memory for differences
@@ -483,7 +498,7 @@ FileBuffer *load_file(const std::string &filename, Timer &timer)
     return data;
 }
 
-void file_parse(FileBuffer *fd, const char separator, Timer &timer)
+void file_parse(FileBuffer *fd, const char separator, const uint32_t min_util, Timer &timer)
 {
     // get file roud up file size to the nearest multiple of 2
     size_t file_size = fd->size;
@@ -594,8 +609,27 @@ void file_parse(FileBuffer *fd, const char separator, Timer &timer)
     std::cout << "Number of Transactions: " << db->numTransactions << "\n";
     std::cout << "Number of Items: " << db->numItems << "\n";
     std::cout << "Table Size: " << initial_utils->tableSize << "\n";
+    // initial_utils->print();
+#endif
+
+    valid_utils<<<(hash_set_size + 1023) / 1024, 1024>>>(initial_utils, min_util);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+// #ifdef DEBUG
+//     std::cout << "Valid Utilities\n";
+//     initial_utils->print();
+// #endif
+
+    initial_utils->sort();
+
+#ifdef DEBUG
+    std::cout << "Sorted Utilities\n";
     initial_utils->print();
 #endif
+
+    // next we cumsum the subtree utilities to get the unique ID for each item
+    // we add this to a hashset
 
     // cuda free everything except db
     cudaFree(fd->data);

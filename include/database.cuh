@@ -3,6 +3,8 @@
 #include <cuda_runtime.h>
 #include <cstdio>
 #include "functions.cuh"
+#include <thrust/device_ptr.h>
+#include <thrust/sort.h>
 
 // Represents an item with key and utility.
 struct Item
@@ -51,6 +53,20 @@ struct HashTable<Utilities>
     // Device pointer to an array of `Utilities`
     Utilities* table;
     int tableSize;
+
+    struct DescendingOrder
+    {
+        __device__ bool operator()(const Utilities &a, const Utilities &b) const
+        {
+            return a.local_utility > b.local_utility;
+        }
+    };
+
+    void sort()
+    {
+        thrust::device_ptr<Utilities> dev_ptr(table);
+        thrust::sort(dev_ptr, dev_ptr + tableSize, DescendingOrder());
+    }
 
     // Insert or update the key with the given utility
     __device__ bool insert(int key, int util, Utilities::UtilityType type)
