@@ -1,0 +1,19 @@
+DEBUG MODE
+Input File: accidents_utility_spmf.txt
+Minimum utility: 1500000
+Separator: ' '
+Output File: output.txt
+Threads: 16
+Maximum CPU threads: 16
+Label                                Time (ms)
+----------------------------------------------
+Start                                        0
+File Read                                   17
+Start: Finding newline positions             0
+Done: Finding newlines                      67
+Start: Parsing lines                        10
+Done: Parsing lines                        286
+Done: Merging results                       70
+End                                         34
+----------------------------------------------
+Total time                                 486 ms
