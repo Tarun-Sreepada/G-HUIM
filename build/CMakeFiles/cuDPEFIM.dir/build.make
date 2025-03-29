@@ -69,11 +69,39 @@ include CMakeFiles/cuDPEFIM.dir/progress.make
 # Include the compile flags for this target's objects.
 include CMakeFiles/cuDPEFIM.dir/flags.make
 
+CMakeFiles/cuDPEFIM.dir/src/build.cpp.o: CMakeFiles/cuDPEFIM.dir/flags.make
+CMakeFiles/cuDPEFIM.dir/src/build.cpp.o: /home/tarun/Documents/cuDPEFIM/src/build.cpp
+CMakeFiles/cuDPEFIM.dir/src/build.cpp.o: CMakeFiles/cuDPEFIM.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/cuDPEFIM.dir/src/build.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/cuDPEFIM.dir/src/build.cpp.o -MF CMakeFiles/cuDPEFIM.dir/src/build.cpp.o.d -o CMakeFiles/cuDPEFIM.dir/src/build.cpp.o -c /home/tarun/Documents/cuDPEFIM/src/build.cpp
+
+CMakeFiles/cuDPEFIM.dir/src/build.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/cuDPEFIM.dir/src/build.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/tarun/Documents/cuDPEFIM/src/build.cpp > CMakeFiles/cuDPEFIM.dir/src/build.cpp.i
+
+CMakeFiles/cuDPEFIM.dir/src/build.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/cuDPEFIM.dir/src/build.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/tarun/Documents/cuDPEFIM/src/build.cpp -o CMakeFiles/cuDPEFIM.dir/src/build.cpp.s
+
+CMakeFiles/cuDPEFIM.dir/src/file.cpp.o: CMakeFiles/cuDPEFIM.dir/flags.make
+CMakeFiles/cuDPEFIM.dir/src/file.cpp.o: /home/tarun/Documents/cuDPEFIM/src/file.cpp
+CMakeFiles/cuDPEFIM.dir/src/file.cpp.o: CMakeFiles/cuDPEFIM.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/cuDPEFIM.dir/src/file.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/cuDPEFIM.dir/src/file.cpp.o -MF CMakeFiles/cuDPEFIM.dir/src/file.cpp.o.d -o CMakeFiles/cuDPEFIM.dir/src/file.cpp.o -c /home/tarun/Documents/cuDPEFIM/src/file.cpp
+
+CMakeFiles/cuDPEFIM.dir/src/file.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/cuDPEFIM.dir/src/file.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/tarun/Documents/cuDPEFIM/src/file.cpp > CMakeFiles/cuDPEFIM.dir/src/file.cpp.i
+
+CMakeFiles/cuDPEFIM.dir/src/file.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/cuDPEFIM.dir/src/file.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/tarun/Documents/cuDPEFIM/src/file.cpp -o CMakeFiles/cuDPEFIM.dir/src/file.cpp.s
+
 CMakeFiles/cuDPEFIM.dir/main.cu.o: CMakeFiles/cuDPEFIM.dir/flags.make
 CMakeFiles/cuDPEFIM.dir/main.cu.o: CMakeFiles/cuDPEFIM.dir/includes_CUDA.rsp
 CMakeFiles/cuDPEFIM.dir/main.cu.o: /home/tarun/Documents/cuDPEFIM/main.cu
 CMakeFiles/cuDPEFIM.dir/main.cu.o: CMakeFiles/cuDPEFIM.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CUDA object CMakeFiles/cuDPEFIM.dir/main.cu.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CUDA object CMakeFiles/cuDPEFIM.dir/main.cu.o"
 	/usr/local/cuda-12.8/bin/nvcc -forward-unknown-to-host-compiler $(CUDA_DEFINES) $(CUDA_INCLUDES) $(CUDA_FLAGS) -MD -MT CMakeFiles/cuDPEFIM.dir/main.cu.o -MF CMakeFiles/cuDPEFIM.dir/main.cu.o.d -x cu -rdc=true -c /home/tarun/Documents/cuDPEFIM/main.cu -o CMakeFiles/cuDPEFIM.dir/main.cu.o
 
 CMakeFiles/cuDPEFIM.dir/main.cu.i: cmake_force
@@ -86,18 +114,24 @@ CMakeFiles/cuDPEFIM.dir/main.cu.s: cmake_force
 
 # Object files for target cuDPEFIM
 cuDPEFIM_OBJECTS = \
+"CMakeFiles/cuDPEFIM.dir/src/build.cpp.o" \
+"CMakeFiles/cuDPEFIM.dir/src/file.cpp.o" \
 "CMakeFiles/cuDPEFIM.dir/main.cu.o"
 
 # External object files for target cuDPEFIM
 cuDPEFIM_EXTERNAL_OBJECTS =
 
+CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/src/build.cpp.o
+CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/src/file.cpp.o
 CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/main.cu.o
 CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/build.make
-CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: /usr/local/cuda-12.8/lib64/libcufile.so
+CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: /usr/lib/x86_64-linux-gnu/liburing.so
+CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: /usr/lib/gcc/x86_64-linux-gnu/13/libgomp.so
+CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: /usr/lib/x86_64-linux-gnu/libpthread.a
 CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/deviceLinkLibs.rsp
 CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/deviceObjects1.rsp
 CMakeFiles/cuDPEFIM.dir/cmake_device_link.o: CMakeFiles/cuDPEFIM.dir/dlink.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CUDA device code CMakeFiles/cuDPEFIM.dir/cmake_device_link.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CUDA device code CMakeFiles/cuDPEFIM.dir/cmake_device_link.o"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/cuDPEFIM.dir/dlink.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.
@@ -106,19 +140,23 @@ CMakeFiles/cuDPEFIM.dir/build: CMakeFiles/cuDPEFIM.dir/cmake_device_link.o
 
 # Object files for target cuDPEFIM
 cuDPEFIM_OBJECTS = \
+"CMakeFiles/cuDPEFIM.dir/src/build.cpp.o" \
+"CMakeFiles/cuDPEFIM.dir/src/file.cpp.o" \
 "CMakeFiles/cuDPEFIM.dir/main.cu.o"
 
 # External object files for target cuDPEFIM
 cuDPEFIM_EXTERNAL_OBJECTS =
 
+cuDPEFIM: CMakeFiles/cuDPEFIM.dir/src/build.cpp.o
+cuDPEFIM: CMakeFiles/cuDPEFIM.dir/src/file.cpp.o
 cuDPEFIM: CMakeFiles/cuDPEFIM.dir/main.cu.o
 cuDPEFIM: CMakeFiles/cuDPEFIM.dir/build.make
-cuDPEFIM: /usr/local/cuda-12.8/lib64/libcufile.so
+cuDPEFIM: /usr/lib/x86_64-linux-gnu/liburing.so
+cuDPEFIM: /usr/lib/gcc/x86_64-linux-gnu/13/libgomp.so
+cuDPEFIM: /usr/lib/x86_64-linux-gnu/libpthread.a
 cuDPEFIM: CMakeFiles/cuDPEFIM.dir/cmake_device_link.o
-cuDPEFIM: CMakeFiles/cuDPEFIM.dir/linkLibs.rsp
-cuDPEFIM: CMakeFiles/cuDPEFIM.dir/objects1.rsp
 cuDPEFIM: CMakeFiles/cuDPEFIM.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CUDA executable cuDPEFIM"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/tarun/Documents/cuDPEFIM/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX executable cuDPEFIM"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/cuDPEFIM.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

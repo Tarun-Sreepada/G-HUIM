@@ -1,13 +1,22 @@
 # cuDPHIM
 
-## Debug
-`
-cmake -DCMAKE_BUILD_TYPE=Debug .. &&
-make -j$(nproc)
-`
+#### For Debug Build:
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build -- -j$(nproc)
+```
 
-## Release
-`
-cmake -DCMAKE_BUILD_TYPE=Release .. &&
-make -j$(nproc)
-`
+#### For Release Build:
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -- -j$(nproc)
+```
+
+---
+
+```bash
+sudo apt install liburing-dev
+
+
+ cmake --build build -- -j$(nproc) && ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16
+```

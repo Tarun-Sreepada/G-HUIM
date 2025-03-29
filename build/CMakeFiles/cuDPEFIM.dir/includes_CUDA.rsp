@@ -1,1 +1,1 @@
--I/home/tarun/Documents/cuDPEFIM/include
+-I"/usr/local/cuda-12.8/targets/x86_64-linux/include" -I/home/tarun/Documents/cuDPEFIM/include

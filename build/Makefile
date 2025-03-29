@@ -153,6 +153,54 @@ main.cu.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/main.cu.s
 .PHONY : main.cu.s
 
+src/build.o: src/build.cpp.o
+.PHONY : src/build.o
+
+# target to build an object file
+src/build.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/build.cpp.o
+.PHONY : src/build.cpp.o
+
+src/build.i: src/build.cpp.i
+.PHONY : src/build.i
+
+# target to preprocess a source file
+src/build.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/build.cpp.i
+.PHONY : src/build.cpp.i
+
+src/build.s: src/build.cpp.s
+.PHONY : src/build.s
+
+# target to generate assembly for a file
+src/build.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/build.cpp.s
+.PHONY : src/build.cpp.s
+
+src/file.o: src/file.cpp.o
+.PHONY : src/file.o
+
+# target to build an object file
+src/file.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/file.cpp.o
+.PHONY : src/file.cpp.o
+
+src/file.i: src/file.cpp.i
+.PHONY : src/file.i
+
+# target to preprocess a source file
+src/file.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/file.cpp.i
+.PHONY : src/file.cpp.i
+
+src/file.s: src/file.cpp.s
+.PHONY : src/file.s
+
+# target to generate assembly for a file
+src/file.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/file.cpp.s
+.PHONY : src/file.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -165,6 +213,12 @@ help:
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
+	@echo "... src/build.o"
+	@echo "... src/build.i"
+	@echo "... src/build.s"
+	@echo "... src/file.o"
+	@echo "... src/file.i"
+	@echo "... src/file.s"
 .PHONY : help
 
 
