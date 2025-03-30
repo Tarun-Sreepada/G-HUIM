@@ -1,0 +1,12 @@
+<map id="include/timer.hpp" name="include/timer.hpp">
+<area shape="rect" id="Node000001" title="Simple timer and memory profiler for labeled code segments." alt="" coords="54,5,189,31"/>
+<area shape="rect" id="Node000002" href="$build_8hpp.html" title=" " alt="" coords="5,152,139,177"/>
+<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="114,45,101,80,78,153,73,151,96,78,109,43"/>
+<area shape="rect" id="Node000004" href="$file_8hpp.html" title="Provides structures and functions for handling raw and parsed file data, including file loading,..." alt="" coords="110,79,231,104"/>
+<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="139,41,165,77,160,80,135,44"/>
+<area shape="rect" id="Node000003" href="$build_8cpp.html" title=" " alt="" coords="20,225,124,251"/>
+<area shape="poly" id="edge2_Node000002_Node000003" title=" " alt="" coords="75,191,75,225,69,225,69,191"/>
+<area shape="poly" id="edge4_Node000004_Node000002" title=" " alt="" coords="146,114,90,154,87,150,142,110"/>
+<area shape="rect" id="Node000005" href="$file_8cpp.html" title=" " alt="" coords="163,152,255,177"/>
+<area shape="poly" id="edge5_Node000004_Node000005" title=" " alt="" coords="186,115,205,151,201,153,181,118"/>
+</map>

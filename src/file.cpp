@@ -163,9 +163,8 @@ static void read_chunk_with_io_uring(
 
 raw_file load_file(std::string filename, int threads, Timer &timer)
 {
-    // Tune to your needs or pass as extra parameters
     const unsigned int queue_depth = 1024;
-    const size_t page_size = 4096; // e.g., 4KB
+    const size_t page_size = 1024 * 128; // 128KB
 
     // 1) Validate file, get size
     size_t file_size_bytes = validate_file(filename);
@@ -311,10 +310,18 @@ parsed_file parse_file(raw_file &file, int threads, const char separator, Timer 
         }
     }
 
+    #ifdef DEBUG
+    timer.recordPoint("Newline Positions");
+    #endif
+
     for (const auto &vec : thread_newlines)
         newline_positions.insert(newline_positions.end(), vec.begin(), vec.end());
 
     std::sort(newline_positions.begin(), newline_positions.end());
+
+    #ifdef DEBUG
+    timer.recordPoint("Newline Positions Sorted");
+    #endif
 
 
     // ---- STEP 2: BUILD LINE START INDICES ----
@@ -329,6 +336,10 @@ parsed_file parse_file(raw_file &file, int threads, const char separator, Timer 
     line_starts.push_back(size); // final end-of-buffer
 
     size_t line_count = line_starts.size() - 1;
+
+    #ifdef DEBUG
+    timer.recordPoint("Line Starts");
+    #endif
 
     // ---- STEP 3: PARSE LINES IN PARALLEL ----
 
@@ -356,6 +367,9 @@ parsed_file parse_file(raw_file &file, int threads, const char separator, Timer 
         }
     }
 
+    #ifdef DEBUG
+    timer.recordPoint("Line Parse");
+    #endif
 
     // ---- STEP 4: MERGE LOCAL TWU MAPS ----
     for (const auto &local_map : local_twu)

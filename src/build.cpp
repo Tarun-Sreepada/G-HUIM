@@ -1,7 +1,7 @@
 #include "build.hpp"
 
 
-void buildOrderedTWU(const parsed_file &pf, uint64_t min_utility, built_file &bf, Timer &timer)
+void buildOrderedTWU(const parsed_file &pf, uint64_t min_utility, built_file &bf)
 {
     for (const auto &item : pf.twu)
     {
@@ -12,6 +12,7 @@ void buildOrderedTWU(const parsed_file &pf, uint64_t min_utility, built_file &bf
         bf.ordered_twu[item.first] = item.second;
     }
 
+    // Sort the ordered_twu map by utility in descending order.
     bf.ordered_twu_vector = std::vector<std::pair<uint32_t, uint32_t>>(bf.ordered_twu.begin(), bf.ordered_twu.end());
     std::sort(bf.ordered_twu_vector.begin(), bf.ordered_twu_vector.end(),
               [](const std::pair<uint32_t, uint32_t> &a, const std::pair<uint32_t, uint32_t> &b)
@@ -20,7 +21,7 @@ void buildOrderedTWU(const parsed_file &pf, uint64_t min_utility, built_file &bf
               });
 }
 
-void createItemMapping(built_file &bf, Timer &timer)
+void createItemMapping(built_file &bf)
 {
     uint32_t itemID = static_cast<uint32_t>(bf.ordered_twu.size());
     for (const auto &item : bf.ordered_twu_vector)
@@ -33,7 +34,6 @@ void createItemMapping(built_file &bf, Timer &timer)
 void formatTransactions(const parsed_file &pf,
                         int threads,
                         const built_file &bf,
-                        Timer &timer,
                         std::vector<std::vector<Item>> &transactions,
                         std::unordered_map<uint32_t, uint32_t> &global_twu)
 {
@@ -67,7 +67,7 @@ void formatTransactions(const parsed_file &pf,
             std::sort(transaction.begin(), transaction.end(),
                       [](const Item &a, const Item &b)
                       {
-                          return a.key > b.key;
+                          return a.key < b.key;
                       });
 
             // Calculate the total utility of the transaction.
@@ -120,6 +120,7 @@ void formatTransactions(const parsed_file &pf,
             global_twu[item] += utility;
         }
     }
+
 }
 
 void createPrimary(built_file &bf, uint64_t min_utility, std::unordered_map<uint32_t, uint32_t> &subtree_utility)
@@ -139,20 +140,69 @@ built_file build_file(parsed_file &pf, int threads, Timer &timer, uint64_t min_u
     built_file bf;
 
     // Step 1: Build the ordered TWU structure.
-    buildOrderedTWU(pf, min_utility, bf, timer);
+    buildOrderedTWU(pf, min_utility, bf);
+    #ifdef DEBUG
+    timer.recordPoint("Ordered TWU");
+    #endif
 
     // Step 2: Create the item to itemID mapping.
-    createItemMapping(bf, timer);
+    createItemMapping(bf);
+    #ifdef DEBUG
+    timer.recordPoint("Item Mapping");
+    #endif
 
     // Step 3: Format transactions in parallel and merge local results.
     std::vector<std::vector<Item>> transactions;
     std::unordered_map<uint32_t, uint32_t> subtree_utility;
-    formatTransactions(pf, threads, bf, timer, transactions, subtree_utility);
+    formatTransactions(pf, threads, bf, transactions, subtree_utility);
+    #ifdef DEBUG
+    timer.recordPoint("Format Transactions");
+    #endif
 
     // Step 4: Create primary and secondary lists.
     createPrimary(bf, min_utility, subtree_utility);
+    #ifdef DEBUG
+    timer.recordPoint("Create Primary");
+    #endif
+
+    uint64_t total_items = 0;
+    for (const auto &trans : transactions)
+    {
+        total_items += trans.size();
+    }
+
+    // sort transactions by transaction size
+    std::sort(transactions.begin(), transactions.end(),
+              [](const std::vector<Item> &a, const std::vector<Item> &b)
+              {
+                  return a.size() < b.size();
+              });
+
+    bf.transaction_count = transactions.size();
+
+    bf.transactions = std::move(transactions);
+    bf.total_items = total_items;
+
+    #ifdef DEBUG
+    std::cout << "Total transactions: " << bf.transaction_count << std::endl;
+    std::cout << "Total items: " << bf.total_items << std::endl;
+    
+    // print sample transactions
+    std::cout << "Sample transactions:" << std::endl;
+    for (size_t i = 0; i < std::min(bf.transaction_count, 5UL); ++i)
+    {
+        std::cout << "Transaction " << i << ": ";
+        for (const auto &item : bf.transactions[i])
+        {
+            std::cout << item.key << ":" << item.util << " ";
+        }
+        std::cout << std::endl;
+    }
+
+    #endif
 
     timer.recordPoint("Build");
+
 
     return bf;
 }

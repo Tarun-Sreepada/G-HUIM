@@ -177,6 +177,30 @@ src/build.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/build.cpp.s
 .PHONY : src/build.cpp.s
 
+src/copy.o: src/copy.cu.o
+.PHONY : src/copy.o
+
+# target to build an object file
+src/copy.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/copy.cu.o
+.PHONY : src/copy.cu.o
+
+src/copy.i: src/copy.cu.i
+.PHONY : src/copy.i
+
+# target to preprocess a source file
+src/copy.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/copy.cu.i
+.PHONY : src/copy.cu.i
+
+src/copy.s: src/copy.cu.s
+.PHONY : src/copy.s
+
+# target to generate assembly for a file
+src/copy.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/copy.cu.s
+.PHONY : src/copy.cu.s
+
 src/file.o: src/file.cpp.o
 .PHONY : src/file.o
 
@@ -201,6 +225,54 @@ src/file.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/file.cpp.s
 .PHONY : src/file.cpp.s
 
+src/memory.o: src/memory.cu.o
+.PHONY : src/memory.o
+
+# target to build an object file
+src/memory.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/memory.cu.o
+.PHONY : src/memory.cu.o
+
+src/memory.i: src/memory.cu.i
+.PHONY : src/memory.i
+
+# target to preprocess a source file
+src/memory.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/memory.cu.i
+.PHONY : src/memory.cu.i
+
+src/memory.s: src/memory.cu.s
+.PHONY : src/memory.s
+
+# target to generate assembly for a file
+src/memory.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/memory.cu.s
+.PHONY : src/memory.cu.s
+
+src/mine.o: src/mine.cu.o
+.PHONY : src/mine.o
+
+# target to build an object file
+src/mine.cu.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/mine.cu.o
+.PHONY : src/mine.cu.o
+
+src/mine.i: src/mine.cu.i
+.PHONY : src/mine.i
+
+# target to preprocess a source file
+src/mine.cu.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/mine.cu.i
+.PHONY : src/mine.cu.i
+
+src/mine.s: src/mine.cu.s
+.PHONY : src/mine.s
+
+# target to generate assembly for a file
+src/mine.cu.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/cuDPEFIM.dir/build.make CMakeFiles/cuDPEFIM.dir/src/mine.cu.s
+.PHONY : src/mine.cu.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -216,9 +288,18 @@ help:
 	@echo "... src/build.o"
 	@echo "... src/build.i"
 	@echo "... src/build.s"
+	@echo "... src/copy.o"
+	@echo "... src/copy.i"
+	@echo "... src/copy.s"
 	@echo "... src/file.o"
 	@echo "... src/file.i"
 	@echo "... src/file.s"
+	@echo "... src/memory.o"
+	@echo "... src/memory.i"
+	@echo "... src/memory.s"
+	@echo "... src/mine.o"
+	@echo "... src/mine.i"
+	@echo "... src/mine.s"
 .PHONY : help
 
 

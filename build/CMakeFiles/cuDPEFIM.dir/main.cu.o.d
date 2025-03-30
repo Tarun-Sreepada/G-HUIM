@@ -482,4 +482,9 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/c++/13/bits/stl_numeric.h \
     /usr/include/c++/13/pstl/glue_numeric_defs.h \
     /home/tarun/Documents/cuDPEFIM/include/data_types.hpp \
-    /home/tarun/Documents/cuDPEFIM/include/memory.cuh
+    /home/tarun/Documents/cuDPEFIM/include/memory.cuh \
+    /home/tarun/Documents/cuDPEFIM/include/stack.cuh \
+    /home/tarun/Documents/cuDPEFIM/include/data_types.cuh \
+    /home/tarun/Documents/cuDPEFIM/include/copy.cuh \
+    /home/tarun/Documents/cuDPEFIM/include/validate.cuh \
+    /home/tarun/Documents/cuDPEFIM/include/mine.cuh
