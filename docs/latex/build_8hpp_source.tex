@@ -1,0 +1,58 @@
+\doxysection{build.\+hpp}
+\hypertarget{build_8hpp_source}{}\label{build_8hpp_source}\index{include/build.hpp@{include/build.hpp}}
+\mbox{\hyperlink{build_8hpp}{Go to the documentation of this file.}}
+\begin{DoxyCode}{0}
+\DoxyCodeLine{00001\ }
+\DoxyCodeLine{00009\ \textcolor{preprocessor}{\ \#pragma\ once}}
+\DoxyCodeLine{00010\ }
+\DoxyCodeLine{00011\ \textcolor{preprocessor}{\ \#include\ <iostream>}}
+\DoxyCodeLine{00012\ \textcolor{preprocessor}{\ \#include\ <vector>}}
+\DoxyCodeLine{00013\ \textcolor{preprocessor}{\ \#include\ <string>}}
+\DoxyCodeLine{00014\ \textcolor{preprocessor}{\ \#include\ <unordered\_map>}}
+\DoxyCodeLine{00015\ \textcolor{preprocessor}{\ \#include\ <map>}}
+\DoxyCodeLine{00016\ \textcolor{preprocessor}{\ \#include\ <utility>}}
+\DoxyCodeLine{00017\ \textcolor{preprocessor}{\ \#include\ <charconv>}}
+\DoxyCodeLine{00018\ \textcolor{preprocessor}{\ \#include\ <stdexcept>}}
+\DoxyCodeLine{00019\ \textcolor{preprocessor}{\ \#include\ <omp.h>}}
+\DoxyCodeLine{00020\ \textcolor{preprocessor}{\ \#include\ <cstdint>}}
+\DoxyCodeLine{00021\ \textcolor{preprocessor}{\ \#include\ <algorithm>}}
+\DoxyCodeLine{00022\ \textcolor{preprocessor}{\ \#include\ <numeric>}}
+\DoxyCodeLine{00023\ \textcolor{preprocessor}{\ \#include\ "{}\mbox{\hyperlink{data__types_8hpp}{data\_types.hpp}}"{}}}
+\DoxyCodeLine{00024\ \textcolor{preprocessor}{\ \#include\ "{}\mbox{\hyperlink{timer_8hpp}{timer.hpp}}"{}}}
+\DoxyCodeLine{00025\ \textcolor{preprocessor}{\ \#include\ "{}\mbox{\hyperlink{file_8hpp}{file.hpp}}"{}}}
+\DoxyCodeLine{00026\ \ }
+\DoxyCodeLine{00033\ \ \textcolor{keyword}{struct\ }\mbox{\hyperlink{structbuilt__file}{built\_file}}}
+\DoxyCodeLine{00034\ \ \{}
+\DoxyCodeLine{00035\ \ \ \ \ \ std::map<uint32\_t,\ uint32\_t>\ \mbox{\hyperlink{structbuilt__file_a8599ba8f612604e2e01c3d203a146e85}{ordered\_twu}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00036\ \ \ \ \ \ std::vector<std::pair<uint32\_t,\ uint32\_t>>\ \mbox{\hyperlink{structbuilt__file_a2c9098e7b785dc3028dc2079397d8881}{ordered\_twu\_vector}};\ }
+\DoxyCodeLine{00037\ \ }
+\DoxyCodeLine{00038\ \ \ \ \ \ std::unordered\_map<uint32\_t,\ uint32\_t>\ \mbox{\hyperlink{structbuilt__file_a4f513a126a3defb2abd871e39f71641a}{item\_to\_itemID}};\ \ }
+\DoxyCodeLine{00039\ \ \ \ \ \ std::unordered\_map<uint32\_t,\ uint32\_t>\ \mbox{\hyperlink{structbuilt__file_a379b62ebe2c6412d38275b3c8eba7bbb}{itemID\_to\_item}};\ \ }
+\DoxyCodeLine{00040\ \ }
+\DoxyCodeLine{00041\ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{structbuilt__file_adbf57d3b6a30a6f815a13c91229f7aba}{transaction\_count}};\ \ \ \ }
+\DoxyCodeLine{00042\ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{structbuilt__file_a685c637340178f27398e2938fed46427}{total\_items}};\ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00043\ \ \ \ \ \ \textcolor{keywordtype}{size\_t}\ \mbox{\hyperlink{structbuilt__file_a881eb5ceb444b307021bbea3a822cad0}{max\_transaction\_size}};}
+\DoxyCodeLine{00044\ \ }
+\DoxyCodeLine{00045\ \ \ \ \ \ std::vector<std::vector<Item>>\ \mbox{\hyperlink{structbuilt__file_ad6ed033cb5a794df67e33d9b483a55df}{transactions}};\ }
+\DoxyCodeLine{00046\ \ \ \ \ \ std::vector<uint32\_t>\ \mbox{\hyperlink{structbuilt__file_a8d13b7bbdde896f608f973cfc6bf0327}{primary}};\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ }
+\DoxyCodeLine{00047\ \ }
+\DoxyCodeLine{00053\ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_afed48c8b96a518f87b851e1515625b18}{built\_file}}()}
+\DoxyCodeLine{00054\ \ \ \ \ \ \{}
+\DoxyCodeLine{00055\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_adbf57d3b6a30a6f815a13c91229f7aba}{transaction\_count}}\ =\ 0;}
+\DoxyCodeLine{00056\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a881eb5ceb444b307021bbea3a822cad0}{max\_transaction\_size}}\ =\ 0;}
+\DoxyCodeLine{00057\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a685c637340178f27398e2938fed46427}{total\_items}}\ =\ 0;}
+\DoxyCodeLine{00058\ \ \ \ \ \ \}}
+\DoxyCodeLine{00059\ \ }
+\DoxyCodeLine{00065\ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a5d44c18459a86bc95384d912476c15b0}{\string~built\_file}}()}
+\DoxyCodeLine{00066\ \ \ \ \ \ \{}
+\DoxyCodeLine{00067\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a8599ba8f612604e2e01c3d203a146e85}{ordered\_twu}}.clear();}
+\DoxyCodeLine{00068\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a2c9098e7b785dc3028dc2079397d8881}{ordered\_twu\_vector}}.clear();}
+\DoxyCodeLine{00069\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a4f513a126a3defb2abd871e39f71641a}{item\_to\_itemID}}.clear();}
+\DoxyCodeLine{00070\ \ \ \ \ \ \ \ \ \ \mbox{\hyperlink{structbuilt__file_a379b62ebe2c6412d38275b3c8eba7bbb}{itemID\_to\_item}}.clear();}
+\DoxyCodeLine{00071\ \ \ \ \ \ \}}
+\DoxyCodeLine{00072\ \ \};}
+\DoxyCodeLine{00073\ \ }
+\DoxyCodeLine{00086\ \ \mbox{\hyperlink{structbuilt__file}{built\_file}}\ \mbox{\hyperlink{build_8hpp_a0aaf0b371593f361a49f18fe3269e82f}{build\_file}}(\mbox{\hyperlink{structparsed__file}{parsed\_file}}\ \&pf,\ \textcolor{keywordtype}{int}\ threads,\ \mbox{\hyperlink{classTimer}{Timer}}\ \&timer,\ uint64\_t\ min\_utility);}
+\DoxyCodeLine{00087\ \ }
+
+\end{DoxyCode}

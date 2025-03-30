@@ -1,0 +1,119 @@
+\doxysection{raw\+\_\+file Struct Reference}
+\hypertarget{structraw__file}{}\label{structraw__file}\index{raw\_file@{raw\_file}}
+
+
+Represents a raw file loaded into memory.  
+
+
+
+
+{\ttfamily \#include $<$file.\+hpp$>$}
+
+\doxysubsubsection*{Public Member Functions}
+\begin{DoxyCompactItemize}
+\item 
+\mbox{\hyperlink{structraw__file_a42aeb8274bc1f9a8b1e29fab908c08c8}{raw\+\_\+file}} ()
+\item 
+void \mbox{\hyperlink{structraw__file_a885951054ec9fc69ab01fd9c2ffca941}{close}} ()
+\end{DoxyCompactItemize}
+\doxysubsubsection*{Public Attributes}
+\begin{DoxyCompactItemize}
+\item 
+char \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{structraw__file_a357488edfa4673e5141a4c5fc9150a50}{data}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e}{size\+\_\+bytes}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structraw__file_a20d52da248e95b0b2435bc61a4acbdee}{submitted\+\_\+bytes}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structraw__file_a683ad83718e23c876fcb466ef4acd693}{retrieved\+\_\+bytes}}
+\item 
+size\+\_\+t \mbox{\hyperlink{structraw__file_ac0c73c12803a751545b9cc94991e01ac}{processed\+\_\+bytes}}
+\item 
+std\+::vector$<$ std\+::pair$<$ size\+\_\+t, size\+\_\+t $>$ $>$ \mbox{\hyperlink{structraw__file_af700d8a991154f501a09daab25e74638}{retrieved\+\_\+indices}}
+\item 
+int \mbox{\hyperlink{structraw__file_ac866591bea565b84b562e931b7884410}{fd}}
+\end{DoxyCompactItemize}
+
+
+\doxysubsection{Detailed Description}
+Represents a raw file loaded into memory. 
+
+This structure contains\+:
+\begin{DoxyItemize}
+\item The file\textquotesingle{}s data in memory.
+\item Metadata about the file, including size, submitted, retrieved, and processed bytes.
+\item A vector of retrieved indices for tracking processed data.
+\item The file descriptor for the opened file.
+\end{DoxyItemize}
+
+\begin{DoxyNote}{Note}
+The {\ttfamily close} method should be called to free allocated memory. 
+\end{DoxyNote}
+
+
+\doxysubsection{Constructor \& Destructor Documentation}
+\Hypertarget{structraw__file_a42aeb8274bc1f9a8b1e29fab908c08c8}\label{structraw__file_a42aeb8274bc1f9a8b1e29fab908c08c8} 
+\index{raw\_file@{raw\_file}!raw\_file@{raw\_file}}
+\index{raw\_file@{raw\_file}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{raw\_file()}{raw\_file()}}
+{\footnotesize\ttfamily raw\+\_\+file\+::raw\+\_\+file (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Function Documentation}
+\Hypertarget{structraw__file_a885951054ec9fc69ab01fd9c2ffca941}\label{structraw__file_a885951054ec9fc69ab01fd9c2ffca941} 
+\index{raw\_file@{raw\_file}!close@{close}}
+\index{close@{close}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{close()}{close()}}
+{\footnotesize\ttfamily void raw\+\_\+file\+::close (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+\doxysubsection{Member Data Documentation}
+\Hypertarget{structraw__file_a357488edfa4673e5141a4c5fc9150a50}\label{structraw__file_a357488edfa4673e5141a4c5fc9150a50} 
+\index{raw\_file@{raw\_file}!data@{data}}
+\index{data@{data}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{data}{data}}
+{\footnotesize\ttfamily char\texorpdfstring{$\ast$}{*} raw\+\_\+file\+::data}
+
+\Hypertarget{structraw__file_ac866591bea565b84b562e931b7884410}\label{structraw__file_ac866591bea565b84b562e931b7884410} 
+\index{raw\_file@{raw\_file}!fd@{fd}}
+\index{fd@{fd}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{fd}{fd}}
+{\footnotesize\ttfamily int raw\+\_\+file\+::fd}
+
+\Hypertarget{structraw__file_ac0c73c12803a751545b9cc94991e01ac}\label{structraw__file_ac0c73c12803a751545b9cc94991e01ac} 
+\index{raw\_file@{raw\_file}!processed\_bytes@{processed\_bytes}}
+\index{processed\_bytes@{processed\_bytes}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{processed\_bytes}{processed\_bytes}}
+{\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::processed\+\_\+bytes}
+
+\Hypertarget{structraw__file_a683ad83718e23c876fcb466ef4acd693}\label{structraw__file_a683ad83718e23c876fcb466ef4acd693} 
+\index{raw\_file@{raw\_file}!retrieved\_bytes@{retrieved\_bytes}}
+\index{retrieved\_bytes@{retrieved\_bytes}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{retrieved\_bytes}{retrieved\_bytes}}
+{\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::retrieved\+\_\+bytes}
+
+\Hypertarget{structraw__file_af700d8a991154f501a09daab25e74638}\label{structraw__file_af700d8a991154f501a09daab25e74638} 
+\index{raw\_file@{raw\_file}!retrieved\_indices@{retrieved\_indices}}
+\index{retrieved\_indices@{retrieved\_indices}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{retrieved\_indices}{retrieved\_indices}}
+{\footnotesize\ttfamily std\+::vector$<$std\+::pair$<$size\+\_\+t, size\+\_\+t$>$ $>$ raw\+\_\+file\+::retrieved\+\_\+indices}
+
+\Hypertarget{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e}\label{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e} 
+\index{raw\_file@{raw\_file}!size\_bytes@{size\_bytes}}
+\index{size\_bytes@{size\_bytes}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{size\_bytes}{size\_bytes}}
+{\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::size\+\_\+bytes}
+
+\Hypertarget{structraw__file_a20d52da248e95b0b2435bc61a4acbdee}\label{structraw__file_a20d52da248e95b0b2435bc61a4acbdee} 
+\index{raw\_file@{raw\_file}!submitted\_bytes@{submitted\_bytes}}
+\index{submitted\_bytes@{submitted\_bytes}!raw\_file@{raw\_file}}
+\doxysubsubsection{\texorpdfstring{submitted\_bytes}{submitted\_bytes}}
+{\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::submitted\+\_\+bytes}
+
+
+
+The documentation for this struct was generated from the following file\+:\begin{DoxyCompactItemize}
+\item 
+include/\mbox{\hyperlink{file_8hpp}{file.\+hpp}}\end{DoxyCompactItemize}
