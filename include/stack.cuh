@@ -19,10 +19,6 @@ struct WorkItem
     uint32_t *work_done = nullptr;
     uint32_t work_count = 0;
 
-    // Default constructor
-    __host__ __device__
-    WorkItem() = default;
-
     // Clear/reset the WorkItem
     __host__ __device__
     void clear()

@@ -2,8 +2,7 @@
 \hypertarget{file_8cpp}{}\label{file_8cpp}\index{src/file.cpp@{src/file.cpp}}
 {\ttfamily \#include "{}file.\+hpp"{}}\newline
 {\ttfamily \#include $<$liburing.\+h$>$}\newline
-Include dependency graph for file.\+cpp\+:
-\nopagebreak
+Include dependency graph for file.\+cpp\+:\nopagebreak
 \begin{figure}[H]
 \begin{center}
 \leavevmode
@@ -32,6 +31,8 @@ std\+::tuple$<$ std\+::vector$<$ uint32\+\_\+t $>$, std\+::vector$<$ uint32\+\_\
 
 Loads a file into memory using asynchronous I/O. 
 
+Loads a file into a \doxylink{structraw__file}{raw\+\_\+file} structure, optionally using multiple threads.
+
 
 \begin{DoxyParams}{Parameters}
 {\em filename} & The path to the file to be loaded. \\
@@ -49,8 +50,7 @@ A {\ttfamily \doxylink{structraw__file}{raw\+\_\+file}} structure containing the
 {\em std\+::runtime\+\_\+error} & If the file cannot be opened or read. \\
 \hline
 \end{DoxyExceptions}
-Here is the call graph for this function\+:
-\nopagebreak
+Here is the call graph for this function\+:\nopagebreak
 \begin{figure}[H]
 \begin{center}
 \leavevmode
@@ -66,6 +66,8 @@ Here is the call graph for this function\+:
 
 
 Parses a raw file into structured key-\/value pairs and calculates utility data. 
+
+Parses a \doxylink{structraw__file}{raw\+\_\+file} into a structured format (\doxylink{structparsed__file}{parsed\+\_\+file}).
 
 
 \begin{DoxyParams}{Parameters}
@@ -86,8 +88,7 @@ A {\ttfamily \doxylink{structparsed__file}{parsed\+\_\+file}} structure containi
 {\em std\+::invalid\+\_\+argument} & If the file data is invalid or cannot be parsed. \\
 \hline
 \end{DoxyExceptions}
-Here is the call graph for this function\+:
-\nopagebreak
+Here is the call graph for this function\+:\nopagebreak
 \begin{figure}[H]
 \begin{center}
 \leavevmode
@@ -100,8 +101,7 @@ Here is the call graph for this function\+:
 \doxysubsubsection{\texorpdfstring{parse\_line()}{parse\_line()}}
 {\footnotesize\ttfamily std\+::tuple$<$ std\+::vector$<$ uint32\+\_\+t $>$, std\+::vector$<$ uint32\+\_\+t $>$, uint32\+\_\+t $>$ parse\+\_\+line (\begin{DoxyParamCaption}\item[{const char \texorpdfstring{$\ast$}{*}}]{data,  }\item[{size\+\_\+t}]{start,  }\item[{size\+\_\+t}]{end,  }\item[{const char}]{separator }\end{DoxyParamCaption})}
 
-Here is the caller graph for this function\+:
-\nopagebreak
+Here is the caller graph for this function\+:\nopagebreak
 \begin{figure}[H]
 \begin{center}
 \leavevmode

@@ -1,5 +1,5 @@
 <map id="parse_file" name="parse_file">
-<area shape="rect" id="Node000001" title="Parses a raw file into structured key&#45;value pairs and calculates utility data." alt="" coords="5,31,91,56"/>
+<area shape="rect" id="Node000001" title="Parses a raw_file into a structured format (parsed_file)." alt="" coords="5,31,91,56"/>
 <area shape="rect" id="Node000002" href="$file_8cpp.html#a025009215ed149d8bc9bcc6905ee0e87" title=" " alt="" coords="165,5,255,31"/>
 <area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="90,34,151,24,152,30,91,39"/>
 <area shape="rect" id="Node000003" href="$classTimer.html#a64409a61fcf0c6bd6091f1e21ca973ba" title="Records a timestamp and current memory with a label." alt="" coords="139,55,281,80"/>

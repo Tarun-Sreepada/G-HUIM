@@ -1,6 +1,17 @@
 #pragma once
 #include "args.hpp"
 
+/*
+ * @file validate.cuh
+ * @brief Validation functions for command line arguments.
+ *
+ * This file contains functions to validate and set default values for command line arguments
+ * related to the number of threads, block size, and number of blocks per GPU.
+ */
+
+/**
+ * @brief Validates the number of threads.
+ */
 void validate_threads(ArgParser &parser)
 {
 // print maximum CPU threads
@@ -15,6 +26,9 @@ void validate_threads(ArgParser &parser)
     }
 }
 
+/**
+ * @brief Validates the block size.
+ */
 void validate_block_size(ArgParser &parser)
 {
     // validate the number of threads per block else set to 32
@@ -25,6 +39,9 @@ void validate_block_size(ArgParser &parser)
     }
 }
 
+/**
+ * @brief Validates the number of blocks per GPU.
+ */
 void validate_num_blocks(ArgParser &parser)
 {
     // Get the number of SMs on the GPU

@@ -87,36 +87,91 @@
 #include <utility>
 #include <charconv>
 
-
+/**
+ * @brief Holds raw file data and associated metadata.
+ */
 struct raw_file
 {
+    /** @brief Pointer to the file's data loaded into memory. */
     char *data;
+    
+    /** @brief Total size of the file in bytes. */
     size_t size_bytes;
-    size_t submitted_bytes; // bytes submitted to io_uring
-    size_t retrieved_bytes; // bytes retrieved from io_uring
-    size_t processed_bytes; // bytes processed from data
+
+    /** @brief Number of bytes submitted to io_uring (if using async I/O). */
+    size_t submitted_bytes;
+
+    /** @brief Number of bytes retrieved from io_uring (if using async I/O). */
+    size_t retrieved_bytes;
+
+    /** @brief Number of bytes already processed from the data buffer. */
+    size_t processed_bytes;
+
+    /** @brief Offsets or indices of chunks retrieved via io_uring. */
     std::vector<std::pair<size_t, size_t>> retrieved_indices;
 
+    /** @brief File descriptor for the open file (could be valid or -1 if invalid). */
     int fd;
 
-    raw_file() : data(nullptr), size_bytes(0), submitted_bytes(0), retrieved_bytes(0), processed_bytes(0), fd(-1) {}
+    /**
+     * @brief Constructor initializes defaults.
+     */
+    raw_file() : data(nullptr), size_bytes(0), submitted_bytes(0),
+                 retrieved_bytes(0), processed_bytes(0), fd(-1) {}
 
+    /**
+     * @brief Frees the file data buffer, if allocated.
+     */
     void close()
     {
         if (data != nullptr)
             free(data);
     }
-
 };
 
+/**
+ * @brief Loads a file into a raw_file structure, optionally using multiple threads.
+ * @param filename Path to the file to be loaded.
+ * @param threads Number of threads to use for loading (if applicable).
+ * @param timer Reference to a timing object used for measuring performance.
+ * @return A fully populated raw_file struct.
+ */
 raw_file load_file(std::string filename, int threads, Timer &timer);
 
+/**
+ * @brief Holds parsed file contents and associated structures.
+ */
 struct parsed_file
 {
+    /**
+     * @brief Nested structure of parsed key/value pairs.
+     * 
+     * Each element represents:
+     *   vector< pair< vector<keys>, vector<values> > >
+     */
     std::vector<std::vector<std::pair<std::vector<uint32_t>, std::vector<uint32_t>>>> key_value_pairs;
+
+    /**
+     * @brief A map of item IDs to their total weighted utility (TWU).
+     */
     std::unordered_map<uint32_t, uint32_t> twu;
 };
 
-parsed_file parse_file(raw_file &file, int threads, const char separator, Timer &timer);
+/**
+ * @brief Enum representing different parsing states for parse_file().
+ */
+enum ParseState { 
+    PARSE_ITEMS,      /**< Parsing item keys. */
+    PARSE_TOTAL_UTILITY, /**< Parsing total utility field. */
+    PARSE_UTILITIES   /**< Parsing per-item utilities. */
+};
 
-enum ParseState { PARSE_ITEMS, PARSE_TOTAL_UTILITY, PARSE_UTILITIES };
+/**
+ * @brief Parses a raw_file into a structured format (parsed_file).
+ * @param file The raw_file to be parsed.
+ * @param threads Number of threads to be used during parsing.
+ * @param separator The character used to separate fields.
+ * @param timer Reference to a timing object for performance measurement.
+ * @return A parsed_file containing structured data.
+ */
+parsed_file parse_file(raw_file &file, int threads, const char separator, Timer &timer);

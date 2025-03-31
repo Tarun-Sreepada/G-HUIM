@@ -82,19 +82,6 @@ struct Transaction
         return total;
     }
 
-    // struct CumsumProxy {
-    //     Transaction *trans;
-    //     __device__ __host__ uint32_t &operator[](unsigned int index) {
-    //         return trans->cumulative_sum[index];
-    //     }
-    //     __device__ __host__ const uint32_t &operator[](unsigned int index) const {
-    //         return trans->cumulative_sum[index];
-    //     }
-    // };
-
-    // // Provide an accessor that returns the proxy.
-    // __device__ __host__ CumsumProxy cumsum() { return {this}; }
-    // __device__ __host__ const CumsumProxy cumsum() const { return {const_cast<Transaction*>(this)}; }
 };
 
 /**

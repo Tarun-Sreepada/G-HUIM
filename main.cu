@@ -31,7 +31,6 @@
 #define total_memory (25 * GIGA)
 #define pattern_memory (256 * MEGA)
 
-
 int main(int argc, char *argv[])
 {
 #ifdef DEBUG
@@ -80,7 +79,6 @@ int main(int argc, char *argv[])
     cudaGetDeviceProperties(&prop, 0);
     shared_memory_capacity = prop.sharedMemPerBlock;
 
-
     timer.recordPoint("Start");
 
     // Load file into memory
@@ -123,7 +121,7 @@ int main(int argc, char *argv[])
     std::cout << "Blocks per GPU: " << parser.get_uint32("--num_blocks") << "\n";
     std::cout << "Max Item ID: " << bf.itemID_to_item.size() << "\n";
     std::cout << "Shared Memory Capacity: " << shared_memory_capacity << "\n";
-    std::cout << "Shared Memory Usage: " << (bf.transactions.size() * sizeof(Transaction) + bf.itemID_to_item.size() * sizeof(Utilities)) / 1024 << " KB\n";
+    std::cout << "Maximum Shared Memory Usage: " << (bf.transactions.size() * sizeof(Transaction) + bf.itemID_to_item.size() * sizeof(Utilities)) / 1024 << " KB\n";
 #endif
 
     uint32_t shared_memory_usage = ((bf.item_to_itemID.size() + 2) * sizeof(Utilities));
@@ -145,9 +143,9 @@ int main(int argc, char *argv[])
     for (uint32_t i = 0; i < patterns[1]; ++i)
     {
         // output_file << patterns[i + 2] << " ";
-        if (patterns[i+2] != 0)
+        if (patterns[i + 2] != 0)
         {
-            output_file << patterns[i+2] << " ";
+            output_file << patterns[i + 2] << " ";
         }
         else
         {

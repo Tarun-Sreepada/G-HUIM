@@ -62,7 +62,7 @@
   \indexspace
 
   \item {close}
-    \subitem {raw\_file}, \hyperpage{18}
+    \subitem {raw\_file}, \hyperpage{19}
   \item {createItemMapping}
     \subitem {build.cpp}, \hyperpage{42}
   \item {createPrimary}
@@ -81,11 +81,6 @@
 
   \item {EMPTY\_KEY}
     \subitem {Item}, \hyperpage{16}
-    \subitem {Utilities}, \hyperpage{24}
-  \item {EMPTY\_LOCAL\_UTILITY}
-    \subitem {Utilities}, \hyperpage{24}
-  \item {EMPTY\_SUBTREE\_UTILITY}
-    \subitem {Utilities}, \hyperpage{24}
   \item {EMPTY\_UTIL}
     \subitem {Item}, \hyperpage{16}
 
@@ -124,7 +119,7 @@
   \item {getMemoryRSS}
     \subitem {timer.hpp}, \hyperpage{38}
   \item {getTimeDifference}
-    \subitem {Timer}, \hyperpage{20}
+    \subitem {Timer}, \hyperpage{21}
 
   \indexspace
 
@@ -134,7 +129,6 @@
   \item {include/data\_types.cuh}, \hyperpage{31}
   \item {include/data\_types.hpp}, \hyperpage{31, 32}
   \item {include/file.hpp}, \hyperpage{32}, \hyperpage{36}
-  \item {include/functions.cuh}, \hyperpage{37}
   \item {include/memory.cuh}, \hyperpage{37}
   \item {include/mine.cuh}, \hyperpage{37}
   \item {include/stack.cuh}, \hyperpage{37}
@@ -156,7 +150,6 @@
 
   \item {key}
     \subitem {Item}, \hyperpage{16}
-    \subitem {Utilities}, \hyperpage{24}
   \item {key\_value\_pairs}
     \subitem {parsed\_file}, \hyperpage{17}
 
@@ -167,10 +160,6 @@
   \item {load\_file}
     \subitem {file.cpp}, \hyperpage{44}
     \subitem {file.hpp}, \hyperpage{34}
-  \item {LOCAL\_UTILITY}
-    \subitem {Utilities}, \hyperpage{24}
-  \item {local\_utility}
-    \subitem {Utilities}, \hyperpage{24}
 
   \indexspace
 
@@ -214,30 +203,30 @@
   \item {print\_help}
     \subitem {ArgParser}, \hyperpage{11}
   \item {printRecords}
-    \subitem {Timer}, \hyperpage{20}
+    \subitem {Timer}, \hyperpage{21}
   \item {processed\_bytes}
     \subitem {raw\_file}, \hyperpage{19}
 
   \indexspace
 
   \item {raw\_file}, \hyperpage{18}
-    \subitem {close}, \hyperpage{18}
+    \subitem {close}, \hyperpage{19}
     \subitem {data}, \hyperpage{19}
     \subitem {fd}, \hyperpage{19}
     \subitem {processed\_bytes}, \hyperpage{19}
-    \subitem {raw\_file}, \hyperpage{18}
-    \subitem {retrieved\_bytes}, \hyperpage{19}
-    \subitem {retrieved\_indices}, \hyperpage{19}
-    \subitem {size\_bytes}, \hyperpage{19}
-    \subitem {submitted\_bytes}, \hyperpage{19}
+    \subitem {raw\_file}, \hyperpage{19}
+    \subitem {retrieved\_bytes}, \hyperpage{20}
+    \subitem {retrieved\_indices}, \hyperpage{20}
+    \subitem {size\_bytes}, \hyperpage{20}
+    \subitem {submitted\_bytes}, \hyperpage{20}
   \item {recordPoint}
-    \subitem {Timer}, \hyperpage{20}
+    \subitem {Timer}, \hyperpage{21}
   \item {required}
     \subitem {ArgParser::Argument}, \hyperpage{13}
   \item {retrieved\_bytes}
-    \subitem {raw\_file}, \hyperpage{19}
+    \subitem {raw\_file}, \hyperpage{20}
   \item {retrieved\_indices}
-    \subitem {raw\_file}, \hyperpage{19}
+    \subitem {raw\_file}, \hyperpage{20}
   \item {rss}
     \subitem {TimeRecord}, \hyperpage{23}
 
@@ -246,22 +235,18 @@
   \item {set}
     \subitem {ArgParser}, \hyperpage{11}
   \item {size\_bytes}
-    \subitem {raw\_file}, \hyperpage{19}
+    \subitem {raw\_file}, \hyperpage{20}
   \item {src/build.cpp}, \hyperpage{41}
   \item {src/file.cpp}, \hyperpage{44}
   \item {submitted\_bytes}
-    \subitem {raw\_file}, \hyperpage{19}
-  \item {SUBTREE\_UTILITY}
-    \subitem {Utilities}, \hyperpage{24}
-  \item {subtree\_utility}
-    \subitem {Utilities}, \hyperpage{24}
+    \subitem {raw\_file}, \hyperpage{20}
 
   \indexspace
 
-  \item {Timer}, \hyperpage{19}
-    \subitem {getTimeDifference}, \hyperpage{20}
-    \subitem {printRecords}, \hyperpage{20}
-    \subitem {recordPoint}, \hyperpage{20}
+  \item {Timer}, \hyperpage{20}
+    \subitem {getTimeDifference}, \hyperpage{21}
+    \subitem {printRecords}, \hyperpage{21}
+    \subitem {recordPoint}, \hyperpage{21}
   \item {timer.hpp}
     \subitem {getMemoryRSS}, \hyperpage{38}
   \item {TimeRecord}, \hyperpage{22}
@@ -283,18 +268,6 @@
 
   \item {util}
     \subitem {Item}, \hyperpage{16}
-  \item {Utilities}, \hyperpage{23}
-    \subitem {EMPTY\_KEY}, \hyperpage{24}
-    \subitem {EMPTY\_LOCAL\_UTILITY}, \hyperpage{24}
-    \subitem {EMPTY\_SUBTREE\_UTILITY}, \hyperpage{24}
-    \subitem {key}, \hyperpage{24}
-    \subitem {LOCAL\_UTILITY}, \hyperpage{24}
-    \subitem {local\_utility}, \hyperpage{24}
-    \subitem {SUBTREE\_UTILITY}, \hyperpage{24}
-    \subitem {subtree\_utility}, \hyperpage{24}
-    \subitem {UtilityType}, \hyperpage{23}
-  \item {UtilityType}
-    \subitem {Utilities}, \hyperpage{23}
 
   \indexspace
 

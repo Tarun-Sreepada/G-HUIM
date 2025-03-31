@@ -2,7 +2,7 @@
 \hypertarget{structparsed__file}{}\label{structparsed__file}\index{parsed\_file@{parsed\_file}}
 
 
-Represents a parsed file with structured key-\/value pairs and utility data.  
+Holds parsed file contents and associated structures.  
 
 
 
@@ -13,13 +13,15 @@ Represents a parsed file with structured key-\/value pairs and utility data.
 \begin{DoxyCompactItemize}
 \item 
 std\+::vector$<$ std\+::vector$<$ std\+::pair$<$ std\+::vector$<$ uint32\+\_\+t $>$, std\+::vector$<$ uint32\+\_\+t $>$ $>$ $>$ $>$ \mbox{\hyperlink{structparsed__file_a6f5a69afb8189d0ba826acf6e06b1c2c}{key\+\_\+value\+\_\+pairs}}
-\item 
+\begin{DoxyCompactList}\small\item\em Nested structure of parsed key/value pairs. \end{DoxyCompactList}\item 
 std\+::unordered\+\_\+map$<$ uint32\+\_\+t, uint32\+\_\+t $>$ \mbox{\hyperlink{structparsed__file_a6d336cdcdbe325aba4a497f28281424f}{twu}}
-\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em A map of item IDs to their total weighted utility (TWU). \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}
-Represents a parsed file with structured key-\/value pairs and utility data. 
+Holds parsed file contents and associated structures. 
+
+Represents a parsed file with structured key-\/value pairs and utility data.
 
 This structure contains\+:
 \begin{DoxyItemize}
@@ -34,11 +36,19 @@ This structure contains\+:
 \doxysubsubsection{\texorpdfstring{key\_value\_pairs}{key\_value\_pairs}}
 {\footnotesize\ttfamily std\+::vector$<$std\+::vector$<$std\+::pair$<$std\+::vector$<$uint32\+\_\+t$>$, std\+::vector$<$uint32\+\_\+t$>$ $>$ $>$ $>$ parsed\+\_\+file\+::key\+\_\+value\+\_\+pairs}
 
-\Hypertarget{structparsed__file_a6d336cdcdbe325aba4a497f28281424f}\label{structparsed__file_a6d336cdcdbe325aba4a497f28281424f} 
+
+
+Nested structure of parsed key/value pairs. 
+
+Each element represents\+: vector\texorpdfstring{$<$}{<} pair\texorpdfstring{$<$}{<} vector$<$keys$>$, vector$<$values$>$ \texorpdfstring{$>$}{>} \texorpdfstring{$>$}{>} \Hypertarget{structparsed__file_a6d336cdcdbe325aba4a497f28281424f}\label{structparsed__file_a6d336cdcdbe325aba4a497f28281424f} 
 \index{parsed\_file@{parsed\_file}!twu@{twu}}
 \index{twu@{twu}!parsed\_file@{parsed\_file}}
 \doxysubsubsection{\texorpdfstring{twu}{twu}}
 {\footnotesize\ttfamily std\+::unordered\+\_\+map$<$uint32\+\_\+t, uint32\+\_\+t$>$ parsed\+\_\+file\+::twu}
+
+
+
+A map of item IDs to their total weighted utility (TWU). 
 
 
 

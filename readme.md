@@ -18,10 +18,8 @@ cmake --build build -- -j$(nproc)
 sudo apt install liburing-dev
 
 
-cmake --build build -- -j$(nproc) && ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --managed true
+cmake --build build -- -j$(nproc) && ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --managed true --block_size 512
 
 
-doxygen Doxyfile 
-cd docs/latex
-make
+doxygen Doxyfile && cd docs/latex && make && cd .. && cd ..
 ```
