@@ -12,9 +12,6 @@ __device__ __forceinline__ bool fetchWorkItem(stack *work_stack, WorkItem &outIt
         {
             work_stack->pop(outItem);
         }
-
-        // printf("Thread %d: Popped item with primary=%u, utility=%u\n",
-        //     thread_id, outItem.primary, outItem.utility);
     }
     __syncthreads();
     // If outItem is empty here, there's no more work
@@ -256,12 +253,6 @@ __global__ void mine(stack *work_stack,
         // Set the shared variable to zero from thread 0
         if (thread_id == 0)
         {
-            // *p_temp_transaction_count = 0;
-            // *p_temp_item_count = 0;
-            // new_work_item->clear();
-            // new_work_item->pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_work_item.pattern_length + 1));
-            // new_work_item->pattern_length = curr_work_item.pattern_length + 1;
-            // new_work_item->pattern[curr_work_item.pattern_length] = curr_work_item.primary;
             temp_transaction_count = 0;
             temp_item_count = 0;
             new_work_item.clear();
@@ -289,8 +280,7 @@ __global__ void mine(stack *work_stack,
         }
         __syncthreads();
 
-        // scan(curr_work_item, new_work_item, local_subtree_utilities, temporary_transactions, temp_transaction_count, temp_item_count);
-
+        // scan
         for (int i = thread_id; i < curr_work_item.db->num_transactions; i += blockDim.x)
         {
             Transaction &transaction = curr_work_item.db->transactions[i];
@@ -331,17 +321,14 @@ __global__ void mine(stack *work_stack,
             // add_pattern(&new_work_item, patterns, min_util);
             if (thread_id == 0)
             {
-                // atomicAdd(&patterns[0], 1); // Increment the count of patterns
-                // printf("Patterns: %d\n", atomicAdd(&patterns[0], 1));
-                // int offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
-                pattern_offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
-
-                // Copy the pattern to the global memory
-                for (int i = 0; i < new_work_item.pattern_length; i += 1)
-                {
-                    patterns[pattern_offset + i] = new_work_item.pattern[i]; // Copy the pattern
-                }
+                pattern_offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2));    // Get the current offset // 1 for Utility, 1 for spacer
                 patterns[pattern_offset + new_work_item.pattern_length] = new_work_item.utility; // Store the utility
+                // Copy the pattern to the global memory
+            }
+            __syncthreads();
+            for (int i = thread_id; i < new_work_item.pattern_length; i += blockDim.x)
+            {
+                patterns[pattern_offset + i] = new_work_item.pattern[i]; // Copy the pattern
             }
         }
 
@@ -352,7 +339,6 @@ __global__ void mine(stack *work_stack,
         {
             new_work_item.db = (Database *)gmalloc(sizeof(Database));
             new_work_item.db->data = (Item *)gmalloc(sizeof(Item) * temp_item_count);
-            // new_work_item.db->cumulative_sum = (uint32_t *)gmalloc(sizeof(uint32_t) * temp_item_count);
             new_work_item.db->transactions = (Transaction *)gmalloc(sizeof(Transaction) * temp_transaction_count);
         }
         __syncthreads();
@@ -369,7 +355,6 @@ __global__ void mine(stack *work_stack,
 
             // copy the transaction context
             new_work_item.db->transactions[offset].data = new_work_item.db->data + item_offset;
-            // new_work_item.db->transactions[offset].cumulative_sum = new_work_item.db->cumulative_sum + item_offset;
             new_work_item.db->transactions[offset].utility = transaction.utility;
 
             int cumsum = 0;
@@ -387,7 +372,6 @@ __global__ void mine(stack *work_stack,
                     hash ^= fasthash(item.key + idx);
 
                     new_work_item.db->transactions[offset].data[idx] = item;
-                    // new_work_item.db->cumulative_sum[item_offset + idx] = cumsum + item.util;
                     cumsum += item.util;
                     ++idx;
                 }
@@ -427,18 +411,11 @@ __global__ void mine(stack *work_stack,
                     atomicAdd(&old_transaction.utility, transaction.utility);
                     for (int j = 0; j < idx; j++)
                     {
-                        // printf("%d:%d <- %d:%d\n", old_transaction.data[j].key, old_transaction.data[j].util,
-                        //        new_work_item.db->transactions[offset].data[j].key, new_work_item.db->transactions[offset].data[j].util);
                         atomicAdd(&old_transaction.data[j].util, new_work_item.db->transactions[offset].data[j].util);
-                        // atomicAdd(&old_transaction.cumulative_sum[j], transaction.data[j].util);
                     }
 
                     // Mark the new transaction as a duplicate
-                    // new_work_item.db->transactions[offset].data = nullptr;
-                    new_work_item.db->transactions[offset].utility = 0;
-                    new_work_item.db->transactions[offset].length = 0;
-
-                    // new_work_item.db->transactions[offset].cumulative_sum = nullptr;
+                    new_work_item.db->transactions[offset].data = nullptr;
                     break;
                 }
                 hash_index = (hash_index + 1) % (transaction_count * scale);
@@ -459,11 +436,10 @@ __global__ void mine(stack *work_stack,
             for (int i = thread_id; i < new_work_item.db->num_transactions; i += 32)
             {
                 Transaction &transaction = new_work_item.db->transactions[i];
-                if (transaction.length != 0)
+                if (transaction.data != nullptr)
                 {
                     int ret = atomicAdd(&temp_transaction_count, 1);
                     new_work_item.db->transactions[ret].data = transaction.data;
-                    // new_work_item.db->transactions[ret].cumulative_sum = transaction.cumulative_sum;
                     new_work_item.db->transactions[ret].utility = transaction.utility;
                     new_work_item.db->transactions[ret].length = transaction.length;
                 }
