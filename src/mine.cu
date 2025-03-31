@@ -3,8 +3,7 @@
 __device__ __forceinline__ bool fetchWorkItem(stack *work_stack, WorkItem &outItem)
 {
     // Compute thread ID inside the function
-    int thread_id = threadIdx.x;
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         outItem.clear();
         // Keep popping until we get a non-empty item or stack is empty
@@ -20,9 +19,9 @@ __device__ __forceinline__ bool fetchWorkItem(stack *work_stack, WorkItem &outIt
 }
 
 __device__ __forceinline__ void finishTask(stack *work_stack)
+
 {
-    int thread_id = threadIdx.x;
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         work_stack->finish_task();
     }
@@ -40,11 +39,8 @@ __device__ __forceinline__ void reset_structs(
     int max_transactions,
     int max_utilities)
 {
-    int thread_id = threadIdx.x;
-    int block_size = blockDim.x;
-
     // Set the shared variable to zero from thread 0
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         *p_temp_transaction_count = 0;
         *p_temp_item_count = 0;
@@ -56,21 +52,21 @@ __device__ __forceinline__ void reset_structs(
     __syncthreads();
 
     // Copy the pattern
-    for (int i = thread_id; i < curr_work_item.pattern_length; i += block_size)
+    for (int i = threadIdx.x; i < curr_work_item.pattern_length; i += blockDim.x)
     {
         new_work_item->pattern[i] = curr_work_item.pattern[i];
     }
     __syncthreads();
 
     // Clear out any necessary structures
-    for (int i = thread_id; i < max_transactions; i += block_size)
+    for (int i = threadIdx.x; i < max_transactions; i += blockDim.x)
     {
         temporary_transactions[i].clear();
         transaction_hashes[2 * i] = -1;
         transaction_hashes[2 * i + 1] = -1;
     }
 
-    for (int i = thread_id; i < max_utilities; i += block_size)
+    for (int i = threadIdx.x; i < max_utilities; i += blockDim.x)
     {
         local_subtree_utilities[i].clear();
     }
@@ -92,10 +88,8 @@ __device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
     __syncthreads();
 
     // Then do your initialization loops using (*pTemporaryPtr) etc.
-    int thread_id = threadIdx.x;
-    int block_size = blockDim.x;
 
-    for (int i = thread_id; i < max_utilities; i += block_size)
+    for (int i = threadIdx.x; i < max_utilities; i += blockDim.x)
     {
         pUtilitiesPtr[i].key = i;
     }
@@ -107,20 +101,19 @@ __device__ __forceinline__ void add_pattern(WorkItem &new_work_item,
                                             uint32_t min_util)
 {
     // Get thread ID
-    int thread_id = threadIdx.x;
     __shared__ uint32_t pattern_offset;
 
     if (new_work_item.utility >= min_util)
     {
         // add_pattern(&new_work_item, patterns, min_util);
-        if (thread_id == 0)
+        if (threadIdx.x == 0)
         {
             pattern_offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2));    // Get the current offset // 1 for Utility, 1 for spacer
             patterns[pattern_offset + new_work_item.pattern_length] = new_work_item.utility; // Store the utility
             // Copy the pattern to the global memory
         }
         __syncthreads();
-        for (int i = thread_id; i < new_work_item.pattern_length; i += blockDim.x)
+        for (int i = threadIdx.x; i < new_work_item.pattern_length; i += blockDim.x)
         {
             patterns[pattern_offset + i] = new_work_item.pattern[i]; // Copy the pattern
         }
@@ -138,10 +131,8 @@ __device__ __forceinline__ void scan(const WorkItem &curr_work_item,
                                      uint32_t *temp_transaction_count,
                                      uint32_t *temp_item_count)
 {
-    // Get thread ID
-    int thread_id = threadIdx.x;
     // scan
-    for (int i = thread_id; i < curr_work_item.db->num_transactions; i += blockDim.x)
+    for (int i = threadIdx.x; i < curr_work_item.db->num_transactions; i += blockDim.x)
     {
         Transaction &transaction = curr_work_item.db->transactions[i];
         int idx = transaction.binary_search(curr_work_item.primary);
@@ -165,7 +156,7 @@ __device__ __forceinline__ void scan(const WorkItem &curr_work_item,
     }
     __syncthreads();
 
-    for (int i = thread_id; i < *temp_transaction_count; i += blockDim.x)
+    for (int i = threadIdx.x; i < *temp_transaction_count; i += blockDim.x)
     {
         Transaction &transaction = temporary_transactions[i];
         uint32_t total_util = transaction.utility + transaction.util_sum();
@@ -181,10 +172,8 @@ __device__ void allocate(WorkItem &wi,
                          uint32_t temp_item_count,
                          uint32_t temp_transaction_count)
 {
-    // Get thread ID
-    int thread_id = threadIdx.x;
 
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         wi.db = (Database *)gmalloc(sizeof(Database));
         wi.db->data = (Item *)gmalloc(sizeof(Item) * temp_item_count);
@@ -212,10 +201,8 @@ __device__ __forceinline__ void write_merge(
     WorkItem &new_work_item,
     uint32_t min_util, uint32_t transaction_count)
 {
-    // Get thread ID
-    int thread_id = threadIdx.x;
 
-    for (int i = thread_id; i < temp_transaction_count; i += blockDim.x)
+    for (int i = threadIdx.x; i < temp_transaction_count; i += blockDim.x)
     {
 
         Transaction &transaction = temporary_transactions[i];
@@ -298,24 +285,21 @@ __device__ __forceinline__ void write_merge(
 
 __device__ __forceinline__ void trim(WorkItem &new_work_item)
 {
-    // Get thread ID
-    int thread_id = threadIdx.x;
-
     // Shared memory
     __shared__ uint32_t temp_transaction_count;
 
     // Initialize the transaction count
 
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         temp_transaction_count = 0;
     }
     __syncthreads();
 
     // push up the valid transactions
-    if (thread_id < 32)
+    if (threadIdx.x < 32)
     {
-        for (int i = thread_id; i < new_work_item.db->num_transactions; i += 32)
+        for (int i = threadIdx.x; i < new_work_item.db->num_transactions; i += 32)
         {
             Transaction &transaction = new_work_item.db->transactions[i];
             if (transaction.data != nullptr)
@@ -331,7 +315,7 @@ __device__ __forceinline__ void trim(WorkItem &new_work_item)
     __syncthreads();
 
     // update the transaction count
-    if (thread_id == 0)
+    if (threadIdx.x == 0)
     {
         new_work_item.db->num_transactions = temp_transaction_count;
     }
@@ -343,11 +327,8 @@ __device__ __forceinline__ void push_work_item(Utilities *local_subtree_utilitie
                                                WorkItem &new_work_item, stack *work_stack,
                                                uint32_t min_util, uint32_t unique_item_count)
 {
-
-    uint16_t thread_id = threadIdx.x;
-
     // push the new work item to the stack
-    for (int i = thread_id; i < unique_item_count; i += blockDim.x)
+    for (int i = threadIdx.x; i < unique_item_count; i += blockDim.x)
     {
         // if the subtree utility is greater than min util push it
         WorkItem copy = new_work_item;

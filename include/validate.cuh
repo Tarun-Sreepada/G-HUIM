@@ -32,7 +32,7 @@ void validate_threads(ArgParser &parser)
 void validate_block_size(ArgParser &parser)
 {
     // validate the number of threads per block else set to 32
-    if (parser.get_uint32("--block_size") == 0 || parser.get_uint32("--block_size") > 512)
+    if (parser.get_uint32("--block_size") == 0 || parser.get_uint32("--block_size") > 1024)
     {
         std::cout << "Number of threads per block is invalid. Setting threads per block to 512.\n";
         parser.set("--block_size", "512");
