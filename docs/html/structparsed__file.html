@@ -76,7 +76,7 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 
-<p>Represents a parsed file with structured key-value pairs and utility data.  
+<p>Holds parsed file contents and associated structures.  
  <a href="structparsed__file.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="file_8hpp_source.html">file.hpp</a>&gt;</code></p>
@@ -84,12 +84,15 @@ $(function() {
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a6f5a69afb8189d0ba826acf6e06b1c2c" id="r_a6f5a69afb8189d0ba826acf6e06b1c2c"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::vector&lt; std::pair&lt; std::vector&lt; uint32_t &gt;, std::vector&lt; uint32_t &gt; &gt; &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structparsed__file.html#a6f5a69afb8189d0ba826acf6e06b1c2c">key_value_pairs</a></td></tr>
+<tr class="memdesc:a6f5a69afb8189d0ba826acf6e06b1c2c"><td class="mdescLeft">&#160;</td><td class="mdescRight">Nested structure of parsed key/value pairs.  <br /></td></tr>
 <tr class="separator:a6f5a69afb8189d0ba826acf6e06b1c2c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a6d336cdcdbe325aba4a497f28281424f" id="r_a6d336cdcdbe325aba4a497f28281424f"><td class="memItemLeft" align="right" valign="top">std::unordered_map&lt; uint32_t, uint32_t &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structparsed__file.html#a6d336cdcdbe325aba4a497f28281424f">twu</a></td></tr>
+<tr class="memdesc:a6d336cdcdbe325aba4a497f28281424f"><td class="mdescLeft">&#160;</td><td class="mdescRight">A map of item IDs to their total weighted utility (TWU).  <br /></td></tr>
 <tr class="separator:a6d336cdcdbe325aba4a497f28281424f"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Represents a parsed file with structured key-value pairs and utility data. </p>
+<div class="textblock"><p>Holds parsed file contents and associated structures. </p>
+<p>Represents a parsed file with structured key-value pairs and utility data.</p>
 <p>This structure contains:</p><ul>
 <li>A nested vector of key-value pairs, where each key and value is a vector of uint32_t.</li>
 <li>A map of total weighted utility (TWU) values for items. </li>
@@ -107,6 +110,9 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Nested structure of parsed key/value pairs. </p>
+<p>Each element represents: vector&lt; pair&lt; vector&lt;keys&gt;, vector&lt;values&gt; &gt; &gt; </p>
+
 </div>
 </div>
 <a id="a6d336cdcdbe325aba4a497f28281424f" name="a6d336cdcdbe325aba4a497f28281424f"></a>
@@ -120,6 +126,8 @@ Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>A map of item IDs to their total weighted utility (TWU). </p>
 
 </div>
 </div>

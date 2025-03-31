@@ -175,10 +175,10 @@ This graph shows which files directly or indirectly include this file:</div>
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="nested-classes" name="nested-classes"></a>
 Classes</h2></td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html">raw_file</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Represents a raw file loaded into memory.  <a href="structraw__file.html#details">More...</a><br /></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Holds raw file data and associated metadata.  <a href="structraw__file.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">struct &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structparsed__file.html">parsed_file</a></td></tr>
-<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Represents a parsed file with structured key-value pairs and utility data.  <a href="structparsed__file.html#details">More...</a><br /></td></tr>
+<tr class="memdesc:"><td class="mdescLeft">&#160;</td><td class="mdescRight">Holds parsed file contents and associated structures.  <a href="structparsed__file.html#details">More...</a><br /></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="enum-members" name="enum-members"></a>
@@ -187,23 +187,23 @@ Enumerations</h2></td></tr>
 , <a class="el" href="file_8hpp.html#a99f78dec5b5884642b44f101ef1d2460a50dcdf586e036bacbf2aab650d286d37">PARSE_TOTAL_UTILITY</a>
 , <a class="el" href="file_8hpp.html#a99f78dec5b5884642b44f101ef1d2460ab9c68e04d4dc368c179c0e99ce90ba30">PARSE_UTILITIES</a>
  }</td></tr>
-<tr class="memdesc:a99f78dec5b5884642b44f101ef1d2460"><td class="mdescLeft">&#160;</td><td class="mdescRight">Represents the state of parsing a file.  <a href="file_8hpp.html#a99f78dec5b5884642b44f101ef1d2460">More...</a><br /></td></tr>
+<tr class="memdesc:a99f78dec5b5884642b44f101ef1d2460"><td class="mdescLeft">&#160;</td><td class="mdescRight">Enum representing different parsing states for <a class="el" href="file_8hpp.html#a80724836030974ee2a830edded14ef93" title="Parses a raw_file into a structured format (parsed_file).">parse_file()</a>.  <a href="file_8hpp.html#a99f78dec5b5884642b44f101ef1d2460">More...</a><br /></td></tr>
 <tr class="separator:a99f78dec5b5884642b44f101ef1d2460"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="func-members" name="func-members"></a>
 Functions</h2></td></tr>
 <tr class="memitem:acd5d2800c02248bd9b785a129d5cfde2" id="r_acd5d2800c02248bd9b785a129d5cfde2"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structraw__file.html">raw_file</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="file_8hpp.html#acd5d2800c02248bd9b785a129d5cfde2">load_file</a> (std::string filename, int threads, <a class="el" href="classTimer.html">Timer</a> &amp;timer)</td></tr>
-<tr class="memdesc:acd5d2800c02248bd9b785a129d5cfde2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads a file into memory using asynchronous I/O.  <br /></td></tr>
+<tr class="memdesc:acd5d2800c02248bd9b785a129d5cfde2"><td class="mdescLeft">&#160;</td><td class="mdescRight">Loads a file into a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> structure, optionally using multiple threads.  <br /></td></tr>
 <tr class="separator:acd5d2800c02248bd9b785a129d5cfde2"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a80724836030974ee2a830edded14ef93" id="r_a80724836030974ee2a830edded14ef93"><td class="memItemLeft" align="right" valign="top"><a class="el" href="structparsed__file.html">parsed_file</a>&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="file_8hpp.html#a80724836030974ee2a830edded14ef93">parse_file</a> (<a class="el" href="structraw__file.html">raw_file</a> &amp;file, int threads, const char separator, <a class="el" href="classTimer.html">Timer</a> &amp;timer)</td></tr>
-<tr class="memdesc:a80724836030974ee2a830edded14ef93"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses a raw file into structured key-value pairs and calculates utility data.  <br /></td></tr>
+<tr class="memdesc:a80724836030974ee2a830edded14ef93"><td class="mdescLeft">&#160;</td><td class="mdescRight">Parses a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> into a structured format (<a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a>).  <br /></td></tr>
 <tr class="separator:a80724836030974ee2a830edded14ef93"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Provides structures and functions for handling raw and parsed file data, including file loading, parsing, and utility calculations. </p>
 <p>This header defines the following:</p><ul>
-<li><code><a class="el" href="structraw__file.html" title="Represents a raw file loaded into memory.">raw_file</a></code>: A structure to manage raw file data and its associated metadata.</li>
-<li><code><a class="el" href="structparsed__file.html" title="Represents a parsed file with structured key-value pairs and utility data.">parsed_file</a></code>: A structure to store parsed key-value pairs and utility data.</li>
+<li><code><a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a></code>: A structure to manage raw file data and its associated metadata.</li>
+<li><code><a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a></code>: A structure to store parsed key-value pairs and utility data.</li>
 <li><code>load_file</code>: A function to load a file into memory using io_uring for asynchronous I/O.</li>
 <li><code>parse_file</code>: A function to parse raw file data into structured key-value pairs.</li>
 <li><code>ParseState</code>: An enumeration to represent the state of parsing. </li>
@@ -221,16 +221,20 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Represents the state of parsing a file. </p>
+<p>Enum representing different parsing states for <a class="el" href="file_8hpp.html#a80724836030974ee2a830edded14ef93" title="Parses a raw_file into a structured format (parsed_file).">parse_file()</a>. </p>
+<p>Represents the state of parsing a file.</p>
 <p>Possible states:</p><ul>
 <li><code>PARSE_ITEMS</code>: Parsing items from the file.</li>
 <li><code>PARSE_TOTAL_UTILITY</code>: Parsing the total utility value.</li>
 <li><code>PARSE_UTILITIES</code>: Parsing individual utilities. </li>
 </ul>
 <table class="fieldtable">
-<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460a5127ab203a9278f08094a6ee9ca3b500" name="a99f78dec5b5884642b44f101ef1d2460a5127ab203a9278f08094a6ee9ca3b500"></a>PARSE_ITEMS&#160;</td><td class="fielddoc"></td></tr>
-<tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460a50dcdf586e036bacbf2aab650d286d37" name="a99f78dec5b5884642b44f101ef1d2460a50dcdf586e036bacbf2aab650d286d37"></a>PARSE_TOTAL_UTILITY&#160;</td><td class="fielddoc"></td></tr>
-<tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460ab9c68e04d4dc368c179c0e99ce90ba30" name="a99f78dec5b5884642b44f101ef1d2460ab9c68e04d4dc368c179c0e99ce90ba30"></a>PARSE_UTILITIES&#160;</td><td class="fielddoc"></td></tr>
+<tr><th colspan="2">Enumerator</th></tr><tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460a5127ab203a9278f08094a6ee9ca3b500" name="a99f78dec5b5884642b44f101ef1d2460a5127ab203a9278f08094a6ee9ca3b500"></a>PARSE_ITEMS&#160;</td><td class="fielddoc"><p>Parsing item keys. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460a50dcdf586e036bacbf2aab650d286d37" name="a99f78dec5b5884642b44f101ef1d2460a50dcdf586e036bacbf2aab650d286d37"></a>PARSE_TOTAL_UTILITY&#160;</td><td class="fielddoc"><p>Parsing total utility field. </p>
+</td></tr>
+<tr><td class="fieldname"><a id="a99f78dec5b5884642b44f101ef1d2460ab9c68e04d4dc368c179c0e99ce90ba30" name="a99f78dec5b5884642b44f101ef1d2460ab9c68e04d4dc368c179c0e99ce90ba30"></a>PARSE_UTILITIES&#160;</td><td class="fielddoc"><p>Parsing per-item utilities. </p>
+</td></tr>
 </table>
 
 </div>
@@ -268,7 +272,17 @@ Functions</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
-<p>Loads a file into memory using asynchronous I/O. </p>
+<p>Loads a file into a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> structure, optionally using multiple threads. </p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">filename</td><td>Path to the file to be loaded. </td></tr>
+    <tr><td class="paramname">threads</td><td>Number of threads to use for loading (if applicable). </td></tr>
+    <tr><td class="paramname">timer</td><td>Reference to a timing object used for measuring performance. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A fully populated <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> struct.</dd></dl>
+<p>Loads a file into a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> structure, optionally using multiple threads.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">filename</td><td>The path to the file to be loaded. </td></tr>
@@ -277,7 +291,7 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structraw__file.html" title="Represents a raw file loaded into memory.">raw_file</a></code> structure containing the loaded file data and metadata.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a></code> structure containing the loaded file data and metadata.</dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">std::runtime_error</td><td>If the file cannot be opened or read. </td></tr>
@@ -289,7 +303,7 @@ Here is the call graph for this function:</div>
 <div class="dyncontent">
 <div class="center"><img src="file_8hpp_acd5d2800c02248bd9b785a129d5cfde2_cgraph.png" border="0" usemap="#afile_8hpp_acd5d2800c02248bd9b785a129d5cfde2_cgraph" alt=""/></div>
 <map name="afile_8hpp_acd5d2800c02248bd9b785a129d5cfde2_cgraph" id="afile_8hpp_acd5d2800c02248bd9b785a129d5cfde2_cgraph">
-<area shape="rect" title="Loads a file into memory using asynchronous I/O." alt="" coords="5,5,83,31"/>
+<area shape="rect" title="Loads a file into a raw_file structure, optionally using multiple threads." alt="" coords="5,5,83,31"/>
 <area shape="rect" href="classTimer.html#a64409a61fcf0c6bd6091f1e21ca973ba" title="Records a timestamp and current memory with a label." alt="" coords="131,5,273,31"/>
 <area shape="poly" title=" " alt="" coords="83,15,117,15,117,21,83,21"/>
 <area shape="rect" href="timer_8hpp.html#a8dadd21f08e3adc6576b12299ebf593a" title="Reads the current memory RSS from /proc/self/status." alt="" coords="321,5,444,31"/>
@@ -337,17 +351,28 @@ Here is the call graph for this function:</div>
       </table>
 </div><div class="memdoc">
 
-<p>Parses a raw file into structured key-value pairs and calculates utility data. </p>
+<p>Parses a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> into a structured format (<a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a>). </p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">file</td><td>A reference to the <code><a class="el" href="structraw__file.html" title="Represents a raw file loaded into memory.">raw_file</a></code> structure containing the file data. </td></tr>
+    <tr><td class="paramname">file</td><td>The <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> to be parsed. </td></tr>
+    <tr><td class="paramname">threads</td><td>Number of threads to be used during parsing. </td></tr>
+    <tr><td class="paramname">separator</td><td>The character used to separate fields. </td></tr>
+    <tr><td class="paramname">timer</td><td>Reference to a timing object for performance measurement. </td></tr>
+  </table>
+  </dd>
+</dl>
+<dl class="section return"><dt>Returns</dt><dd>A <a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a> containing structured data.</dd></dl>
+<p>Parses a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> into a structured format (<a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a>).</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">file</td><td>A reference to the <code><a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a></code> structure containing the file data. </td></tr>
     <tr><td class="paramname">threads</td><td>The number of threads to use for parsing. </td></tr>
     <tr><td class="paramname">separator</td><td>The character used to separate items in the file. </td></tr>
     <tr><td class="paramname">timer</td><td>A reference to a <a class="el" href="classTimer.html" title="Tracks execution time and memory usage between labeled checkpoints.">Timer</a> object for measuring performance. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structparsed__file.html" title="Represents a parsed file with structured key-value pairs and utility data.">parsed_file</a></code> structure containing the parsed data and utility information.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a></code> structure containing the parsed data and utility information.</dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">std::invalid_argument</td><td>If the file data is invalid or cannot be parsed. </td></tr>
@@ -359,7 +384,7 @@ Here is the call graph for this function:</div>
 <div class="dyncontent">
 <div class="center"><img src="file_8hpp_a80724836030974ee2a830edded14ef93_cgraph.png" border="0" usemap="#afile_8hpp_a80724836030974ee2a830edded14ef93_cgraph" alt=""/></div>
 <map name="afile_8hpp_a80724836030974ee2a830edded14ef93_cgraph" id="afile_8hpp_a80724836030974ee2a830edded14ef93_cgraph">
-<area shape="rect" title="Parses a raw file into structured key&#45;value pairs and calculates utility data." alt="" coords="5,31,91,56"/>
+<area shape="rect" title="Parses a raw_file into a structured format (parsed_file)." alt="" coords="5,31,91,56"/>
 <area shape="rect" href="file_8cpp.html#a025009215ed149d8bc9bcc6905ee0e87" title=" " alt="" coords="165,5,255,31"/>
 <area shape="poly" title=" " alt="" coords="90,34,151,24,152,30,91,39"/>
 <area shape="rect" href="classTimer.html#a64409a61fcf0c6bd6091f1e21ca973ba" title="Records a timestamp and current memory with a label." alt="" coords="139,55,281,80"/>

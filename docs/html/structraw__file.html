@@ -77,7 +77,7 @@ $(function() {
 </div><!--header-->
 <div class="contents">
 
-<p>Represents a raw file loaded into memory.  
+<p>Holds raw file data and associated metadata.  
  <a href="structraw__file.html#details">More...</a></p>
 
 <p><code>#include &lt;<a class="el" href="file_8hpp_source.html">file.hpp</a>&gt;</code></p>
@@ -85,29 +85,39 @@ $(function() {
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-methods" name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
 <tr class="memitem:a42aeb8274bc1f9a8b1e29fab908c08c8" id="r_a42aeb8274bc1f9a8b1e29fab908c08c8"><td class="memItemLeft" align="right" valign="top">&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#a42aeb8274bc1f9a8b1e29fab908c08c8">raw_file</a> ()</td></tr>
+<tr class="memdesc:a42aeb8274bc1f9a8b1e29fab908c08c8"><td class="mdescLeft">&#160;</td><td class="mdescRight">Constructor initializes defaults.  <br /></td></tr>
 <tr class="separator:a42aeb8274bc1f9a8b1e29fab908c08c8"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a885951054ec9fc69ab01fd9c2ffca941" id="r_a885951054ec9fc69ab01fd9c2ffca941"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#a885951054ec9fc69ab01fd9c2ffca941">close</a> ()</td></tr>
+<tr class="memdesc:a885951054ec9fc69ab01fd9c2ffca941"><td class="mdescLeft">&#160;</td><td class="mdescRight">Frees the file data buffer, if allocated.  <br /></td></tr>
 <tr class="separator:a885951054ec9fc69ab01fd9c2ffca941"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a id="pub-attribs" name="pub-attribs"></a>
 Public Attributes</h2></td></tr>
 <tr class="memitem:a357488edfa4673e5141a4c5fc9150a50" id="r_a357488edfa4673e5141a4c5fc9150a50"><td class="memItemLeft" align="right" valign="top">char *&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#a357488edfa4673e5141a4c5fc9150a50">data</a></td></tr>
+<tr class="memdesc:a357488edfa4673e5141a4c5fc9150a50"><td class="mdescLeft">&#160;</td><td class="mdescRight">Pointer to the file's data loaded into memory.  <br /></td></tr>
 <tr class="separator:a357488edfa4673e5141a4c5fc9150a50"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ad90ab9c3f4c4dea32c9405c66f77e90e" id="r_ad90ab9c3f4c4dea32c9405c66f77e90e"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#ad90ab9c3f4c4dea32c9405c66f77e90e">size_bytes</a></td></tr>
+<tr class="memdesc:ad90ab9c3f4c4dea32c9405c66f77e90e"><td class="mdescLeft">&#160;</td><td class="mdescRight">Total size of the file in bytes.  <br /></td></tr>
 <tr class="separator:ad90ab9c3f4c4dea32c9405c66f77e90e"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a20d52da248e95b0b2435bc61a4acbdee" id="r_a20d52da248e95b0b2435bc61a4acbdee"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#a20d52da248e95b0b2435bc61a4acbdee">submitted_bytes</a></td></tr>
+<tr class="memdesc:a20d52da248e95b0b2435bc61a4acbdee"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bytes submitted to io_uring (if using async I/O).  <br /></td></tr>
 <tr class="separator:a20d52da248e95b0b2435bc61a4acbdee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a683ad83718e23c876fcb466ef4acd693" id="r_a683ad83718e23c876fcb466ef4acd693"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#a683ad83718e23c876fcb466ef4acd693">retrieved_bytes</a></td></tr>
+<tr class="memdesc:a683ad83718e23c876fcb466ef4acd693"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bytes retrieved from io_uring (if using async I/O).  <br /></td></tr>
 <tr class="separator:a683ad83718e23c876fcb466ef4acd693"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac0c73c12803a751545b9cc94991e01ac" id="r_ac0c73c12803a751545b9cc94991e01ac"><td class="memItemLeft" align="right" valign="top">size_t&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#ac0c73c12803a751545b9cc94991e01ac">processed_bytes</a></td></tr>
+<tr class="memdesc:ac0c73c12803a751545b9cc94991e01ac"><td class="mdescLeft">&#160;</td><td class="mdescRight">Number of bytes already processed from the data buffer.  <br /></td></tr>
 <tr class="separator:ac0c73c12803a751545b9cc94991e01ac"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:af700d8a991154f501a09daab25e74638" id="r_af700d8a991154f501a09daab25e74638"><td class="memItemLeft" align="right" valign="top">std::vector&lt; std::pair&lt; size_t, size_t &gt; &gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#af700d8a991154f501a09daab25e74638">retrieved_indices</a></td></tr>
+<tr class="memdesc:af700d8a991154f501a09daab25e74638"><td class="mdescLeft">&#160;</td><td class="mdescRight">Offsets or indices of chunks retrieved via io_uring.  <br /></td></tr>
 <tr class="separator:af700d8a991154f501a09daab25e74638"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac866591bea565b84b562e931b7884410" id="r_ac866591bea565b84b562e931b7884410"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="structraw__file.html#ac866591bea565b84b562e931b7884410">fd</a></td></tr>
+<tr class="memdesc:ac866591bea565b84b562e931b7884410"><td class="mdescLeft">&#160;</td><td class="mdescRight">File descriptor for the open file (could be valid or -1 if invalid).  <br /></td></tr>
 <tr class="separator:ac866591bea565b84b562e931b7884410"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
-<div class="textblock"><p>Represents a raw file loaded into memory. </p>
+<div class="textblock"><p>Holds raw file data and associated metadata. </p>
+<p>Represents a raw file loaded into memory.</p>
 <p>This structure contains:</p><ul>
 <li>The file's data in memory.</li>
 <li>Metadata about the file, including size, submitted, retrieved, and processed bytes.</li>
@@ -139,6 +149,8 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
+<p>Constructor initializes defaults. </p>
+
 </div>
 </div>
 <h2 class="groupheader">Member Function Documentation</h2>
@@ -165,6 +177,8 @@ Public Attributes</h2></td></tr>
 </table>
 </div><div class="memdoc">
 
+<p>Frees the file data buffer, if allocated. </p>
+
 </div>
 </div>
 <h2 class="groupheader">Member Data Documentation</h2>
@@ -180,6 +194,8 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Pointer to the file's data loaded into memory. </p>
+
 </div>
 </div>
 <a id="ac866591bea565b84b562e931b7884410" name="ac866591bea565b84b562e931b7884410"></a>
@@ -193,6 +209,8 @@ Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>File descriptor for the open file (could be valid or -1 if invalid). </p>
 
 </div>
 </div>
@@ -208,6 +226,8 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Number of bytes already processed from the data buffer. </p>
+
 </div>
 </div>
 <a id="a683ad83718e23c876fcb466ef4acd693" name="a683ad83718e23c876fcb466ef4acd693"></a>
@@ -221,6 +241,8 @@ Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Number of bytes retrieved from io_uring (if using async I/O). </p>
 
 </div>
 </div>
@@ -236,6 +258,8 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Offsets or indices of chunks retrieved via io_uring. </p>
+
 </div>
 </div>
 <a id="ad90ab9c3f4c4dea32c9405c66f77e90e" name="ad90ab9c3f4c4dea32c9405c66f77e90e"></a>
@@ -250,6 +274,8 @@ Public Attributes</h2></td></tr>
       </table>
 </div><div class="memdoc">
 
+<p>Total size of the file in bytes. </p>
+
 </div>
 </div>
 <a id="a20d52da248e95b0b2435bc61a4acbdee" name="a20d52da248e95b0b2435bc61a4acbdee"></a>
@@ -263,6 +289,8 @@ Public Attributes</h2></td></tr>
         </tr>
       </table>
 </div><div class="memdoc">
+
+<p>Number of bytes submitted to io_uring (if using async I/O). </p>
 
 </div>
 </div>

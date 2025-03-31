@@ -184,6 +184,7 @@ Functions</h2></td></tr>
 </div><div class="memdoc">
 
 <p>Loads a file into memory using asynchronous I/O. </p>
+<p>Loads a file into a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> structure, optionally using multiple threads.</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
     <tr><td class="paramname">filename</td><td>The path to the file to be loaded. </td></tr>
@@ -192,7 +193,7 @@ Functions</h2></td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structraw__file.html" title="Represents a raw file loaded into memory.">raw_file</a></code> structure containing the loaded file data and metadata.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a></code> structure containing the loaded file data and metadata.</dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">std::runtime_error</td><td>If the file cannot be opened or read. </td></tr>
@@ -253,16 +254,17 @@ Here is the call graph for this function:</div>
 </div><div class="memdoc">
 
 <p>Parses a raw file into structured key-value pairs and calculates utility data. </p>
+<p>Parses a <a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a> into a structured format (<a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a>).</p>
 <dl class="params"><dt>Parameters</dt><dd>
   <table class="params">
-    <tr><td class="paramname">file</td><td>A reference to the <code><a class="el" href="structraw__file.html" title="Represents a raw file loaded into memory.">raw_file</a></code> structure containing the file data. </td></tr>
+    <tr><td class="paramname">file</td><td>A reference to the <code><a class="el" href="structraw__file.html" title="Holds raw file data and associated metadata.">raw_file</a></code> structure containing the file data. </td></tr>
     <tr><td class="paramname">threads</td><td>The number of threads to use for parsing. </td></tr>
     <tr><td class="paramname">separator</td><td>The character used to separate items in the file. </td></tr>
     <tr><td class="paramname">timer</td><td>A reference to a <a class="el" href="classTimer.html" title="Tracks execution time and memory usage between labeled checkpoints.">Timer</a> object for measuring performance. </td></tr>
   </table>
   </dd>
 </dl>
-<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structparsed__file.html" title="Represents a parsed file with structured key-value pairs and utility data.">parsed_file</a></code> structure containing the parsed data and utility information.</dd></dl>
+<dl class="section return"><dt>Returns</dt><dd>A <code><a class="el" href="structparsed__file.html" title="Holds parsed file contents and associated structures.">parsed_file</a></code> structure containing the parsed data and utility information.</dd></dl>
 <dl class="exception"><dt>Exceptions</dt><dd>
   <table class="exception">
     <tr><td class="paramname">std::invalid_argument</td><td>If the file data is invalid or cannot be parsed. </td></tr>

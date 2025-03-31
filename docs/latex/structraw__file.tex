@@ -2,7 +2,7 @@
 \hypertarget{structraw__file}{}\label{structraw__file}\index{raw\_file@{raw\_file}}
 
 
-Represents a raw file loaded into memory.  
+Holds raw file data and associated metadata.  
 
 
 
@@ -13,30 +13,32 @@ Represents a raw file loaded into memory.
 \begin{DoxyCompactItemize}
 \item 
 \mbox{\hyperlink{structraw__file_a42aeb8274bc1f9a8b1e29fab908c08c8}{raw\+\_\+file}} ()
-\item 
+\begin{DoxyCompactList}\small\item\em Constructor initializes defaults. \end{DoxyCompactList}\item 
 void \mbox{\hyperlink{structraw__file_a885951054ec9fc69ab01fd9c2ffca941}{close}} ()
-\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em Frees the file data buffer, if allocated. \end{DoxyCompactList}\end{DoxyCompactItemize}
 \doxysubsubsection*{Public Attributes}
 \begin{DoxyCompactItemize}
 \item 
 char \texorpdfstring{$\ast$}{*} \mbox{\hyperlink{structraw__file_a357488edfa4673e5141a4c5fc9150a50}{data}}
-\item 
+\begin{DoxyCompactList}\small\item\em Pointer to the file\textquotesingle{}s data loaded into memory. \end{DoxyCompactList}\item 
 size\+\_\+t \mbox{\hyperlink{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e}{size\+\_\+bytes}}
-\item 
+\begin{DoxyCompactList}\small\item\em Total size of the file in bytes. \end{DoxyCompactList}\item 
 size\+\_\+t \mbox{\hyperlink{structraw__file_a20d52da248e95b0b2435bc61a4acbdee}{submitted\+\_\+bytes}}
-\item 
+\begin{DoxyCompactList}\small\item\em Number of bytes submitted to io\+\_\+uring (if using async I/O). \end{DoxyCompactList}\item 
 size\+\_\+t \mbox{\hyperlink{structraw__file_a683ad83718e23c876fcb466ef4acd693}{retrieved\+\_\+bytes}}
-\item 
+\begin{DoxyCompactList}\small\item\em Number of bytes retrieved from io\+\_\+uring (if using async I/O). \end{DoxyCompactList}\item 
 size\+\_\+t \mbox{\hyperlink{structraw__file_ac0c73c12803a751545b9cc94991e01ac}{processed\+\_\+bytes}}
-\item 
+\begin{DoxyCompactList}\small\item\em Number of bytes already processed from the data buffer. \end{DoxyCompactList}\item 
 std\+::vector$<$ std\+::pair$<$ size\+\_\+t, size\+\_\+t $>$ $>$ \mbox{\hyperlink{structraw__file_af700d8a991154f501a09daab25e74638}{retrieved\+\_\+indices}}
-\item 
+\begin{DoxyCompactList}\small\item\em Offsets or indices of chunks retrieved via io\+\_\+uring. \end{DoxyCompactList}\item 
 int \mbox{\hyperlink{structraw__file_ac866591bea565b84b562e931b7884410}{fd}}
-\end{DoxyCompactItemize}
+\begin{DoxyCompactList}\small\item\em File descriptor for the open file (could be valid or -\/1 if invalid). \end{DoxyCompactList}\end{DoxyCompactItemize}
 
 
 \doxysubsection{Detailed Description}
-Represents a raw file loaded into memory. 
+Holds raw file data and associated metadata. 
+
+Represents a raw file loaded into memory.
 
 This structure contains\+:
 \begin{DoxyItemize}
@@ -60,12 +62,20 @@ The {\ttfamily close} method should be called to free allocated memory.
 
 
 
+Constructor initializes defaults. 
+
+
+
 \doxysubsection{Member Function Documentation}
 \Hypertarget{structraw__file_a885951054ec9fc69ab01fd9c2ffca941}\label{structraw__file_a885951054ec9fc69ab01fd9c2ffca941} 
 \index{raw\_file@{raw\_file}!close@{close}}
 \index{close@{close}!raw\_file@{raw\_file}}
 \doxysubsubsection{\texorpdfstring{close()}{close()}}
 {\footnotesize\ttfamily void raw\+\_\+file\+::close (\begin{DoxyParamCaption}{ }\end{DoxyParamCaption})\hspace{0.3cm}{\ttfamily [inline]}}
+
+
+
+Frees the file data buffer, if allocated. 
 
 
 
@@ -76,11 +86,19 @@ The {\ttfamily close} method should be called to free allocated memory.
 \doxysubsubsection{\texorpdfstring{data}{data}}
 {\footnotesize\ttfamily char\texorpdfstring{$\ast$}{*} raw\+\_\+file\+::data}
 
+
+
+Pointer to the file\textquotesingle{}s data loaded into memory. 
+
 \Hypertarget{structraw__file_ac866591bea565b84b562e931b7884410}\label{structraw__file_ac866591bea565b84b562e931b7884410} 
 \index{raw\_file@{raw\_file}!fd@{fd}}
 \index{fd@{fd}!raw\_file@{raw\_file}}
 \doxysubsubsection{\texorpdfstring{fd}{fd}}
 {\footnotesize\ttfamily int raw\+\_\+file\+::fd}
+
+
+
+File descriptor for the open file (could be valid or -\/1 if invalid). 
 
 \Hypertarget{structraw__file_ac0c73c12803a751545b9cc94991e01ac}\label{structraw__file_ac0c73c12803a751545b9cc94991e01ac} 
 \index{raw\_file@{raw\_file}!processed\_bytes@{processed\_bytes}}
@@ -88,11 +106,19 @@ The {\ttfamily close} method should be called to free allocated memory.
 \doxysubsubsection{\texorpdfstring{processed\_bytes}{processed\_bytes}}
 {\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::processed\+\_\+bytes}
 
+
+
+Number of bytes already processed from the data buffer. 
+
 \Hypertarget{structraw__file_a683ad83718e23c876fcb466ef4acd693}\label{structraw__file_a683ad83718e23c876fcb466ef4acd693} 
 \index{raw\_file@{raw\_file}!retrieved\_bytes@{retrieved\_bytes}}
 \index{retrieved\_bytes@{retrieved\_bytes}!raw\_file@{raw\_file}}
 \doxysubsubsection{\texorpdfstring{retrieved\_bytes}{retrieved\_bytes}}
 {\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::retrieved\+\_\+bytes}
+
+
+
+Number of bytes retrieved from io\+\_\+uring (if using async I/O). 
 
 \Hypertarget{structraw__file_af700d8a991154f501a09daab25e74638}\label{structraw__file_af700d8a991154f501a09daab25e74638} 
 \index{raw\_file@{raw\_file}!retrieved\_indices@{retrieved\_indices}}
@@ -100,17 +126,29 @@ The {\ttfamily close} method should be called to free allocated memory.
 \doxysubsubsection{\texorpdfstring{retrieved\_indices}{retrieved\_indices}}
 {\footnotesize\ttfamily std\+::vector$<$std\+::pair$<$size\+\_\+t, size\+\_\+t$>$ $>$ raw\+\_\+file\+::retrieved\+\_\+indices}
 
+
+
+Offsets or indices of chunks retrieved via io\+\_\+uring. 
+
 \Hypertarget{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e}\label{structraw__file_ad90ab9c3f4c4dea32c9405c66f77e90e} 
 \index{raw\_file@{raw\_file}!size\_bytes@{size\_bytes}}
 \index{size\_bytes@{size\_bytes}!raw\_file@{raw\_file}}
 \doxysubsubsection{\texorpdfstring{size\_bytes}{size\_bytes}}
 {\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::size\+\_\+bytes}
 
+
+
+Total size of the file in bytes. 
+
 \Hypertarget{structraw__file_a20d52da248e95b0b2435bc61a4acbdee}\label{structraw__file_a20d52da248e95b0b2435bc61a4acbdee} 
 \index{raw\_file@{raw\_file}!submitted\_bytes@{submitted\_bytes}}
 \index{submitted\_bytes@{submitted\_bytes}!raw\_file@{raw\_file}}
 \doxysubsubsection{\texorpdfstring{submitted\_bytes}{submitted\_bytes}}
 {\footnotesize\ttfamily size\+\_\+t raw\+\_\+file\+::submitted\+\_\+bytes}
+
+
+
+Number of bytes submitted to io\+\_\+uring (if using async I/O). 
 
 
 
