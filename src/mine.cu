@@ -160,20 +160,23 @@ __device__ __forceinline__ void scan(const WorkItem &curr_work_item,
                 temporary_transactions[temp_transaction_idx].data = transaction.data + idx + 1;
                 temporary_transactions[temp_transaction_idx].utility = transaction_pattern_utility;
                 temporary_transactions[temp_transaction_idx].length = remaining_items;
-
-                uint32_t local_utility = transaction_pattern_utility + transaction.util_sum(idx + 1);
-
-                for (int j = 0; j < remaining_items; j++)
-                {
-                    atomicAdd(&local_subtree_utilities
-                                   [temporary_transactions[temp_transaction_idx].data[j].key]
-                                       .local_utility,
-                              local_utility);
-                }
             }
         }
     }
     __syncthreads();
+
+    for (int i = thread_id; i < *temp_transaction_count; i += blockDim.x)
+    {
+        Transaction &transaction = temporary_transactions[i];
+        uint32_t total_util = transaction.utility + transaction.util_sum();
+        for (int j = 0; j < transaction.length; j++)
+        {
+            atomicAdd(&local_subtree_utilities[transaction.data[j].key].local_utility, total_util);
+        }
+    }
+
+
+
 }
 
 __device__ void allocate(WorkItem &wi,
