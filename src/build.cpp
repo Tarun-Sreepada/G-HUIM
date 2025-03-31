@@ -175,7 +175,7 @@ built_file build_file(parsed_file &pf, int threads, Timer &timer, uint64_t min_u
     std::sort(transactions.begin(), transactions.end(),
               [](const std::vector<Item> &a, const std::vector<Item> &b)
               {
-                  return a.size() < b.size();
+                  return a.size() > b.size();
               });
 
     bf.transaction_count = transactions.size();
