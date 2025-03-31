@@ -15,22 +15,10 @@ __device__ __forceinline__ bool fetchWorkItem(stack *work_stack, WorkItem &outIt
 
         // printf("Thread %d: Popped item with primary=%u, utility=%u\n",
         //     thread_id, outItem.primary, outItem.utility);
-
     }
     __syncthreads();
     // If outItem is empty here, there's no more work
     return !outItem.is_empty();
-}
-
-__device__ void processWorkItem(const WorkItem &item)
-{
-    int thread_id = threadIdx.x;
-    if (thread_id == 0)
-    {
-        printf("Processing item with primary=%u, utility=%u\n",
-               item.primary, item.utility);
-    }
-    __syncthreads();
 }
 
 __device__ __forceinline__ void finishTask(stack *work_stack)
@@ -92,7 +80,7 @@ __device__ __forceinline__ void reset_structs(
 }
 
 __device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
-                                                  Utilities **pUtilitiesPtr,
+                                                  Utilities *pUtilitiesPtr,
                                                   int32_t **pTransactionHashes,
                                                   int max_transactions,
                                                   int max_utilities)
@@ -101,7 +89,6 @@ __device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
     {
         // Now we write into the caller's pointer
         *pTemporaryPtr = (Transaction *)gmalloc(sizeof(Transaction) * max_transactions);
-        *pUtilitiesPtr = (Utilities *)gmalloc(sizeof(Utilities) * max_utilities);
         *pTransactionHashes = (int32_t *)gmalloc(sizeof(int32_t) * max_transactions * scale);
     }
     __syncthreads();
@@ -112,7 +99,7 @@ __device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
 
     for (int i = thread_id; i < max_utilities; i += block_size)
     {
-        (*pUtilitiesPtr)[i].key = i;
+        pUtilitiesPtr[i].key = i;
     }
     __syncthreads();
 }
@@ -148,11 +135,11 @@ __device__ __forceinline__ void add_pattern(WorkItem *wi, uint32_t *patterns, ui
 }
 
 __device__ __forceinline__ void scan(const WorkItem &curr_work_item,
-                     WorkItem &new_work_item,
-                     Utilities *local_subtree_utilities,
-                     Transaction *temporary_transactions,
-                     uint32_t temp_transaction_count,
-                     uint32_t temp_item_count)
+                                     WorkItem &new_work_item,
+                                     Utilities *local_subtree_utilities,
+                                     Transaction *temporary_transactions,
+                                     uint32_t temp_transaction_count,
+                                     uint32_t temp_item_count)
 {
     // Get thread ID
     int thread_id = threadIdx.x;
@@ -221,13 +208,6 @@ __device__ uint64_t fasthash(uint64_t i)
     i ^= i >> 33ULL;
     return i;
 }
-// __device__ uint32_t items_hasher(const Item *items, int n, int tableSize)
-// {
-//     uint32_t hash = 0;
-//     for (int i = 0; i < n; i++)
-//         hash ^= pcg_hash(items[i].key + i);
-//     return hash % tableSize;
-// }
 
 __global__ void mine(stack *work_stack,
                      uint32_t *patterns,
@@ -249,14 +229,15 @@ __global__ void mine(stack *work_stack,
 
     __shared__ int32_t *transaction_hashes;
 
-    __shared__ Utilities *local_subtree_utilities;
+    // __shared__ Utilities *local_subtree_utilities;
+    extern __shared__ Utilities local_subtree_utilities[];
 
     __shared__ WorkItem new_work_item;
 
     __shared__ uint32_t pattern_offset;
 
     initalize_structs(&temporary_transactions,
-                      &local_subtree_utilities,
+                      local_subtree_utilities,
                       &transaction_hashes,
                       transaction_count,
                       unique_item_count);
@@ -272,17 +253,41 @@ __global__ void mine(stack *work_stack,
         if (!gotItem)
             break;
 
-        // Re-initialize structures before processing the newly fetched item
-        reset_structs(
-            &new_work_item,
-            curr_work_item,
-            temporary_transactions,
-            transaction_hashes,
-            local_subtree_utilities,
-            &temp_transaction_count,
-            &temp_item_count,
-            transaction_count,
-            unique_item_count);
+        // Set the shared variable to zero from thread 0
+        if (thread_id == 0)
+        {
+            // *p_temp_transaction_count = 0;
+            // *p_temp_item_count = 0;
+            // new_work_item->clear();
+            // new_work_item->pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_work_item.pattern_length + 1));
+            // new_work_item->pattern_length = curr_work_item.pattern_length + 1;
+            // new_work_item->pattern[curr_work_item.pattern_length] = curr_work_item.primary;
+            temp_transaction_count = 0;
+            temp_item_count = 0;
+            new_work_item.clear();
+            new_work_item.pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_work_item.pattern_length + 1));
+            new_work_item.pattern_length = curr_work_item.pattern_length + 1;
+            for (int i = 0; i < curr_work_item.pattern_length; ++i)
+            {
+                new_work_item.pattern[i] = curr_work_item.pattern[i];
+            }
+            new_work_item.pattern[curr_work_item.pattern_length] = curr_work_item.primary;
+        }
+        __syncthreads();
+
+        // Clear out any necessary structures
+        for (int i = thread_id; i < transaction_count; i += blockDim.x)
+        {
+            temporary_transactions[i].clear();
+            transaction_hashes[2 * i] = -1;
+            transaction_hashes[2 * i + 1] = -1;
+        }
+
+        for (int i = thread_id; i < unique_item_count; i += blockDim.x)
+        {
+            local_subtree_utilities[i].clear();
+        }
+        __syncthreads();
 
         // scan(curr_work_item, new_work_item, local_subtree_utilities, temporary_transactions, temp_transaction_count, temp_item_count);
 
@@ -327,18 +332,17 @@ __global__ void mine(stack *work_stack,
             if (thread_id == 0)
             {
                 // atomicAdd(&patterns[0], 1); // Increment the count of patterns
-                printf("Patterns: %d\n", atomicAdd(&patterns[0], 1));
+                // printf("Patterns: %d\n", atomicAdd(&patterns[0], 1));
                 // int offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
                 pattern_offset = atomicAdd(&patterns[1], (new_work_item.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
+
+                // Copy the pattern to the global memory
+                for (int i = 0; i < new_work_item.pattern_length; i += 1)
+                {
+                    patterns[pattern_offset + i] = new_work_item.pattern[i]; // Copy the pattern
+                }
                 patterns[pattern_offset + new_work_item.pattern_length] = new_work_item.utility; // Store the utility
             }
-            __syncthreads();
-            // Copy the pattern to the global memory
-            for (int i = thread_id; i < new_work_item.pattern_length; i += blockDim.x)
-            {
-                patterns[pattern_offset + i] = new_work_item.pattern[i]; // Copy the pattern
-            }
-            __syncthreads();
         }
 
         __syncthreads();
@@ -410,13 +414,12 @@ __global__ void mine(stack *work_stack,
             // merge identical transactions
             uint64_t hash_index = hash % (transaction_count * scale);
 
-
             while (true)
             {
                 int old = atomicCAS(&transaction_hashes[hash_index], -1, offset);
                 if (old == -1)
                     break; // Successfully inserted
-                else
+                if (new_work_item.db->compare_transactions(old, offset))
                 {
                     // Found a duplicate transaction
                     Transaction &old_transaction = new_work_item.db->transactions[old];
@@ -438,7 +441,7 @@ __global__ void mine(stack *work_stack,
                     // new_work_item.db->transactions[offset].cumulative_sum = nullptr;
                     break;
                 }
-                // hash_index = (hash_index + 1) % (transaction_count * scale);
+                hash_index = (hash_index + 1) % (transaction_count * scale);
             }
         }
 
@@ -488,26 +491,6 @@ __global__ void mine(stack *work_stack,
                 work_stack->push(copy);
             }
         }
-
-        // if (thread_id == 0)
-        // {
-        //     // print all utilities
-        //     printf("Pattern: ");
-        //     for (int i = 0; i < new_work_item.pattern_length; ++i)
-        //     {
-        //         printf("%u ", new_work_item.pattern[i]);
-        //     }
-        //     printf(" UTILITY: %u\n", new_work_item.utility);
-        //     for (int i = 0; i < unique_item_count; i++)
-        //     {
-        //         if (local_subtree_utilities[i].local_utility != 0)
-        //         {
-        //             printf("Item %u: Local Utility = %u, Subtree Utility = %u\n",
-        //                    i, local_subtree_utilities[i].local_utility, local_subtree_utilities[i].subtree_utility);
-        //         }
-        //     }
-        //     printf("\n\n");
-        // }
 
         // Indicate we're done with this item
         finishTask(work_stack);
