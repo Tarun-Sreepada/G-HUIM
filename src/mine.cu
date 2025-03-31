@@ -175,8 +175,6 @@ __device__ __forceinline__ void scan(const WorkItem &curr_work_item,
         }
     }
 
-
-
 }
 
 __device__ void allocate(WorkItem &wi,
