@@ -1,29 +1,17 @@
-name: Build and Deploy Doxygen
+name: Deploy Prebuilt Doxygen Docs
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
 
 jobs:
-  build-and-deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: Install Doxygen
-        run: |
-          sudo apt-get update
-          sudo apt-get install doxygen graphviz -y
-
-      # This step assumes you have a Doxyfile in the repo’s root directory
-      # configured to output HTML into `docs/html`.
-      - name: Generate Doxygen
-        run: doxygen Doxyfile
-
-      # Deploy docs in `docs/html` to GitHub Pages (gh-pages branch)
-      - name: Deploy to GitHub Pages
+      - name: Deploy docs/html to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
