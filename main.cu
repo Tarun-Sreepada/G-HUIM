@@ -28,7 +28,7 @@
 #define MEGA (KILO * KILO)
 #define GIGA (KILO * MEGA)
 
-#define total_memory (24 * GIGA)
+#define total_memory (30 * GIGA)
 #define pattern_memory (256 * MEGA)
 
 
@@ -50,8 +50,8 @@ int main(int argc, char *argv[])
         parser.add_argument("--managed", "Use managed memory", false, "false");
         parser.add_argument("--threads", "Number of threads to use to read the file", false, "1");
         parser.add_argument("--separator", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
-        parser.add_argument("--tb_size", "Number of threads per GPU block", false, "32");
-        parser.add_argument("--block_size", "Number of blocks per GPU (Default: SM count)", false, "0");
+        parser.add_argument("--block_size", "Number of threads per GPU block", false, "32");
+        parser.add_argument("--num_blocks", "Number of blocks per GPU (Default: SM count)", false, "0");
 
         parser.parse(argc, argv);
 
@@ -60,16 +60,26 @@ int main(int argc, char *argv[])
         std::cout << "Separator: '" << parser.get_separator("--separator") << "'\n";
         std::cout << "Output File: " << parser.get("--output") << "\n";
         std::cout << "Threads: " << parser.get_uint32("--threads") << "\n";
+        std::cout << "Threads per block: " << parser.get_uint32("--block_size") << "\n";
+        std::cout << "Blocks per GPU: " << parser.get_uint32("--num_blocks") << "\n";
+        std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
 
         validate_threads(parser);
-        validate_tb_size(parser);
         validate_block_size(parser);
+        validate_num_blocks(parser);
     }
     catch (const std::exception &e)
     {
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
+
+    uint32_t shared_memory_capacity = 0;
+    // Get the shared memory capacity of the GPU
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    shared_memory_capacity = prop.sharedMemPerBlock;
+
 
     timer.recordPoint("Start");
 
@@ -96,32 +106,57 @@ int main(int argc, char *argv[])
     timer.recordPoint("Stack Initialized");
 
     // Send data to GPU
-    auto [db, primary] = initialize_copy(bf, s);
-    timer.recordPoint("Prepared Data for GPU");
-
-    copy_work<<<1, 32>>>(s, db, primary, bf.primary.size(), bf.itemID_to_item.size());
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-
+    auto [db, primary] = initialize_copy(bf, s, timer);
     timer.recordPoint("Data Copied to GPU");
 
     // allocate memory for patterns
     uint32_t *patterns;
     gpuErrchk(cudaMallocManaged(&patterns, pattern_memory));
     gpuErrchk(cudaMemset(patterns, 0, pattern_memory));
+    patterns[1] = 2; // first 2 are reserved for the pattern length and the number of patterns
+    timer.recordPoint("Patterns Memory Allocated");
 
 // Run the algorithm
 #ifdef DEBUG
     std::cout << "Number of workitems: " << s->may_pop() << "\n";
-    std::cout << "Threads per block: " << parser.get_uint32("--tb_size") << "\n";
-    std::cout << "Blocks per GPU: " << parser.get_uint32("--block_size") << "\n";
+    std::cout << "Threads per block: " << parser.get_uint32("--block_size") << "\n";
+    std::cout << "Blocks per GPU: " << parser.get_uint32("--num_blocks") << "\n";
+    std::cout << "Max Item ID: " << bf.itemID_to_item.size() << "\n";
+    std::cout << "Shared Memory Capacity: " << shared_memory_capacity << "\n";
+    std::cout << "Shared Memory Usage: " << (bf.transactions.size() * sizeof(Transaction) + bf.itemID_to_item.size() * sizeof(Utilities)) / 1024 << " KB\n";
 #endif
 
-    mine<<<parser.get_uint32("--block_size"), parser.get_uint32("--tb_size")>>>(s, patterns, (uint32_t)parser.get_uint32("--minutil"));
+    // uint32_t shared_memory_usage = ((bf.item_to_itemID.size() + 2) * sizeof(Utilities));
+
+    mine<<<parser.get_uint32("--num_blocks"), parser.get_uint32("--block_size"), 0>>>(s, patterns, (uint32_t)parser.get_uint32("--minutil"), bf.itemID_to_item.size() + 1, bf.transactions.size() + 1);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
+    timer.recordPoint("Mining Completed");
 
     // Get the results
+    std::cout << "Number of patterns: " << patterns[0] << "\n";
+
+    // Write the results to a file
+    std::ofstream output_file(parser.get("--output"));
+    if (!output_file.is_open())
+    {
+        std::cerr << "Error: Could not open output file: " << parser.get("--output") << "\n";
+        return 1;
+    }
+    output_file << "Number of patterns: " << patterns[0] << "\n";
+    output_file << "Patterns:\n";
+    for (uint32_t i = 2; i < patterns[0] + 2; ++i)
+    {
+        // output_file << patterns[i] << "\n";
+        if (patterns[i] != 0)
+        {
+            output_file << patterns[i] << " ";
+        }
+        else
+        {
+            output_file << "\n";
+        }
+    }
 
     // free allocator
     free_global_allocator();
