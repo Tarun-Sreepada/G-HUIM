@@ -28,7 +28,7 @@
 #define MEGA (KILO * KILO)
 #define GIGA (KILO * MEGA)
 
-#define total_memory (30 * GIGA)
+#define total_memory (25 * GIGA)
 #define pattern_memory (256 * MEGA)
 
 
@@ -46,7 +46,7 @@ int main(int argc, char *argv[])
 
         parser.add_argument("--input", "Input file path", true);
         parser.add_argument("--minutil", "Minimum utility", true);
-        parser.add_argument("--output", "Output file path", false, "output.txt");
+        parser.add_argument("--output", "Output file path", false, "cuDPEFIM.txt");
         parser.add_argument("--managed", "Use managed memory", false, "false");
         parser.add_argument("--threads", "Number of threads to use to read the file", false, "1");
         parser.add_argument("--separator", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
@@ -126,15 +126,12 @@ int main(int argc, char *argv[])
     std::cout << "Shared Memory Usage: " << (bf.transactions.size() * sizeof(Transaction) + bf.itemID_to_item.size() * sizeof(Utilities)) / 1024 << " KB\n";
 #endif
 
-    // uint32_t shared_memory_usage = ((bf.item_to_itemID.size() + 2) * sizeof(Utilities));
+    uint32_t shared_memory_usage = ((bf.item_to_itemID.size() + 2) * sizeof(Utilities));
 
-    mine<<<parser.get_uint32("--num_blocks"), parser.get_uint32("--block_size"), 0>>>(s, patterns, (uint32_t)parser.get_uint32("--minutil"), bf.itemID_to_item.size() + 1, bf.transactions.size() + 1);
+    mine<<<parser.get_uint32("--num_blocks"), parser.get_uint32("--block_size"), shared_memory_usage>>>(s, patterns, (uint32_t)parser.get_uint32("--minutil"), bf.itemID_to_item.size() + 1, bf.transactions.size() + 1);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
     timer.recordPoint("Mining Completed");
-
-    // Get the results
-    std::cout << "Number of patterns: " << patterns[0] << "\n";
 
     // Write the results to a file
     std::ofstream output_file(parser.get("--output"));
@@ -143,20 +140,22 @@ int main(int argc, char *argv[])
         std::cerr << "Error: Could not open output file: " << parser.get("--output") << "\n";
         return 1;
     }
-    output_file << "Number of patterns: " << patterns[0] << "\n";
-    output_file << "Patterns:\n";
-    for (uint32_t i = 2; i < patterns[0] + 2; ++i)
+
+    int32_t pattern_count = -2;
+    for (uint32_t i = 0; i < patterns[1]; ++i)
     {
-        // output_file << patterns[i] << "\n";
-        if (patterns[i] != 0)
+        // output_file << patterns[i + 2] << " ";
+        if (patterns[i+2] != 0)
         {
-            output_file << patterns[i] << " ";
+            output_file << patterns[i+2] << " ";
         }
         else
         {
             output_file << "\n";
+            pattern_count++;
         }
     }
+    std::cout << "Number of patterns: " << pattern_count << "\n";
 
     // free allocator
     free_global_allocator();
