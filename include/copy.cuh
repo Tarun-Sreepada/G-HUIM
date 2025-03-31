@@ -13,6 +13,8 @@
  #include "memory.cuh"
  #include "data_types.hpp"
  #include "build.hpp"
+ #include "timer.hpp"
+ #include <numeric>
  
  /**
   * @brief CUDA kernel to copy transactions and primary items to the GPU.
@@ -37,5 +39,5 @@
   *         - Database* pointer to the allocated device database.
   *         - uint32_t* pointer to the device array of primary items.
   */
- std::tuple<Database *, uint32_t *> initialize_copy(built_file &bf, stack *s);
+ std::tuple<Database *, uint32_t *> initialize_copy(built_file &bf, stack *s, Timer &timer);
  

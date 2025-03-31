@@ -8,7 +8,6 @@ struct WorkItem
 {
     uint32_t *pattern = nullptr;
     uint32_t pattern_length = 0;
-    uint32_t *pattern_utility = nullptr;
 
     uint32_t utility = 0;
 
@@ -29,13 +28,13 @@ struct WorkItem
     void clear()
     {
         pattern = nullptr;
-        pattern_length = 0;
-        pattern_utility = nullptr;
-        utility = 0;
+        work_done = nullptr;
         db = nullptr;
+
+        pattern_length = 0;
+        utility = 0;
         max_item = 0;
         primary = 0;
-        work_done = nullptr;
         work_count = 0;
     }
 
@@ -53,27 +52,6 @@ struct WorkItem
         return !is_empty();
     }
 
-    // Equality operator (optional)
-    __host__ __device__
-    bool operator==(const WorkItem &other) const
-    {
-        return pattern == other.pattern &&
-               pattern_length == other.pattern_length &&
-               pattern_utility == other.pattern_utility &&
-               utility == other.utility &&
-               db == other.db &&
-               max_item == other.max_item &&
-               primary == other.primary &&
-               work_done == other.work_done &&
-               work_count == other.work_count;
-    }
-
-    // Inequality operator (optional)
-    __host__ __device__
-    bool operator!=(const WorkItem &other) const
-    {
-        return !(*this == other);
-    }
 };
 
 
