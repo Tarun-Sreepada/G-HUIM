@@ -49,7 +49,7 @@ int main(int argc, char *argv[])
         parser.add_argument("--managed", "Use managed memory", false, "false");
         parser.add_argument("--threads", "Number of threads to use to read the file", false, "1");
         parser.add_argument("--separator", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
-        parser.add_argument("--block_size", "Number of threads per GPU block", false, "32");
+        parser.add_argument("--block_size", "Number of threads per GPU block", false, "0");
         parser.add_argument("--num_blocks", "Number of blocks per GPU (Default: SM count)", false, "0");
 
         parser.parse(argc, argv);
@@ -72,12 +72,6 @@ int main(int argc, char *argv[])
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
-
-    uint32_t shared_memory_capacity = 0;
-    // Get the shared memory capacity of the GPU
-    cudaDeviceProp prop;
-    cudaGetDeviceProperties(&prop, 0);
-    shared_memory_capacity = prop.sharedMemPerBlock;
 
     timer.recordPoint("Start");
 
@@ -116,6 +110,12 @@ int main(int argc, char *argv[])
 
 // Run the algorithm
 #ifdef DEBUG
+    uint32_t shared_memory_capacity = 0;
+    // Get the shared memory capacity of the GPU
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0);
+    shared_memory_capacity = prop.sharedMemPerBlock;
+
     std::cout << "Number of workitems: " << s->may_pop() << "\n";
     std::cout << "Threads per block: " << parser.get_uint32("--block_size") << "\n";
     std::cout << "Blocks per GPU: " << parser.get_uint32("--num_blocks") << "\n";
