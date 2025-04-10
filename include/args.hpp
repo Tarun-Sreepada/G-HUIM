@@ -280,6 +280,28 @@ public:
         return std::stoull(get(name));
     }
 
+    uint64_t get_memory(const std::string &name)
+    {
+        std::string value = get(name);
+        if (value.empty())
+            return 0;
+
+        // Check for memory suffixes (e.g., "1G", "512M", "256K")
+        char suffix = value.back();
+        value.pop_back();
+
+        uint64_t multiplier = 1;
+        if (suffix == 'G')
+            multiplier = 1024 * 1024 * 1024;
+        else if (suffix == 'M')
+            multiplier = 1024 * 1024;
+        else if (suffix == 'K')
+            multiplier = 1024;
+
+        return std::stoull(value) * multiplier;
+    }
+    
+
     /**
      * @brief Retrieves the separator character corresponding to a named argument’s value.
      *

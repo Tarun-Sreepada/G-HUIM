@@ -2,7 +2,7 @@
 #include <cstdint>
 #include "data_types.cuh"
 
-#define CAPACITY (128 * 1024)
+#define CAPACITY (1024 * 1024)
 
 struct WorkItem
 {
@@ -57,14 +57,14 @@ struct stack
     WorkItem items[CAPACITY];
 
     volatile unsigned int top;    // Points to the next free slot
-    volatile unsigned int active; // Keeps track of active tasks / Maybe active tasks can push more items
     int lock;           // false = unlocked, true = locked
+    unsigned long long int total_transactions = 0; // Total transactions in the database
 
     __host__ void init()
     {
         top = 0;
-        active = 0;
         lock = false;
+        total_transactions = 0;
     }
 
     // Device-side spinlock using atomicCAS
@@ -87,18 +87,10 @@ struct stack
     // @return 1 if the push was successful, 0 otherwise
     __device__ bool push(WorkItem item)
     {
-        bool success = false;
-        acquire_lock();
-        if (top < CAPACITY)
-        { // Check if stack is not full
-            items[top] = item;
-            top = top + 1;
-            __threadfence(); // Ensure memory ordering
-            atomicAdd((unsigned int *)&active, 1);
-            success = true;
-        }
-        release_lock();
-        return success;
+        uint32_t old_top = atomicAdd((unsigned int *)&top, 1);
+        atomicAdd(&total_transactions, (unsigned long long int) item.db->num_transactions);
+        items[old_top] = item;
+        return true;
     }
     
     __host__ bool host_push(WorkItem item)
@@ -108,7 +100,6 @@ struct stack
         { // Check if stack is not full
             items[top] = item;
             top = top + 1;
-            active = active + 1;
             success = true;
         }
         return success;
@@ -130,17 +121,16 @@ struct stack
         return success;
     }
 
-    // @brief Check if the stack may pop
-    // @return 1 if the stack may pop, 0 otherwise
-    __host__ __device__ int may_pop()
+    // item copy operator
+    __device__ WorkItem &operator[](int index)
     {
-        return active;
+        return items[index];
     }
 
-    // Mark a task as finished (decrement 'active')
-    __device__ void finish_task()
+    __device__ const WorkItem &operator[](int index) const
     {
-        atomicSub((unsigned int *)&active, 1);
+        return items[index];
     }
+
 
 };

@@ -28,9 +28,9 @@ struct Transaction
     __device__ __host__ bool is_empty() const { return length == 0; }
     __device__ __host__ void clear()
     {
+        data = nullptr; // Simply reset the pointer
         length = 0;
         utility = 0;
-        data = nullptr;
     }
 
     __device__ __host__ int linear_search(uint32_t item)
@@ -50,6 +50,26 @@ struct Transaction
     }
 
     __device__ __host__ int binary_search(uint32_t item)
+    {
+        int lr[2] = {0, (int)length - 1};
+        int arr[2] = {1, -1};
+        int &left = lr[0];
+        int &right = lr[1];
+
+        while (left <= right)
+        {
+            int mid = left + (right - left) / 2;
+            if (data[mid].key == item)
+            {
+                return mid;
+            }
+            int idx = static_cast<int>(data[mid].key > item);
+            lr[idx] = mid + arr[idx];
+        }
+        return -1;
+    }
+
+    __device__ __host__ int binary_search_old(uint32_t item)
     {
         int left = 0;
         int right = length - 1;
@@ -81,7 +101,6 @@ struct Transaction
         }
         return total;
     }
-
 };
 
 /**
@@ -131,6 +150,7 @@ struct Utilities
 
     __device__ void clear()
     {
+        key = EMPTY_KEY;
         local_utility = EMPTY_LOCAL_UTILITY;
         subtree_utility = EMPTY_SUBTREE_UTILITY;
     }

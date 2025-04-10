@@ -8,6 +8,9 @@
 #include "file.hpp"
 #include "timer.hpp"
 
-#define scale 2
+#define scale 3
 
-__global__ void mine(stack *work_stack, uint32_t *patterns, uint32_t min_util, uint32_t unique_item_count, uint32_t transaction_count);
+__global__ void mine(stack *work_stack,
+    stack *new_work_stack,
+    uint32_t *patterns,
+    uint32_t min_util);
