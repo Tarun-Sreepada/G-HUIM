@@ -10,5 +10,6 @@ struct Item
 
     static const unsigned int EMPTY_KEY = 0;
     static const unsigned int EMPTY_UTIL = 0;
+
 };
 

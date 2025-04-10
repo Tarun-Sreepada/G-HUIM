@@ -1,0 +1,97 @@
+Input File: /export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt
+Minimum utility: 15000000
+Separator: ' '
+Output File: cuDPEFIM.txt
+Threads: 16
+Threads per block: 1024
+Managed Memory: true
+Key: 26, Local Utility: 1997637, Subtree Utility: 0
+Key: 64, Local Utility: 7947896, Subtree Utility: 0
+Key: 42, Local Utility: 3194515, Subtree Utility: 0
+Key: 75, Local Utility: 11876113, Subtree Utility: 0
+Key: 77, Local Utility: 12413755, Subtree Utility: 0
+Key: 33, Local Utility: 2879093, Subtree Utility: 0
+Key: 87, Local Utility: 15934356, Subtree Utility: 0
+Key: 90, Local Utility: 16893076, Subtree Utility: 0
+Key: 15, Local Utility: 2046436, Subtree Utility: 0
+Key: 86, Local Utility: 15000513, Subtree Utility: 0
+Key: 28, Local Utility: 2381622, Subtree Utility: 0
+Key: 25, Local Utility: 1719573, Subtree Utility: 0
+Key: 43, Local Utility: 3142612, Subtree Utility: 0
+Key: 81, Local Utility: 14170775, Subtree Utility: 0
+Key: 89, Local Utility: 16872305, Subtree Utility: 0
+Key: 45, Local Utility: 3520371, Subtree Utility: 0
+Key: 29, Local Utility: 2494779, Subtree Utility: 0
+Key: 32, Local Utility: 2525640, Subtree Utility: 0
+Key: 39, Local Utility: 2715894, Subtree Utility: 0
+Key: 63, Local Utility: 7633884, Subtree Utility: 0
+Key: 35, Local Utility: 2990502, Subtree Utility: 0
+Key: 27, Local Utility: 2278456, Subtree Utility: 0
+Key: 82, Local Utility: 13570251, Subtree Utility: 0
+Key: 72, Local Utility: 11085745, Subtree Utility: 0
+Key: 62, Local Utility: 7042182, Subtree Utility: 0
+Key: 59, Local Utility: 5340580, Subtree Utility: 0
+Key: 85, Local Utility: 14685867, Subtree Utility: 0
+Key: 54, Local Utility: 4503238, Subtree Utility: 0
+Key: 30, Local Utility: 2592229, Subtree Utility: 0
+Key: 57, Local Utility: 3789236, Subtree Utility: 0
+Key: 51, Local Utility: 3916433, Subtree Utility: 0
+Key: 70, Local Utility: 9855103, Subtree Utility: 0
+Key: 46, Local Utility: 3795241, Subtree Utility: 0
+Key: 84, Local Utility: 14358267, Subtree Utility: 0
+Key: 23, Local Utility: 1895915, Subtree Utility: 0
+Key: 88, Local Utility: 16551762, Subtree Utility: 1416106
+Key: 40, Local Utility: 2992452, Subtree Utility: 0
+Key: 69, Local Utility: 8519766, Subtree Utility: 0
+Key: 52, Local Utility: 3784336, Subtree Utility: 0
+Key: 47, Local Utility: 3484368, Subtree Utility: 0
+Key: 37, Local Utility: 2371331, Subtree Utility: 0
+Key: 56, Local Utility: 4762780, Subtree Utility: 0
+Key: 91, Local Utility: 16894757, Subtree Utility: 0
+Key: 73, Local Utility: 11224792, Subtree Utility: 0
+Key: 67, Local Utility: 7973239, Subtree Utility: 0
+Key: 83, Local Utility: 13735680, Subtree Utility: 0
+Key: 61, Local Utility: 6535188, Subtree Utility: 0
+Key: 44, Local Utility: 3556552, Subtree Utility: 0
+Key: 60, Local Utility: 5360767, Subtree Utility: 0
+Key: 55, Local Utility: 15230477, Subtree Utility: 0
+Key: 36, Local Utility: 2870760, Subtree Utility: 0
+Key: 34, Local Utility: 2188134, Subtree Utility: 0
+Key: 19, Local Utility: 1912251, Subtree Utility: 0
+Key: 24, Local Utility: 1779677, Subtree Utility: 0
+Key: 68, Local Utility: 8924046, Subtree Utility: 0
+Key: 65, Local Utility: 8392961, Subtree Utility: 0
+Key: 74, Local Utility: 11536518, Subtree Utility: 0
+Key: 17, Local Utility: 1669873, Subtree Utility: 0
+Key: 41, Local Utility: 2919329, Subtree Utility: 0
+Key: 80, Local Utility: 14169460, Subtree Utility: 0
+Key: 49, Local Utility: 3248841, Subtree Utility: 0
+Key: 38, Local Utility: 2929153, Subtree Utility: 0
+Key: 53, Local Utility: 4473859, Subtree Utility: 0
+Key: 78, Local Utility: 12989725, Subtree Utility: 0
+Key: 22, Local Utility: 1696526, Subtree Utility: 0
+Key: 31, Local Utility: 2496696, Subtree Utility: 0
+Key: 48, Local Utility: 3689628, Subtree Utility: 0
+Key: 66, Local Utility: 8549613, Subtree Utility: 0
+Key: 76, Local Utility: 11675108, Subtree Utility: 0
+Key: 79, Local Utility: 13097427, Subtree Utility: 0
+Key: 71, Local Utility: 11043717, Subtree Utility: 0
+New stack top: 0
+Number of patterns: 0
+Label                            Time (ms)     Memory (KB)
+----------------------------------------------------------
+Start                                    0            2152
+File Loaded                              7           69652 (+67500)
+File Parse                              98          191152 (+121500)
+Build                                  223          340392 (+149240)
+Allocator Initialized                  779          463464 (+123072)
+Stack Initialized                        0          463464 (+0)
+New Stack Initialized                    0          463464 (+0)
+GPU Memory Allocated                     0          463464 (+0)
+Transactions Copied to GPU              55          547828 (+84364)
+Data Copied to GPU                      61          463852 (-83976)
+Patterns Memory Allocated               49          463852 (+0)
+Mining Completed                        15          471060 (+7208)
+End                                      2          471060 (+0)
+----------------------------------------------------------
+Total time                            1293 ms

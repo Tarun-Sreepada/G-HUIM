@@ -25,7 +25,7 @@ sudo apt install liburing-dev
 ## Running the Application
 After building the project, you can run the application using:
 ```bash
-./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --managed true --block_size 512
+./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512
 ```
 
 ## Generating Documentation
@@ -36,3 +36,10 @@ cd docs/latex
 make
 cd ../..
 ```
+
+`
+cmake --build build -- -j$(nproc) && compute-sanitizer ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512
+`
+`
+sudo /usr/local/cuda-12.6/bin/ncu -o "new_scan_$(date +%Y%m%d_%H%M%S)" --set full -f ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512 --num_blocks 114
+`
