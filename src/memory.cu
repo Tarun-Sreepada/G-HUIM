@@ -5,8 +5,8 @@ namespace allocators {
 
         // Definitions
         __managed__ char *allocator_base = nullptr;
-        __managed__ unsigned long long allocator_offset = 0;
-        __managed__ unsigned long long allocator_total = 0;
+        __managed__ unsigned long long int allocator_offset = 0;
+        __managed__ unsigned long long int allocator_total = 0;
 
         void init_global_allocator(uint64_t total_memory, bool managed)
         {
@@ -65,32 +65,11 @@ namespace allocators {
             }
         }
 
-        __device__ void* gmalloc(unsigned long long size)
+        __device__ void* gmalloc(unsigned long long int size)
         {
             size = (size + 7) & ~7ULL;  // align to 8 bytes
-            unsigned long long old_offset, new_offset;
-        
-            while (true)
-            {
-                old_offset = allocator_offset;
-                new_offset = old_offset + size;
-        
-                if (new_offset > allocator_total)
-                {
-                    // Wrap around
-                    new_offset = size;
-                }
-        
-                // Try to reserve space using CAS
-                unsigned long long prev = atomicCAS(&allocator_offset, old_offset, new_offset);
-                if (prev == old_offset)
-                {
-                    // Success: return the allocated address
-                    return (void*)(allocator_base + ((prev + size > allocator_total) ? 0 : prev));
-                }
-        
-                // else: try again
-            }
+            unsigned long long ret = atomicAdd(&allocator_offset, size);
+            return allocator_base + ret;
         }
         
         __host__ void *gmalloc_host(unsigned long long size)
