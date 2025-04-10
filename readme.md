@@ -38,7 +38,7 @@ cd ../..
 ```
 
 `
-cmake --build build -- -j$(nproc) && compute-sanitizer ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512
+cmake --build build -- -j$(nproc) && ./build/cuDPEFIM --input '/home/tarun/Documents/cuEFIM/datasets/accidents_utility_spmf.txt' --minutil 15000000 --threads 16 --block_size 512 --total_memory 20G --managed true --output /dev/null
 `
 `
 sudo /usr/local/cuda-12.6/bin/ncu -o "new_scan_$(date +%Y%m%d_%H%M%S)" --set full -f ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512 --num_blocks 114
