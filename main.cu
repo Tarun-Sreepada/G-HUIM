@@ -11,6 +11,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <map>
+#include <utility> 
 #include <set>
 #include <queue>
 #include <functional>
@@ -70,6 +71,7 @@ int main(int argc, char *argv[])
         std::cout << "Threads: " << parser.get_uint32("--threads") << "\n";
         std::cout << "Threads per block: " << parser.get_uint32("--block_size") << "\n";
         std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
+
 
         validate_threads(parser);
         validate_block_size(parser);
@@ -135,7 +137,7 @@ int main(int argc, char *argv[])
 
     while (curr_stack->top != 0)
     {
-        printf("Mining %d\n", curr_stack->top);
+        // printf("Mining %d\n", curr_stack->top);
         uint32_t thread_count = parser.get_uint32("--block_size");
         // its either block size or next pow2 if average is too small
         uint32_t avg = curr_stack->total_transactions / curr_stack->top;
@@ -151,14 +153,12 @@ int main(int argc, char *argv[])
         }
 
         mine<<<curr_stack->top, thread_count>>>(curr_stack, new_stack, patterns, (uint32_t)parser.get_uint32("--minutil"));
+        // mine<<<curr_stack->top, thread_count>>>(curr_stack, new_stack, patterns, (uint32_t)parser.get_uint32("--minutil"), bf.itemID_to_item.size() + 1, bf.transactions.size() + 1);
 
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
 
-        // swap the stacks
-        stack *temp = curr_stack;
-        curr_stack = new_stack;
-        new_stack = temp;
+        std::swap(curr_stack, new_stack);
         new_stack->init();
     }
 
@@ -167,33 +167,15 @@ int main(int argc, char *argv[])
 
     timer.recordPoint("Mining Completed");
 
-
-    // Write the results to a file
-    std::ofstream output_file(parser.get("--output"));
-    if (!output_file.is_open())
-    {
-        std::cerr << "Error: Could not open output file: " << parser.get("--output") << "\n";
-        return 1;
-    }
-
-    int32_t pattern_count = -2;
-    for (uint32_t i = 0; i < patterns[1]; ++i)
-    {
-        // output_file << patterns[i + 2] << " ";
-        if (patterns[i + 2] != 0)
-        {
-            output_file << patterns[i + 2] << " ";
-        }
-        else
-        {
-            output_file << "\n";
-            pattern_count++;
-        }
-    }
-    std::cout << "Number of patterns: " << pattern_count << "\n";
+    write_patterns_to_file(parser.get("--output"), patterns);
 
     // free allocator
     free_global_allocator();
+    cudaFree(db);
+    cudaFree(primary);
+    cudaFree(curr_stack);
+    cudaFree(new_stack);
+    cudaFree(patterns);
 
     timer.recordPoint("End");
     timer.printRecords();

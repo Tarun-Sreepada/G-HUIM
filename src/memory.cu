@@ -54,10 +54,12 @@ namespace allocators {
         {
             if (allocator_base)
             {
+                #ifdef DEBUG
                 printf("%d GB used\n", (int)(allocator_offset / (1024 * 1024 * 1024)));
                 printf("%d GB free\n", (int)((allocator_total - allocator_offset) / (1024 * 1024 * 1024)));
                 printf("%d GB total\n", (int)(allocator_total / (1024 * 1024 * 1024)));
                 printf("Freeing global allocator\n");
+                #endif
                 cudaFree(allocator_base);
                 allocator_base = nullptr;
             }

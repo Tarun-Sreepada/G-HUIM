@@ -407,3 +407,35 @@ parsed_file parse_file(raw_file &file, int threads, const char separator, Timer 
 
     return std::move(pf);
 }
+
+#include <fstream>
+#include <iostream>
+#include <string>
+
+void write_patterns_to_file(const std::string& output_path, const uint32_t* patterns)
+{
+    std::ofstream output_file(output_path);
+    if (!output_file.is_open())
+    {
+        std::cerr << "Error: Could not open output file: " << output_path << "\n";
+        return;
+    }
+
+    int32_t pattern_count = -2;
+    for (uint32_t i = 0; i < patterns[1]; ++i)
+    {
+        if (patterns[i + 2] != 0)
+        {
+            output_file << patterns[i + 2] << " ";
+        }
+        else
+        {
+            output_file << "\n";
+            pattern_count++;
+        }
+    }
+
+    std::cout << "Number of patterns: " << pattern_count << "\n";
+
+    output_file.close();
+}

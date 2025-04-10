@@ -11,7 +11,6 @@ __device__ uint64_t fasthash(uint64_t i)
     return i;
 }
 
-
 __device__ int find_item(const Utilities *buckets, int table_size, int key)
 {
     uint32_t hash = fasthash(key) % table_size;

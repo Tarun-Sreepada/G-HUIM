@@ -175,3 +175,10 @@ enum ParseState {
  * @return A parsed_file containing structured data.
  */
 parsed_file parse_file(raw_file &file, int threads, const char separator, Timer &timer);
+
+
+#include <fstream>
+#include <iostream>
+#include <string>
+
+void write_patterns_to_file(const std::string& output_path, const uint32_t* patterns);
