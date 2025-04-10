@@ -7,11 +7,11 @@ CUDA_DEFINES =
 
 CUDA_INCLUDES = --options-file CMakeFiles/cuDPEFIM.dir/includes_CUDA.rsp
 
-CUDA_FLAGS =  -O3 -g -lineinfo -O3 -DNDEBUG -std=c++20 "--generate-code=arch=compute_75,code=[compute_75,sm_75]" "--generate-code=arch=compute_80,code=[compute_80,sm_80]"
+CUDA_FLAGS = -O3 -use_fast_math -lineinfo -Xcompiler=-march=native -std=c++20 "--generate-code=arch=compute_75,code=[compute_75,lto_75]" "--generate-code=arch=compute_80,code=[compute_80,lto_80]"
 
 CXX_DEFINES = 
 
 CXX_INCLUDES = -I/usr/local/cuda-12.8/targets/x86_64-linux/include -I/home/tarun/Documents/cuDPEFIM/include
 
-CXX_FLAGS =  -O3 -g -O3 -DNDEBUG -std=gnu++20 -fopenmp
+CXX_FLAGS =  -Wall -Wextra -Wpedantic -O3 -march=native -flto -funroll-loops -DNDEBUG -std=gnu++20 -flto=auto -fno-fat-lto-objects -fopenmp
 
