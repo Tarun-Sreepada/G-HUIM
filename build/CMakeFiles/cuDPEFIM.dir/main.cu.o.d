@@ -1,7 +1,7 @@
-CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
+CMakeFiles/cuDPEFIM.dir/main.cu.o : /export/home1/ltarun/cuDPEFIM/main.cu \
     /usr/include/stdc-predef.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/cuda_runtime.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/host_config.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/cuda_runtime.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/host_config.h \
     /usr/include/features.h \
     /usr/include/features-time64.h \
     /usr/include/x86_64-linux-gnu/bits/wordsize.h \
@@ -10,9 +10,9 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/long-double.h \
     /usr/include/x86_64-linux-gnu/gnu/stubs.h \
     /usr/include/x86_64-linux-gnu/gnu/stubs-64.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/builtin_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/device_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/host_defines.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/builtin_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/device_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/host_defines.h \
     /usr/include/ctype.h \
     /usr/include/x86_64-linux-gnu/bits/types.h \
     /usr/include/x86_64-linux-gnu/bits/typesizes.h \
@@ -21,10 +21,10 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/endianness.h \
     /usr/include/x86_64-linux-gnu/bits/types/locale_t.h \
     /usr/include/x86_64-linux-gnu/bits/types/__locale_t.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/driver_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/vector_types.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/limits.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/syslimits.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/driver_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/vector_types.h \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/limits.h \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/syslimits.h \
     /usr/include/limits.h \
     /usr/include/x86_64-linux-gnu/bits/libc-header-start.h \
     /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
@@ -34,19 +34,19 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
     /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
     /usr/include/x86_64-linux-gnu/bits/uio_lim.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/stddef.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/surface_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/texture_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/library_types.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/channel_descriptor.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/cuda_runtime_api.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/cuda_device_runtime_api.h \
-    /usr/include/c++/13/stdlib.h \
-    /usr/include/c++/13/cstdlib \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/c++config.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/os_defines.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/cpu_defines.h \
-    /usr/include/c++/13/pstl/pstl_config.h \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/stddef.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/surface_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/texture_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/library_types.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/channel_descriptor.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/cuda_runtime_api.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/cuda_device_runtime_api.h \
+    /usr/include/c++/12/stdlib.h \
+    /usr/include/c++/12/cstdlib \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/c++config.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/os_defines.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/cpu_defines.h \
+    /usr/include/c++/12/pstl/pstl_config.h \
     /usr/include/stdlib.h \
     /usr/include/x86_64-linux-gnu/bits/waitflags.h \
     /usr/include/x86_64-linux-gnu/bits/waitstatus.h \
@@ -68,7 +68,6 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/types/struct_timeval.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct_timespec.h \
     /usr/include/x86_64-linux-gnu/bits/select2.h \
-    /usr/include/x86_64-linux-gnu/bits/select-decl.h \
     /usr/include/x86_64-linux-gnu/bits/pthreadtypes.h \
     /usr/include/x86_64-linux-gnu/bits/thread-shared-types.h \
     /usr/include/x86_64-linux-gnu/bits/pthreadtypes-arch.h \
@@ -79,11 +78,11 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/stdlib-bsearch.h \
     /usr/include/x86_64-linux-gnu/bits/stdlib-float.h \
     /usr/include/x86_64-linux-gnu/bits/stdlib.h \
-    /usr/include/c++/13/bits/std_abs.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/driver_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/vector_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/vector_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/common_functions.h \
+    /usr/include/c++/12/bits/std_abs.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/driver_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/vector_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/vector_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/common_functions.h \
     /usr/include/string.h \
     /usr/include/strings.h \
     /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
@@ -93,10 +92,10 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/timex.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct_tm.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct_itimerspec.h \
-    /usr/include/c++/13/new \
-    /usr/include/c++/13/bits/exception.h \
+    /usr/include/c++/12/new \
+    /usr/include/c++/12/bits/exception.h \
     /usr/include/stdio.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/stdarg.h \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/stdarg.h \
     /usr/include/x86_64-linux-gnu/bits/types/__fpos_t.h \
     /usr/include/x86_64-linux-gnu/bits/types/__mbstate_t.h \
     /usr/include/x86_64-linux-gnu/bits/types/__fpos64_t.h \
@@ -105,16 +104,14 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/types/struct_FILE.h \
     /usr/include/x86_64-linux-gnu/bits/types/cookie_io_functions_t.h \
     /usr/include/x86_64-linux-gnu/bits/stdio_lim.h \
-    /usr/include/x86_64-linux-gnu/bits/stdio2-decl.h \
     /usr/include/x86_64-linux-gnu/bits/stdio.h \
     /usr/include/x86_64-linux-gnu/bits/stdio2.h \
     /usr/include/assert.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/math_functions.h \
-    /usr/include/c++/13/math.h \
-    /usr/include/c++/13/cmath \
-    /usr/include/c++/13/bits/requires_hosted.h \
-    /usr/include/c++/13/bits/cpp_type_traits.h \
-    /usr/include/c++/13/ext/type_traits.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/math_functions.h \
+    /usr/include/c++/12/math.h \
+    /usr/include/c++/12/cmath \
+    /usr/include/c++/12/bits/cpp_type_traits.h \
+    /usr/include/c++/12/ext/type_traits.h \
     /usr/include/math.h \
     /usr/include/x86_64-linux-gnu/bits/math-vector.h \
     /usr/include/x86_64-linux-gnu/bits/libm-simd-decl-stubs.h \
@@ -125,111 +122,111 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/mathcalls.h \
     /usr/include/x86_64-linux-gnu/bits/mathcalls-narrow.h \
     /usr/include/x86_64-linux-gnu/bits/iscanonical.h \
-    /usr/include/c++/13/bits/specfun.h \
-    /usr/include/c++/13/bits/stl_algobase.h \
-    /usr/include/c++/13/bits/functexcept.h \
-    /usr/include/c++/13/bits/exception_defines.h \
-    /usr/include/c++/13/ext/numeric_traits.h \
-    /usr/include/c++/13/bits/stl_pair.h \
-    /usr/include/c++/13/type_traits \
-    /usr/include/c++/13/bits/move.h \
-    /usr/include/c++/13/bits/utility.h \
-    /usr/include/c++/13/compare \
-    /usr/include/c++/13/concepts \
-    /usr/include/c++/13/bits/stl_iterator_base_types.h \
-    /usr/include/c++/13/bits/iterator_concepts.h \
-    /usr/include/c++/13/bits/ptr_traits.h \
-    /usr/include/c++/13/bits/ranges_cmp.h \
-    /usr/include/c++/13/bits/stl_iterator_base_funcs.h \
-    /usr/include/c++/13/bits/concept_check.h \
-    /usr/include/c++/13/debug/assertions.h \
-    /usr/include/c++/13/bits/stl_iterator.h \
-    /usr/include/c++/13/bits/stl_construct.h \
-    /usr/include/c++/13/debug/debug.h \
-    /usr/include/c++/13/bits/predefined_ops.h \
-    /usr/include/c++/13/bit \
-    /usr/include/c++/13/limits \
-    /usr/include/c++/13/tr1/gamma.tcc \
-    /usr/include/c++/13/tr1/special_function_util.h \
-    /usr/include/c++/13/tr1/bessel_function.tcc \
-    /usr/include/c++/13/tr1/beta_function.tcc \
-    /usr/include/c++/13/tr1/ell_integral.tcc \
-    /usr/include/c++/13/tr1/exp_integral.tcc \
-    /usr/include/c++/13/tr1/hypergeometric.tcc \
-    /usr/include/c++/13/tr1/legendre_function.tcc \
-    /usr/include/c++/13/tr1/modified_bessel_func.tcc \
-    /usr/include/c++/13/tr1/poly_hermite.tcc \
-    /usr/include/c++/13/tr1/poly_laguerre.tcc \
-    /usr/include/c++/13/tr1/riemann_zeta.tcc \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/math_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/device_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/device_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/device_double_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/device_double_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_20_atomic_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_20_atomic_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_32_atomic_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_32_atomic_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_35_atomic_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_60_atomic_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_60_atomic_functions.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_20_intrinsics.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_20_intrinsics.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_30_intrinsics.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_30_intrinsics.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_32_intrinsics.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_32_intrinsics.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_35_intrinsics.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_61_intrinsics.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/sm_61_intrinsics.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_70_rt.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_70_rt.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_80_rt.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_80_rt.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_90_rt.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_90_rt.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_100_rt.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_100_rt.hpp \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/texture_indirect_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/surface_indirect_functions.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/crt/cudacc_ext.h \
-    /usr/local/cuda-12.8/targets/x86_64-linux/include/device_launch_parameters.h \
-    /usr/include/c++/13/utility \
-    /usr/include/c++/13/bits/stl_relops.h \
-    /usr/include/c++/13/initializer_list \
-    /usr/include/c++/13/iostream \
-    /usr/include/c++/13/ostream \
-    /usr/include/c++/13/ios \
-    /usr/include/c++/13/iosfwd \
-    /usr/include/c++/13/bits/stringfwd.h \
-    /usr/include/c++/13/bits/memoryfwd.h \
-    /usr/include/c++/13/bits/postypes.h \
-    /usr/include/c++/13/cwchar \
+    /usr/include/c++/12/bits/specfun.h \
+    /usr/include/c++/12/bits/stl_algobase.h \
+    /usr/include/c++/12/bits/functexcept.h \
+    /usr/include/c++/12/bits/exception_defines.h \
+    /usr/include/c++/12/ext/numeric_traits.h \
+    /usr/include/c++/12/bits/stl_pair.h \
+    /usr/include/c++/12/type_traits \
+    /usr/include/c++/12/bits/move.h \
+    /usr/include/c++/12/bits/utility.h \
+    /usr/include/c++/12/compare \
+    /usr/include/c++/12/concepts \
+    /usr/include/c++/12/bits/stl_iterator_base_types.h \
+    /usr/include/c++/12/bits/iterator_concepts.h \
+    /usr/include/c++/12/bits/ptr_traits.h \
+    /usr/include/c++/12/bits/ranges_cmp.h \
+    /usr/include/c++/12/bits/stl_iterator_base_funcs.h \
+    /usr/include/c++/12/bits/concept_check.h \
+    /usr/include/c++/12/debug/assertions.h \
+    /usr/include/c++/12/bits/stl_iterator.h \
+    /usr/include/c++/12/bits/stl_construct.h \
+    /usr/include/c++/12/debug/debug.h \
+    /usr/include/c++/12/bits/predefined_ops.h \
+    /usr/include/c++/12/limits \
+    /usr/include/c++/12/tr1/gamma.tcc \
+    /usr/include/c++/12/tr1/special_function_util.h \
+    /usr/include/c++/12/tr1/bessel_function.tcc \
+    /usr/include/c++/12/tr1/beta_function.tcc \
+    /usr/include/c++/12/tr1/ell_integral.tcc \
+    /usr/include/c++/12/tr1/exp_integral.tcc \
+    /usr/include/c++/12/tr1/hypergeometric.tcc \
+    /usr/include/c++/12/tr1/legendre_function.tcc \
+    /usr/include/c++/12/tr1/modified_bessel_func.tcc \
+    /usr/include/c++/12/tr1/poly_hermite.tcc \
+    /usr/include/c++/12/tr1/poly_laguerre.tcc \
+    /usr/include/c++/12/tr1/riemann_zeta.tcc \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/math_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/device_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/device_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/device_atomic_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/device_atomic_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/device_double_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/device_double_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_20_atomic_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_20_atomic_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_32_atomic_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_32_atomic_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_35_atomic_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_60_atomic_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_60_atomic_functions.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_20_intrinsics.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_20_intrinsics.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_30_intrinsics.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_30_intrinsics.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_32_intrinsics.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_32_intrinsics.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_35_intrinsics.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_61_intrinsics.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/sm_61_intrinsics.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_70_rt.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_70_rt.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_80_rt.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_80_rt.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_90_rt.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/sm_90_rt.hpp \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/texture_indirect_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/surface_indirect_functions.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/crt/cudacc_ext.h \
+    /usr/local/cuda-12.6/targets/x86_64-linux/include/device_launch_parameters.h \
+    /usr/include/c++/12/utility \
+    /usr/include/c++/12/bits/stl_relops.h \
+    /usr/include/c++/12/initializer_list \
+    /usr/include/c++/12/iostream \
+    /usr/include/c++/12/ostream \
+    /usr/include/c++/12/ios \
+    /usr/include/c++/12/iosfwd \
+    /usr/include/c++/12/bits/stringfwd.h \
+    /usr/include/c++/12/bits/memoryfwd.h \
+    /usr/include/c++/12/bits/postypes.h \
+    /usr/include/c++/12/cwchar \
     /usr/include/wchar.h \
     /usr/include/x86_64-linux-gnu/bits/wchar.h \
     /usr/include/x86_64-linux-gnu/bits/types/wint_t.h \
     /usr/include/x86_64-linux-gnu/bits/types/mbstate_t.h \
-    /usr/include/x86_64-linux-gnu/bits/wchar2-decl.h \
     /usr/include/x86_64-linux-gnu/bits/wchar2.h \
-    /usr/include/c++/13/exception \
-    /usr/include/c++/13/bits/exception_ptr.h \
-    /usr/include/c++/13/bits/cxxabi_init_exception.h \
-    /usr/include/c++/13/typeinfo \
-    /usr/include/c++/13/bits/hash_bytes.h \
-    /usr/include/c++/13/bits/nested_exception.h \
-    /usr/include/c++/13/bits/char_traits.h \
-    /usr/include/c++/13/bits/localefwd.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/c++locale.h \
-    /usr/include/c++/13/clocale \
+    /usr/include/c++/12/exception \
+    /usr/include/c++/12/bits/exception_ptr.h \
+    /usr/include/c++/12/bits/cxxabi_init_exception.h \
+    /usr/include/c++/12/typeinfo \
+    /usr/include/c++/12/bits/hash_bytes.h \
+    /usr/include/c++/12/bits/nested_exception.h \
+    /usr/include/c++/12/bits/char_traits.h \
+    /usr/include/c++/12/cstdint \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/stdint.h \
+    /usr/include/stdint.h \
+    /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
+    /usr/include/c++/12/bits/localefwd.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/c++locale.h \
+    /usr/include/c++/12/clocale \
     /usr/include/locale.h \
     /usr/include/x86_64-linux-gnu/bits/locale.h \
-    /usr/include/c++/13/cctype \
-    /usr/include/c++/13/bits/ios_base.h \
-    /usr/include/c++/13/ext/atomicity.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/gthr.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/gthr-default.h \
+    /usr/include/c++/12/cctype \
+    /usr/include/c++/12/bits/ios_base.h \
+    /usr/include/c++/12/ext/atomicity.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/gthr.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/gthr-default.h \
     /usr/include/pthread.h \
     /usr/include/sched.h \
     /usr/include/x86_64-linux-gnu/bits/sched.h \
@@ -237,32 +234,32 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/cpu-set.h \
     /usr/include/x86_64-linux-gnu/bits/setjmp.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct___jmp_buf_tag.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/atomic_word.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/atomic_word.h \
     /usr/include/x86_64-linux-gnu/sys/single_threaded.h \
-    /usr/include/c++/13/bits/locale_classes.h \
-    /usr/include/c++/13/string \
-    /usr/include/c++/13/bits/allocator.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/c++allocator.h \
-    /usr/include/c++/13/bits/new_allocator.h \
-    /usr/include/c++/13/bits/ostream_insert.h \
-    /usr/include/c++/13/bits/cxxabi_forced.h \
-    /usr/include/c++/13/bits/stl_function.h \
-    /usr/include/c++/13/backward/binders.h \
-    /usr/include/c++/13/bits/refwrap.h \
-    /usr/include/c++/13/bits/invoke.h \
-    /usr/include/c++/13/bits/range_access.h \
-    /usr/include/c++/13/bits/basic_string.h \
-    /usr/include/c++/13/ext/alloc_traits.h \
-    /usr/include/c++/13/bits/alloc_traits.h \
-    /usr/include/c++/13/string_view \
-    /usr/include/c++/13/bits/functional_hash.h \
-    /usr/include/c++/13/bits/ranges_base.h \
-    /usr/include/c++/13/bits/max_size_type.h \
-    /usr/include/c++/13/numbers \
-    /usr/include/c++/13/bits/string_view.tcc \
-    /usr/include/c++/13/ext/string_conversions.h \
-    /usr/include/c++/13/cstdio \
-    /usr/include/c++/13/cerrno \
+    /usr/include/c++/12/bits/locale_classes.h \
+    /usr/include/c++/12/string \
+    /usr/include/c++/12/bits/allocator.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/c++allocator.h \
+    /usr/include/c++/12/bits/new_allocator.h \
+    /usr/include/c++/12/bits/ostream_insert.h \
+    /usr/include/c++/12/bits/cxxabi_forced.h \
+    /usr/include/c++/12/bits/stl_function.h \
+    /usr/include/c++/12/backward/binders.h \
+    /usr/include/c++/12/bits/refwrap.h \
+    /usr/include/c++/12/bits/invoke.h \
+    /usr/include/c++/12/bits/range_access.h \
+    /usr/include/c++/12/bits/basic_string.h \
+    /usr/include/c++/12/ext/alloc_traits.h \
+    /usr/include/c++/12/bits/alloc_traits.h \
+    /usr/include/c++/12/string_view \
+    /usr/include/c++/12/bits/functional_hash.h \
+    /usr/include/c++/12/bits/ranges_base.h \
+    /usr/include/c++/12/bits/max_size_type.h \
+    /usr/include/c++/12/numbers \
+    /usr/include/c++/12/bits/string_view.tcc \
+    /usr/include/c++/12/ext/string_conversions.h \
+    /usr/include/c++/12/cstdio \
+    /usr/include/c++/12/cerrno \
     /usr/include/errno.h \
     /usr/include/x86_64-linux-gnu/bits/errno.h \
     /usr/include/linux/errno.h \
@@ -270,57 +267,46 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/asm-generic/errno.h \
     /usr/include/asm-generic/errno-base.h \
     /usr/include/x86_64-linux-gnu/bits/types/error_t.h \
-    /usr/include/c++/13/bits/charconv.h \
-    /usr/include/c++/13/bits/basic_string.tcc \
-    /usr/include/c++/13/bits/memory_resource.h \
-    /usr/include/c++/13/cstddef \
-    /usr/include/c++/13/bits/uses_allocator.h \
-    /usr/include/c++/13/bits/uses_allocator_args.h \
-    /usr/include/c++/13/tuple \
-    /usr/include/c++/13/bits/ranges_util.h \
-    /usr/include/c++/13/bits/locale_classes.tcc \
-    /usr/include/c++/13/system_error \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/error_constants.h \
-    /usr/include/c++/13/stdexcept \
-    /usr/include/c++/13/streambuf \
-    /usr/include/c++/13/bits/streambuf.tcc \
-    /usr/include/c++/13/bits/basic_ios.h \
-    /usr/include/c++/13/bits/locale_facets.h \
-    /usr/include/c++/13/cwctype \
+    /usr/include/c++/12/bits/charconv.h \
+    /usr/include/c++/12/bits/basic_string.tcc \
+    /usr/include/c++/12/bits/locale_classes.tcc \
+    /usr/include/c++/12/system_error \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/error_constants.h \
+    /usr/include/c++/12/stdexcept \
+    /usr/include/c++/12/streambuf \
+    /usr/include/c++/12/bits/streambuf.tcc \
+    /usr/include/c++/12/bits/basic_ios.h \
+    /usr/include/c++/12/bits/locale_facets.h \
+    /usr/include/c++/12/cwctype \
     /usr/include/wctype.h \
     /usr/include/x86_64-linux-gnu/bits/wctype-wchar.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/ctype_base.h \
-    /usr/include/c++/13/bits/streambuf_iterator.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/ctype_inline.h \
-    /usr/include/c++/13/bits/locale_facets.tcc \
-    /usr/include/c++/13/bits/basic_ios.tcc \
-    /usr/include/c++/13/bits/ostream.tcc \
-    /usr/include/c++/13/istream \
-    /usr/include/c++/13/bits/istream.tcc \
-    /usr/include/c++/13/fstream \
-    /usr/include/c++/13/bits/codecvt.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/basic_file.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/c++io.h \
-    /usr/include/c++/13/bits/fstream.tcc \
-    /usr/include/c++/13/sstream \
-    /usr/include/c++/13/bits/sstream.tcc \
-    /usr/include/c++/13/vector \
-    /usr/include/c++/13/bits/stl_uninitialized.h \
-    /usr/include/c++/13/bits/stl_vector.h \
-    /usr/include/c++/13/bits/stl_bvector.h \
-    /usr/include/c++/13/bits/vector.tcc \
-    /usr/include/c++/13/thread \
-    /usr/include/c++/13/stop_token \
-    /usr/include/c++/13/atomic \
-    /usr/include/c++/13/bits/atomic_base.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/stdint.h \
-    /usr/include/stdint.h \
-    /usr/include/x86_64-linux-gnu/bits/stdint-uintn.h \
-    /usr/include/x86_64-linux-gnu/bits/stdint-least.h \
-    /usr/include/c++/13/bits/atomic_lockfree_defines.h \
-    /usr/include/c++/13/bits/atomic_wait.h \
-    /usr/include/c++/13/cstdint \
-    /usr/include/c++/13/climits \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/ctype_base.h \
+    /usr/include/c++/12/bits/streambuf_iterator.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/ctype_inline.h \
+    /usr/include/c++/12/bits/locale_facets.tcc \
+    /usr/include/c++/12/bits/basic_ios.tcc \
+    /usr/include/c++/12/bits/ostream.tcc \
+    /usr/include/c++/12/istream \
+    /usr/include/c++/12/bits/istream.tcc \
+    /usr/include/c++/12/fstream \
+    /usr/include/c++/12/bits/codecvt.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/basic_file.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/c++io.h \
+    /usr/include/c++/12/bits/fstream.tcc \
+    /usr/include/c++/12/sstream \
+    /usr/include/c++/12/bits/sstream.tcc \
+    /usr/include/c++/12/vector \
+    /usr/include/c++/12/bits/stl_uninitialized.h \
+    /usr/include/c++/12/bits/stl_vector.h \
+    /usr/include/c++/12/bits/stl_bvector.h \
+    /usr/include/c++/12/bits/vector.tcc \
+    /usr/include/c++/12/thread \
+    /usr/include/c++/12/stop_token \
+    /usr/include/c++/12/atomic \
+    /usr/include/c++/12/bits/atomic_base.h \
+    /usr/include/c++/12/bits/atomic_lockfree_defines.h \
+    /usr/include/c++/12/bits/atomic_wait.h \
+    /usr/include/c++/12/climits \
     /usr/include/unistd.h \
     /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
     /usr/include/x86_64-linux-gnu/bits/environments.h \
@@ -328,7 +314,6 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
     /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
     /usr/include/x86_64-linux-gnu/bits/unistd.h \
-    /usr/include/x86_64-linux-gnu/bits/unistd-decl.h \
     /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
     /usr/include/linux/close_range.h \
     /usr/include/syscall.h \
@@ -336,79 +321,63 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/asm/unistd.h \
     /usr/include/x86_64-linux-gnu/asm/unistd_64.h \
     /usr/include/x86_64-linux-gnu/bits/syscall.h \
-    /usr/include/c++/13/bits/std_mutex.h \
-    /usr/include/c++/13/bits/std_thread.h \
-    /usr/include/c++/13/bits/unique_ptr.h \
-    /usr/include/c++/13/semaphore \
-    /usr/include/c++/13/bits/semaphore_base.h \
-    /usr/include/c++/13/bits/chrono.h \
-    /usr/include/c++/13/ratio \
-    /usr/include/c++/13/ctime \
-    /usr/include/c++/13/bits/parse_numbers.h \
-    /usr/include/c++/13/bits/atomic_timed_wait.h \
-    /usr/include/c++/13/bits/this_thread_sleep.h \
+    /usr/include/c++/12/bits/std_mutex.h \
+    /usr/include/c++/12/bits/std_thread.h \
+    /usr/include/c++/12/tuple \
+    /usr/include/c++/12/bits/uses_allocator.h \
+    /usr/include/c++/12/bits/unique_ptr.h \
+    /usr/include/c++/12/semaphore \
+    /usr/include/c++/12/bits/semaphore_base.h \
+    /usr/include/c++/12/bits/chrono.h \
+    /usr/include/c++/12/ratio \
+    /usr/include/c++/12/ctime \
+    /usr/include/c++/12/bits/parse_numbers.h \
+    /usr/include/c++/12/bits/atomic_timed_wait.h \
+    /usr/include/c++/12/bits/this_thread_sleep.h \
     /usr/include/x86_64-linux-gnu/sys/time.h \
     /usr/include/semaphore.h \
     /usr/include/x86_64-linux-gnu/bits/semaphore.h \
-    /usr/include/c++/13/chrono \
-    /usr/include/c++/13/bits/stl_algo.h \
-    /usr/include/c++/13/bits/algorithmfwd.h \
-    /usr/include/c++/13/bits/stl_heap.h \
-    /usr/include/c++/13/bits/uniform_int_dist.h \
-    /usr/include/c++/13/bits/stl_tempbuf.h \
-    /usr/include/c++/13/bits/shared_ptr.h \
-    /usr/include/c++/13/bits/shared_ptr_base.h \
-    /usr/include/c++/13/bits/allocated_ptr.h \
-    /usr/include/c++/13/ext/aligned_buffer.h \
-    /usr/include/c++/13/ext/concurrence.h \
-    /usr/include/c++/13/bits/align.h \
-    /usr/include/c++/13/bits/chrono_io.h \
-    /usr/include/c++/13/iomanip \
-    /usr/include/c++/13/locale \
-    /usr/include/c++/13/bits/locale_facets_nonio.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/time_members.h \
-    /usr/include/x86_64-linux-gnu/c++/13/bits/messages_members.h \
-    /usr/include/libintl.h \
-    /usr/include/c++/13/bits/locale_facets_nonio.tcc \
-    /usr/include/c++/13/bits/locale_conv.h \
-    /usr/include/c++/13/bits/quoted_string.h \
-    /usr/include/c++/13/format \
-    /usr/include/c++/13/array \
-    /usr/include/c++/13/charconv \
-    /usr/include/c++/13/optional \
-    /usr/include/c++/13/bits/enable_special_members.h \
-    /usr/include/c++/13/span \
-    /usr/include/c++/13/variant \
-    /usr/include/c++/13/bits/ranges_algobase.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/omp.h \
-    /usr/include/c++/13/algorithm \
-    /usr/include/c++/13/bits/ranges_algo.h \
-    /usr/include/c++/13/pstl/glue_algorithm_defs.h \
-    /usr/include/c++/13/pstl/execution_defs.h \
-    /usr/include/c++/13/unordered_map \
-    /usr/include/c++/13/bits/unordered_map.h \
-    /usr/include/c++/13/bits/hashtable.h \
-    /usr/include/c++/13/bits/hashtable_policy.h \
-    /usr/include/c++/13/bits/node_handle.h \
-    /usr/include/c++/13/bits/erase_if.h \
-    /usr/include/c++/13/unordered_set \
-    /usr/include/c++/13/bits/unordered_set.h \
-    /usr/include/c++/13/map \
-    /usr/include/c++/13/bits/stl_tree.h \
-    /usr/include/c++/13/bits/stl_map.h \
-    /usr/include/c++/13/bits/stl_multimap.h \
-    /usr/include/c++/13/set \
-    /usr/include/c++/13/bits/stl_set.h \
-    /usr/include/c++/13/bits/stl_multiset.h \
-    /usr/include/c++/13/queue \
-    /usr/include/c++/13/deque \
-    /usr/include/c++/13/bits/stl_deque.h \
-    /usr/include/c++/13/bits/deque.tcc \
-    /usr/include/c++/13/bits/stl_queue.h \
-    /usr/include/c++/13/functional \
-    /usr/include/c++/13/bits/std_function.h \
-    /home/tarun/Documents/cuDPEFIM/include/args.hpp \
-    /home/tarun/Documents/cuDPEFIM/include/file.hpp \
+    /usr/include/c++/12/chrono \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/omp.h \
+    /usr/include/c++/12/algorithm \
+    /usr/include/c++/12/bits/stl_algo.h \
+    /usr/include/c++/12/bits/algorithmfwd.h \
+    /usr/include/c++/12/bits/stl_heap.h \
+    /usr/include/c++/12/bits/stl_tempbuf.h \
+    /usr/include/c++/12/bits/uniform_int_dist.h \
+    /usr/include/c++/12/bits/ranges_algo.h \
+    /usr/include/c++/12/bits/ranges_algobase.h \
+    /usr/include/c++/12/bits/ranges_util.h \
+    /usr/include/c++/12/pstl/glue_algorithm_defs.h \
+    /usr/include/c++/12/pstl/execution_defs.h \
+    /usr/include/c++/12/unordered_map \
+    /usr/include/c++/12/ext/aligned_buffer.h \
+    /usr/include/c++/12/bits/hashtable.h \
+    /usr/include/c++/12/bits/hashtable_policy.h \
+    /usr/include/c++/12/bits/enable_special_members.h \
+    /usr/include/c++/12/bits/node_handle.h \
+    /usr/include/c++/12/bits/unordered_map.h \
+    /usr/include/c++/12/bits/erase_if.h \
+    /usr/include/c++/12/unordered_set \
+    /usr/include/c++/12/bits/unordered_set.h \
+    /usr/include/c++/12/map \
+    /usr/include/c++/12/bits/stl_tree.h \
+    /usr/include/c++/12/bits/stl_map.h \
+    /usr/include/c++/12/bits/stl_multimap.h \
+    /usr/include/c++/12/set \
+    /usr/include/c++/12/bits/stl_set.h \
+    /usr/include/c++/12/bits/stl_multiset.h \
+    /usr/include/c++/12/queue \
+    /usr/include/c++/12/deque \
+    /usr/include/c++/12/bits/stl_deque.h \
+    /usr/include/c++/12/bits/deque.tcc \
+    /usr/include/c++/12/bits/stl_queue.h \
+    /usr/include/c++/12/functional \
+    /usr/include/c++/12/bits/std_function.h \
+    /usr/include/c++/12/array \
+    /export/home1/ltarun/cuDPEFIM/include/args.hpp \
+    /usr/include/c++/12/optional \
+    /export/home1/ltarun/cuDPEFIM/include/file.hpp \
     /usr/include/fcntl.h \
     /usr/include/x86_64-linux-gnu/bits/fcntl.h \
     /usr/include/x86_64-linux-gnu/bits/fcntl-linux.h \
@@ -434,13 +403,29 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/statx-generic.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct_statx_timestamp.h \
     /usr/include/x86_64-linux-gnu/bits/types/struct_statx.h \
-    /usr/include/c++/13/memory \
-    /usr/include/c++/13/bits/stl_raw_storage_iter.h \
-    /usr/include/c++/13/bits/shared_ptr_atomic.h \
-    /usr/include/c++/13/backward/auto_ptr.h \
-    /usr/include/c++/13/bits/ranges_uninitialized.h \
-    /usr/include/c++/13/pstl/glue_memory_defs.h \
-    /home/tarun/Documents/cuDPEFIM/include/timer.hpp \
+    /usr/include/c++/12/memory \
+    /usr/include/c++/12/bits/stl_raw_storage_iter.h \
+    /usr/include/c++/12/bits/align.h \
+    /usr/include/c++/12/bit \
+    /usr/include/c++/12/bits/shared_ptr.h \
+    /usr/include/c++/12/bits/shared_ptr_base.h \
+    /usr/include/c++/12/bits/allocated_ptr.h \
+    /usr/include/c++/12/ext/concurrence.h \
+    /usr/include/c++/12/bits/shared_ptr_atomic.h \
+    /usr/include/c++/12/backward/auto_ptr.h \
+    /usr/include/c++/12/bits/ranges_uninitialized.h \
+    /usr/include/c++/12/bits/uses_allocator_args.h \
+    /usr/include/c++/12/pstl/glue_memory_defs.h \
+    /export/home1/ltarun/cuDPEFIM/include/timer.hpp \
+    /usr/include/c++/12/iomanip \
+    /usr/include/c++/12/locale \
+    /usr/include/c++/12/bits/locale_facets_nonio.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/time_members.h \
+    /usr/include/x86_64-linux-gnu/c++/12/bits/messages_members.h \
+    /usr/include/libintl.h \
+    /usr/include/c++/12/bits/locale_facets_nonio.tcc \
+    /usr/include/c++/12/bits/locale_conv.h \
+    /usr/include/c++/12/bits/quoted_string.h \
     /usr/include/liburing.h \
     /usr/include/x86_64-linux-gnu/sys/socket.h \
     /usr/include/x86_64-linux-gnu/bits/socket.h \
@@ -476,30 +461,33 @@ CMakeFiles/cuDPEFIM.dir/main.cu.o : /home/tarun/Documents/cuDPEFIM/main.cu \
     /usr/include/x86_64-linux-gnu/bits/types/struct_sigstack.h \
     /usr/include/x86_64-linux-gnu/bits/sigthread.h \
     /usr/include/x86_64-linux-gnu/bits/signal_ext.h \
-    /usr/lib/gcc/x86_64-linux-gnu/13/include/stdbool.h \
+    /usr/lib/gcc/x86_64-linux-gnu/12/include/stdbool.h \
     /usr/include/inttypes.h \
     /usr/include/linux/swab.h \
     /usr/include/x86_64-linux-gnu/asm/swab.h \
+    /usr/include/x86_64-linux-gnu/sys/wait.h \
     /usr/include/liburing/compat.h \
     /usr/include/linux/time_types.h \
     /usr/include/linux/openat2.h \
-    /usr/include/liburing/io_uring.h \
-    /usr/include/linux/fs.h \
     /usr/include/linux/ioctl.h \
     /usr/include/x86_64-linux-gnu/asm/ioctl.h \
     /usr/include/asm-generic/ioctl.h \
+    /usr/include/liburing/io_uring.h \
+    /usr/include/linux/fs.h \
     /usr/include/linux/fscrypt.h \
     /usr/include/linux/mount.h \
     /usr/include/liburing/io_uring_version.h \
     /usr/include/liburing/barrier.h \
-    /home/tarun/Documents/cuDPEFIM/include/build.hpp \
-    /usr/include/c++/13/numeric \
-    /usr/include/c++/13/bits/stl_numeric.h \
-    /usr/include/c++/13/pstl/glue_numeric_defs.h \
-    /home/tarun/Documents/cuDPEFIM/include/data_types.hpp \
-    /home/tarun/Documents/cuDPEFIM/include/memory.cuh \
-    /home/tarun/Documents/cuDPEFIM/include/stack.cuh \
-    /home/tarun/Documents/cuDPEFIM/include/data_types.cuh \
-    /home/tarun/Documents/cuDPEFIM/include/copy.cuh \
-    /home/tarun/Documents/cuDPEFIM/include/validate.cuh \
-    /home/tarun/Documents/cuDPEFIM/include/mine.cuh
+    /usr/include/c++/12/charconv \
+    /export/home1/ltarun/cuDPEFIM/include/build.hpp \
+    /usr/include/c++/12/numeric \
+    /usr/include/c++/12/bits/stl_numeric.h \
+    /usr/include/c++/12/pstl/glue_numeric_defs.h \
+    /export/home1/ltarun/cuDPEFIM/include/data_types.hpp \
+    /export/home1/ltarun/cuDPEFIM/include/memory.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/stack.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/data_types.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/work.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/copy.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/validate.cuh \
+    /export/home1/ltarun/cuDPEFIM/include/mine.cuh
