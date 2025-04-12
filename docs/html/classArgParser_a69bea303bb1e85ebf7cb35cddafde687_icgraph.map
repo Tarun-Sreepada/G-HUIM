@@ -1,9 +1,0 @@
-<map id="ArgParser::get" name="ArgParser::get">
-<area shape="rect" id="Node000001" title="Retrieves the value of a named argument." alt="" coords="236,55,349,80"/>
-<area shape="rect" id="Node000002" href="$classArgParser.html#a93b8e88293c10dd4ff93f94a2b47ea84" title="Retrieves the separator character corresponding to a named argument’s value." alt="" coords="5,5,188,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="228,54,147,33,149,28,229,49"/>
-<area shape="rect" id="Node000003" href="$classArgParser.html#ab3da782fb92bd42d5d23cfa45ca97ded" title="Retrieves the value of a named argument as a 32&#45;bit unsigned integer." alt="" coords="16,55,177,80"/>
-<area shape="poly" id="edge2_Node000001_Node000003" title=" " alt="" coords="222,70,178,70,178,65,222,65"/>
-<area shape="rect" id="Node000004" href="$classArgParser.html#a2d5260679301b44d2406f55cc3ec51a7" title="Retrieves the value of a named argument as a 64&#45;bit unsigned integer." alt="" coords="16,104,177,129"/>
-<area shape="poly" id="edge3_Node000001_Node000004" title=" " alt="" coords="229,86,149,107,147,101,228,81"/>
-</map>

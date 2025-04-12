@@ -1,0 +1,11 @@
+#pragma once
+
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <map>
+#include <iostream>
+#include <fstream>
+
+
+void save_patterns(const std::string& output_path, const uint32_t *data, const uint32_t offset);
