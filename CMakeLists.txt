@@ -10,7 +10,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
-set(CMAKE_CUDA_ARCHITECTURES "75;80")
+set(CMAKE_CUDA_ARCHITECTURES "75;80;86;89;90") # Adjust according to your GPU architecture
 
 include_directories(${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES} ${CMAKE_SOURCE_DIR}/include)
 
@@ -28,7 +28,7 @@ endif()
 file(GLOB_RECURSE SRC_CPP_FILES src/*.cpp)
 file(GLOB_RECURSE SRC_CU_FILES src/*.cu)
 
-add_executable(cuDPEFIM ${SRC_CPP_FILES} ${SRC_CU_FILES} main.cu)
+add_executable(cuDPEFIM ${SRC_CPP_FILES} ${SRC_CU_FILES})
 
 # Set target properties
 set_target_properties(cuDPEFIM PROPERTIES
@@ -42,7 +42,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wpedantic")
 # Debug flags
 if(CMAKE_BUILD_TYPE MATCHES "[Dd]ebug")
     message(STATUS "Building in Debug mode")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g -Wall -Wextra -Wpedantic")
     set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O0 -g -lineinfo")
     target_compile_definitions(cuDPEFIM PRIVATE DEBUG)
 else()

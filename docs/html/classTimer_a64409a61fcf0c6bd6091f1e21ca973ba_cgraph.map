@@ -1,5 +1,0 @@
-<map id="Timer::recordPoint" name="Timer::recordPoint">
-<area shape="rect" id="Node000001" title="Records a timestamp and current memory with a label." alt="" coords="5,5,148,31"/>
-<area shape="rect" id="Node000002" href="$timer_8hpp.html#a8dadd21f08e3adc6576b12299ebf593a" title="Reads the current memory RSS from /proc/self/status." alt="" coords="196,5,319,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="148,15,182,15,182,21,148,21"/>
-</map>

@@ -1,5 +1,0 @@
-<map id="ArgParser::get_separator" name="ArgParser::get_separator">
-<area shape="rect" id="Node000001" title="Retrieves the separator character corresponding to a named argument’s value." alt="" coords="5,5,188,31"/>
-<area shape="rect" id="Node000002" href="$classArgParser.html#a69bea303bb1e85ebf7cb35cddafde687" title="Retrieves the value of a named argument." alt="" coords="236,5,349,31"/>
-<area shape="poly" id="edge1_Node000001_Node000002" title=" " alt="" coords="188,15,222,15,222,21,188,21"/>
-</map>
