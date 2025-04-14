@@ -36,174 +36,98 @@ void formatTransactions(const parsed_file &pf,
                         built_file &bf,
                         std::unordered_map<uint32_t, uint32_t> &global_twu)
 {
-    // We'll store each thread's transactions in two parallel vectors:
-    // local_keys[tid] and local_utils[tid] hold multiple transactions.
-    // local_keys[tid][t] and local_utils[tid][t] describe the t-th transaction in thread tid.
-    std::vector<std::vector<std::vector<uint32_t>>> local_keys(threads);
-    std::vector<std::vector<std::vector<uint32_t>>> local_utils(threads);
-
-    // Also store each thread’s local TWU for merging.
+    // Create thread-local storage for transactions and TWU.
+    std::vector<std::vector<std::vector<Item>>> local_transactions(threads);
     std::vector<std::unordered_map<uint32_t, uint32_t>> local_twu(threads);
 
 #pragma omp parallel num_threads(threads)
     {
         int tid = omp_get_thread_num();
-        auto &lk = local_keys[tid];
-        auto &lu = local_utils[tid];
+        auto &localTrans = local_transactions[tid];
         auto &ltwu = local_twu[tid];
 
-        // For each (items, utilities) chunk that belongs to this thread:
+        // Assume pf.key_value_pairs is partitioned per thread.
         for (const auto &[items, utilities] : pf.key_value_pairs[tid])
         {
-            // Temporary storage of <internalKey, utility> so we can sort them together.
-            std::vector<std::pair<uint32_t, uint32_t>> filtered;
-            filtered.reserve(items.size());
-
-            // 1) Filter out items not in the bf.ordered_twu map, and map to internal IDs.
+            std::vector<Item> transaction;
+            // Filter items based on TWU and map them to their itemID.
             for (size_t i = 0; i < items.size(); ++i)
             {
+                // if item is not in the ordered_twu, skip it
                 if (bf.ordered_twu.find(items[i]) == bf.ordered_twu.end())
-                    continue; // skip pruned item
-
-                // Convert original ID -> internal ID
-                const uint32_t internalID = bf.item_to_itemID.at(items[i]);
-                filtered.push_back({internalID, utilities[i]});
+                {
+                    continue;
+                }
+                // Add the item to the transaction.
+                transaction.push_back({bf.item_to_itemID.at(items[i]), utilities[i]});
             }
 
-            if (filtered.empty())
-                continue; // skip empty transactions
-
-            // 2) Sort by ascending internal ID. make sure that the utility order is sorted using the internal ID.
-            // now descending
-            std::sort(filtered.begin(), filtered.end(),
-            [](const auto &a, const auto &b)
-            {
-                return a.first < b.first;
-            });
-
+            std::sort(transaction.begin(), transaction.end(),
+                      [](const Item &a, const Item &b)
+                      {
+                          return a.key < b.key;
+                      });
 
             // Calculate the total utility of the transaction.
-            uint32_t total_utility = std::accumulate(filtered.begin(), filtered.end(), 0,
-                                                     [](uint32_t sum, const std::pair<uint32_t, uint32_t> &kv)
+            uint32_t total_utility = std::accumulate(transaction.begin(), transaction.end(), 0,
+                                                     [](uint32_t sum, const Item &item)
                                                      {
-                                                         return sum + kv.second;
+                                                         return sum + item.util;
                                                      });
 
-            // 4) Update local TWU.  Subtree utility for each item is totalUtility minus
-            //    the sum of utilities of preceding items in sorted order.
-            uint32_t prefixSum = 0;
-            for (const auto &kv : filtered)
+            // Update the subtree utility for each item in the transaction.
+            uint32_t temp = 0;
+            for (const auto &item : transaction)
             {
-                ltwu[kv.first] += (total_utility - prefixSum);
-                prefixSum += kv.second;
+                ltwu[item.key] += total_utility - temp;
+                temp += item.util;
             }
 
-            // 5) Split into separate key & utility vectors for final storage.
-            std::vector<uint32_t> transKeys, transUtils;
-            transKeys.reserve(filtered.size());
-            transUtils.reserve(filtered.size());
-
-            for (auto &kv : filtered)
-            {
-                transKeys.push_back(kv.first);
-                transUtils.push_back(kv.second);
-            }
-
-            lk.emplace_back(std::move(transKeys));
-            lu.emplace_back(std::move(transUtils));
+            localTrans.emplace_back(std::move(transaction));
         }
-    } // end parallel region
+    }
 
-    // Merge local TWU into global TWU
-    for (auto &ltwu : local_twu)
+    // Merge local transactions into global transactions.
+    for (const auto &localTrans : local_transactions)
     {
-        for (const auto &[itemID, twuVal] : ltwu)
+        for (const auto &trans : localTrans)
         {
-            global_twu[itemID] += twuVal;
+            bf.transactions.push_back(trans);
+            bf.total_items += trans.size();
         }
     }
 
-    // At this point, local_keys and local_utils each hold all transactions, per thread.
-    // We need to flatten them into a single list of transactions for bf.
+    bf.transaction_count = bf.transactions.size();
 
-
-    // Count total transactions
-    size_t totalTrans = 0;
-    for (int t = 0; t < threads; ++t)
+    // Merge local TWU values into global TWU.
+    for (const auto &ltwu : local_twu)
     {
-        totalTrans += local_keys[t].size();
-    }
-    bf.transaction_count = totalTrans;
-
-    // Prepare to store sizes and offsets for each transaction.
-    bf.transaction_sizes.resize(totalTrans);
-    bf.transaction_offsets.resize(totalTrans + 1);
-    bf.transaction_offsets[0] = 0; // First transaction starts at offset 0.
-
-    // Gather all per-thread transactions into one vector of (keys, utils).
-    std::vector<std::vector<uint32_t>> allKeys;
-    allKeys.reserve(totalTrans);
-    std::vector<std::vector<uint32_t>> allUtils;
-    allUtils.reserve(totalTrans);
-
-    // Flatten
-    for (int t = 0; t < threads; ++t)
-    {
-        auto &lk = local_keys[t];
-        auto &lu = local_utils[t];
-        for (size_t i = 0; i < lk.size(); ++i)
+        for (const auto &[item, utility] : ltwu)
         {
-            allKeys.push_back(std::move(lk[i]));
-            allUtils.push_back(std::move(lu[i]));
+            global_twu[item] += utility;
         }
     }
 
-    // Track offsets and maximum transaction size
-    size_t offset = 0;
-    size_t maxSize = 0;
+    std::sort(bf.transactions.begin(), bf.transactions.end(),
+              [](const std::vector<Item> &a, const std::vector<Item> &b)
+              {
+                  return a.size() > b.size();
+              });
 
-    // for (size_t i = 0; i < totalTrans; i++)
-    // {
-    //     const size_t sz = allKeys[i].size();
-    //     bf.transaction_sizes[i] = static_cast<uint32_t>(sz);
-    //     bf.transaction_offsets[i+1] = static_cast<uint32_t>(offset);
+}
 
-    //     if (sz > maxSize)
-    //         maxSize = sz;
 
-    //     offset += sz;
-    // }
-
-    // bf.max_transaction_size = maxSize;
-    // bf.total_items = offset;
-
-    // Finally, allocate the big arrays and copy data
-
-    size_t pos = 0;
-    for (size_t i = 0; i < totalTrans; i++)
+void createPrimary(built_file &bf, uint64_t min_utility, std::unordered_map<uint32_t, uint32_t> &subtree_utility)
+{
+    // Create the primary items based on the subtree utility.
+    for (const auto &[itemID, twuVal] : subtree_utility)
     {
-        const auto &kVec = allKeys[i];
-        const auto &uVec = allUtils[i];
-        for (size_t j = 0; j < kVec.size(); ++j)
+        if (twuVal >= min_utility)
         {
-            bf.keys.push_back(kVec[j]);
-            bf.values.push_back(uVec[j]);
-            pos++;
+            bf.primary.push_back(itemID);
         }
-        bf.transaction_sizes[i] = static_cast<uint32_t>(kVec.size());
-        bf.transaction_offsets[i + 1] = static_cast<uint32_t>(pos);
-
-        if (bf.transaction_sizes[i] > maxSize)
-            maxSize = bf.transaction_sizes[i];
     }
-
-    bf.max_transaction_size = maxSize;
-    bf.total_items = pos;
-
-    #ifdef DEBUG
-    std::cout << "Total items: " << bf.total_items << "\n";
-    std::cout << "Transaction count: " << bf.transaction_count << "\n";
-    #endif
+    std::sort(bf.primary.begin(), bf.primary.end());
 }
 
 built_file build_file(parsed_file &pf, int threads, uint64_t min_utility)
@@ -220,15 +144,7 @@ built_file build_file(parsed_file &pf, int threads, uint64_t min_utility)
     std::unordered_map<uint32_t, uint32_t> subtree_utility;
     formatTransactions(pf, threads, bf, subtree_utility);
 
-    // bf.primary
-    for (const auto &[itemID, twuVal] : subtree_utility)
-    {
-        if (twuVal >= min_utility)
-        {
-            bf.primary.push_back(itemID);
-        }
-    }
-    std::sort(bf.primary.begin(), bf.primary.end());
+    createPrimary(bf, min_utility, subtree_utility);
 
     return bf;
 }

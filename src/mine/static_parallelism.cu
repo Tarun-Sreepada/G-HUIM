@@ -14,15 +14,9 @@ __global__ void copy_work(Stack *work_stack, Database *db, uint32_t *primary, ui
         task.db->num_items = db->num_items;
         task.db->num_transactions = db->num_transactions;
 
-        task.db->keys = (uint32_t *)gmalloc(sizeof(uint32_t) * db->num_items);
-        task.db->utilities = (uint32_t *)gmalloc(sizeof(uint32_t) * db->num_items);
-        #ifdef DEBUG
-        printf("Total Transactions: %d\n", db->num_transactions);
-        printf("Total Items: %d\n", db->num_items);
-        #endif
+        task.db->data = (Item *)gmalloc(sizeof(Item) * db->num_items);
 
         task.db->transactions = (Transaction *)gmalloc(sizeof(Transaction) * db->num_transactions);
-        task.db->num_transactions = db->num_transactions;
 
         task.unique_items = unique;
 
@@ -36,8 +30,7 @@ __global__ void copy_work(Stack *work_stack, Database *db, uint32_t *primary, ui
     // copy items
     for (int i = tid; i < db->num_items; i += blockDim.x)
     {
-        task.db->keys[i] = db->keys[i];
-        task.db->utilities[i] = db->utilities[i];
+        task.db->data[i] = db->data[i];
     }
 
     // copy transaction structures
@@ -45,8 +38,7 @@ __global__ void copy_work(Stack *work_stack, Database *db, uint32_t *primary, ui
     {
         task.db->transactions[i].utility = 0;
         task.db->transactions[i].length = db->transactions[i].length;
-        task.db->transactions[i].keys = task.db->keys + (db->transactions[i].keys - db->keys);                     // data + offset (offset)
-        task.db->transactions[i].utilities = task.db->utilities + (db->transactions[i].utilities - db->utilities); // data + offset (offset)
+        task.db->transactions[i].data = task.db->data + (db->transactions[i].data - db->data); // data + offset (offset)
     }
 
     // push the work item to the stack
@@ -59,19 +51,8 @@ __global__ void copy_work(Stack *work_stack, Database *db, uint32_t *primary, ui
     }
 
     __syncthreads();
-    return;
-}
 
-__global__ void printDatabase(Database *db)
-{
-    for (int i = 0; i < db->num_transactions; i++)
-    {
-        for (int j = 0; j < db->transactions[i].length; j++)
-        {
-            printf("%d:%d ", db->transactions[i].keys[j], db->transactions[i].utilities[j]);
-        }
-        printf("\n");
-    }
+    return;
 }
 
 uint32_t next_pow2(uint32_t n)
@@ -84,7 +65,7 @@ uint32_t next_pow2(uint32_t n)
     return p;
 }
 
-__device__ void fetch_task(Stack *work_stack, Task &item)
+__device__ __forceinline__ void fetch_task(Stack *work_stack, Task &item)
 {
     int block_id = blockIdx.x;
     int thread_id = threadIdx.x;
@@ -94,11 +75,11 @@ __device__ void fetch_task(Stack *work_stack, Task &item)
     }
 }
 
-__device__ void initalize_structs(Transaction **pTemporaryPtr,
-                                  Utilities **pUtilitiesPtr,
-                                  int32_t **pTransactionHashes,
-                                  int max_transactions,
-                                  int max_utilities)
+__device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
+                                                  Utilities **pUtilitiesPtr,
+                                                  int32_t **pTransactionHashes,
+                                                  int max_transactions,
+                                                  int max_utilities)
 {
     if (threadIdx.x == 0)
     {
@@ -110,7 +91,7 @@ __device__ void initalize_structs(Transaction **pTemporaryPtr,
     __syncthreads();
 }
 
-__device__ void reset_structs(
+__device__ __forceinline__ void reset_structs(
     Task *new_work_item,
     const Task &curr_work_item,
     Transaction *temporary_transactions,
@@ -182,7 +163,7 @@ __device__ int find_item(const Utilities *buckets, int table_size, int key)
     }
 }
 
-__device__ void add_bucket_util(Utilities *buckets, uint32_t table_size, uint32_t key, uint32_t utility, bool local_utility)
+__device__ __forceinline__ void add_bucket_util(Utilities *buckets, uint32_t table_size, uint32_t key, uint32_t utility, bool local_utility)
 {
     // hash the key
     int idx = fasthash(key) % table_size;
@@ -194,7 +175,7 @@ __device__ void add_bucket_util(Utilities *buckets, uint32_t table_size, uint32_
         int old = atomicCAS(&buckets[idx].key, 0, key);
         if (old == key || old == 0)
         {
-            if (local_utility == true)
+            if (local_utility)
             {
                 atomicAdd(&buckets[idx].local_utility, utility);
             }
@@ -210,34 +191,30 @@ __device__ void add_bucket_util(Utilities *buckets, uint32_t table_size, uint32_
     }
 }
 
-__device__ __forceinline__ void old_scan(const Task &curr_work_item,
-                                         Task &new_work_item,
-                                         Utilities *local_subtree_utilities,
-                                         Transaction *temporary_transactions,
-                                         uint32_t *temp_transaction_count,
-                                         uint32_t *temp_item_count)
+__device__ void scan(const Task &curr_work_item,
+                     Task &new_work_item,
+                     Utilities *local_subtree_utilities,
+                     Transaction *temporary_transactions,
+                     uint32_t *temp_transaction_count,
+                     uint32_t *temp_item_count)
 {
     // scan
     for (int i = threadIdx.x; i < curr_work_item.db->num_transactions; i += blockDim.x)
     {
-        Transaction &transaction = curr_work_item.db->transactions[i];
+        Transaction transaction = curr_work_item.db->transactions[i];
         int idx = transaction.binary_search(curr_work_item.primary);
 
         if (idx != -1)
         {
-            // uint32_t transaction_pattern_utility = transaction.utility + transaction.data[idx].util;
-            uint32_t transaction_pattern_utility = transaction.utility + transaction.utilities[idx];
+            uint32_t transaction_pattern_utility = transaction.utility + transaction[idx].util;
             atomicAdd(&new_work_item.utility, transaction_pattern_utility);
-            uint32_t remaining_items = transaction.length - idx - 1;
+            uint32_t remaining_items = transaction.size() - idx - 1;
 
-            if (remaining_items != 0)
+            if (remaining_items > 0)
             {
                 int temp_transaction_idx = atomicAdd(temp_transaction_count, 1);
                 atomicAdd(temp_item_count, remaining_items);
-                // Copy the transaction data to the temporary transactions
-                // temporary_transactions[temp_transaction_idx].data = transaction.data + idx + 1;
-                temporary_transactions[temp_transaction_idx].keys = transaction.keys + idx + 1;
-                temporary_transactions[temp_transaction_idx].utilities = transaction.utilities + idx + 1;
+                temporary_transactions[temp_transaction_idx].data = &transaction[idx + 1];
                 temporary_transactions[temp_transaction_idx].utility = transaction_pattern_utility;
                 temporary_transactions[temp_transaction_idx].length = remaining_items;
             }
@@ -252,12 +229,9 @@ __device__ __forceinline__ void old_scan(const Task &curr_work_item,
         uint32_t total_util = transaction.utility + transaction.util_sum();
         for (int j = 0; j < transaction.length; j++)
         {
-            // add_bucket_util(local_subtree_utilities,
-            //                 curr_work_item.unique_items * scale,
-            //                 transaction.data[j].key, total_util, true);
             add_bucket_util(local_subtree_utilities,
                             curr_work_item.unique_items * scale,
-                            transaction.keys[j], total_util, true);
+                            transaction[j].key, total_util, true);
         }
     }
 }
@@ -270,15 +244,13 @@ __device__ void allocate(Task &wi,
     if (threadIdx.x == 0)
     {
         wi.db = (Database *)gmalloc(sizeof(Database));
-        // wi.db->data = (Item *)gmalloc(sizeof(Item) * temp_item_count);
-        wi.db->keys = (uint32_t *)gmalloc(sizeof(uint32_t) * temp_item_count);
-        wi.db->utilities = (uint32_t *)gmalloc(sizeof(uint32_t) * temp_item_count);
+        wi.db->data = (Item *)gmalloc(sizeof(Item) * temp_item_count);
         wi.db->transactions = (Transaction *)gmalloc(sizeof(Transaction) * temp_transaction_count);
     }
     __syncthreads();
 }
 
-__device__ __forceinline__ void write_merge(
+__device__ void write_merge(
     Transaction *temporary_transactions,
     uint32_t temp_transaction_count,
     int32_t *transaction_hashes,
@@ -297,55 +269,49 @@ __device__ __forceinline__ void write_merge(
         int item_offset = atomicAdd(&new_work_item.db->num_items, transaction.length);
 
         // copy the transaction context
-        // new_work_item.db->transactions[offset].data = new_work_item.db->data + item_offset;
-        new_work_item.db->transactions[offset].keys = new_work_item.db->keys + item_offset;
-        new_work_item.db->transactions[offset].utilities = new_work_item.db->utilities + item_offset;
-        new_work_item.db->transactions[offset].utility = transaction.utility;
+        Transaction &new_transaction = new_work_item.db->transactions[offset];
+        new_transaction.data = &new_work_item.db->data[item_offset];
+        new_transaction.utility = transaction.utility;
 
-        int cumsum = 0;
+        int cumsum = transaction.utility;
         int idx = 0;
 
         // write
         for (int j = 0; j < transaction.length; ++j)
         {
-            uint32_t item = transaction.keys[j];
-            int found = find_item(local_subtree_utilities, max_item * scale, item);
+            Item item = transaction.data[j];
+            int found = find_item(local_subtree_utilities, max_item * scale, item.key);
             if (local_subtree_utilities[found].local_utility >= min_util)
             {
                 // new_work_item.db->transactions[offset].data[idx] = item;
-                new_work_item.db->transactions[offset].keys[idx] = item;
-                new_work_item.db->transactions[offset].utilities[idx] = transaction.utilities[j];
-                cumsum += transaction.utilities[j];
-                ++idx;
+                new_transaction[idx++] = item;
+                cumsum += item.util;
             }
         }
 
-        // if idx == 0 skip
+        // if no items are found, skip the transaction
         if (idx == 0)
             continue;
 
         // update the length
-        new_work_item.db->transactions[offset].length = idx;
+        new_transaction.length = idx;
         uint64_t hash = 0;
 
         // update the subtree utility
         int temp = 0;
         for (int j = 0; j < idx; ++j)
         {
-            // add_bucket_util(local_subtree_utilities,
-            //                 max_item * scale,
-            //                 new_work_item.db->transactions[offset].data[j].key,
-            //                 transaction.utility + cumsum - temp, false);
-
-            // hash ^= fasthash(new_work_item.db->transactions[offset].data[j].key + idx);
-            // temp += new_work_item.db->transactions[offset].data[j].util;
-
+            Item item = new_work_item.db->transactions[offset].data[j];
+            // add the utility to the transaction
             add_bucket_util(local_subtree_utilities,
                             max_item * scale,
-                            new_work_item.db->transactions[offset].keys[j],
-                            transaction.utility + cumsum - temp, false);
-            hash ^= fasthash(new_work_item.db->transactions[offset].keys[j] + idx);
-            temp += new_work_item.db->transactions[offset].utilities[j];
+                            item.key, 
+                            cumsum - temp, false);
+
+            hash ^= fasthash(item.key + j);
+            temp += item.util;
+            // hash ^= fasthash(new_work_item.db->transactions[offset].data[j].key + idx);
+            // temp += new_work_item.db->transactions[offset].data[j].util;
         }
 
         // merge identical transactions
@@ -356,21 +322,19 @@ __device__ __forceinline__ void write_merge(
             int old = atomicCAS(&transaction_hashes[hash_index], -1, offset);
             if (old == -1)
                 break; // Successfully inserted
-            if (new_work_item.db->compare_transactions(old, offset))
+            if (new_work_item.db->compare_transactions(old, offset)) // if same
             {
                 // Found a duplicate transaction
                 Transaction &old_transaction = new_work_item.db->transactions[old];
 
-                atomicAdd(&old_transaction.utility, transaction.utility);
+                atomicAdd(&old_transaction.utility, new_transaction.utility);
                 for (int j = 0; j < idx; j++)
                 {
-                    // atomicAdd(&old_transaction.data[j].util, new_work_item.db->transactions[offset].data[j].util);
-                    atomicAdd(&old_transaction.utilities[j], new_work_item.db->transactions[offset].utilities[j]);
+                    atomicAdd(&old_transaction[j].util, new_transaction[j].util);
                 }
 
                 // Mark the new transaction as a duplicate
-                // new_work_item.db->transactions[offset].data = nullptr;
-                new_work_item.db->transactions[offset].keys = nullptr;
+                new_work_item.db->transactions[offset].data = nullptr;
                 break;
             }
             hash_index = (hash_index + 1) % (transaction_count * scale);
@@ -380,7 +344,7 @@ __device__ __forceinline__ void write_merge(
     __syncthreads();
 }
 
-__device__ __forceinline__ void trim(Task &new_work_item)
+__device__ void trim(Task &new_work_item)
 {
     // Shared memory
     __shared__ uint32_t temp_transaction_count;
@@ -399,13 +363,10 @@ __device__ __forceinline__ void trim(Task &new_work_item)
         for (int i = threadIdx.x; i < new_work_item.db->num_transactions; i += 32)
         {
             Transaction &transaction = new_work_item.db->transactions[i];
-            // if (transaction.data != nullptr)
-            if (transaction.keys != nullptr)
+            if (transaction.data != nullptr)
             {
                 int ret = atomicAdd(&temp_transaction_count, 1);
-                // new_work_item.db->transactions[ret].data = transaction.data;
-                new_work_item.db->transactions[ret].keys = transaction.keys;
-                new_work_item.db->transactions[ret].utilities = transaction.utilities;
+                new_work_item.db->transactions[ret].data = transaction.data;
                 new_work_item.db->transactions[ret].utility = transaction.utility;
                 new_work_item.db->transactions[ret].length = transaction.length;
             }
@@ -423,9 +384,9 @@ __device__ __forceinline__ void trim(Task &new_work_item)
     __syncthreads();
 }
 
-__device__ __forceinline__ void push_work_item(Utilities *local_subtree_utilities,
-                                               Task &new_work_item, Stack *work_stack,
-                                               uint32_t min_util, uint32_t unique_item_count)
+__device__ void push_work_item(Utilities *local_subtree_utilities,
+                               Task &new_work_item, Stack *work_stack,
+                               uint32_t min_util, uint32_t unique_item_count)
 {
 
     __shared__ uint32_t new_unique_item_count;
@@ -465,8 +426,8 @@ __device__ __forceinline__ void push_work_item(Utilities *local_subtree_utilitie
     }
 }
 
-__global__ void mine(Stack *work_stack,
-                     Stack *new_work_stack,
+__global__ void mine(Stack *curr_stack,
+                     Stack *new_stack,
                      patterns *p,
                      uint32_t min_util)
 {
@@ -482,7 +443,7 @@ __global__ void mine(Stack *work_stack,
 
     __shared__ Task new_task;
 
-    fetch_task(work_stack, curr_task);
+    fetch_task(curr_stack, curr_task);
 
     initalize_structs(&temporary_transactions,
                       &local_subtree_utilities,
@@ -502,12 +463,12 @@ __global__ void mine(Stack *work_stack,
                   curr_task.db->num_transactions,
                   curr_task.unique_items);
 
-    old_scan(curr_task,
-             new_task,
-             local_subtree_utilities,
-             temporary_transactions,
-             &temp_transaction_count,
-             &temp_item_count);
+    scan(curr_task,
+         new_task,
+         local_subtree_utilities,
+         temporary_transactions,
+         &temp_transaction_count,
+         &temp_item_count);
 
     p->add_pattern(new_task, min_util);
 
@@ -517,7 +478,7 @@ __global__ void mine(Stack *work_stack,
 
     trim(new_task);
 
-    push_work_item(local_subtree_utilities, new_task, new_work_stack, min_util, curr_task.unique_items);
+    push_work_item(local_subtree_utilities, new_task, new_stack, min_util, curr_task.unique_items);
 }
 
 void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
@@ -534,24 +495,23 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 
     Database *db;
     cudaMallocManaged(&db, sizeof(Database));
-    db->num_transactions = bf.transaction_count;
-    db->num_items = bf.total_items;
 
-    cudaMallocManaged(&db->keys, sizeof(uint32_t) * bf.total_items);
-    cudaMallocManaged(&db->utilities, sizeof(uint32_t) * bf.total_items);
+    db->num_items = bf.total_items;
+    db->num_transactions = bf.transactions.size();
+
+    cudaMallocManaged(&db->data, sizeof(Item) * bf.total_items);
     cudaMallocManaged(&db->transactions, sizeof(Transaction) * bf.transaction_count);
+
+    uint32_t offset = 0;
 
     for (int i = 0; i < bf.transaction_count; i++)
     {
-        db->transactions[i].keys = &db->keys[bf.transaction_offsets[i]];
-        db->transactions[i].utilities = &db->utilities[bf.transaction_offsets[i]];
-        db->transactions[i].length = bf.transaction_sizes[i];
-        db->transactions[i].utility = 0;
+        const std::vector<Item> &transaction = bf.transactions[i];
+        db->transactions[i].data = &db->data[offset];
+        db->transactions[i].length = transaction.size();
+        memcpy(&db->data[offset], transaction.data(), sizeof(Item) * transaction.size());
+        offset += transaction.size();
     }
-
-    // Copy the keys and utilities to the database
-    memcpy(db->keys, bf.keys.data(), sizeof(uint32_t) * bf.total_items);
-    memcpy(db->utilities, bf.values.data(), sizeof(uint32_t) * bf.total_items);
 
     uint32_t *primary;
     cudaMallocManaged(&primary, sizeof(uint32_t) * bf.primary.size());
@@ -561,17 +521,12 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
     copy_work<<<1, 1024>>>(curr_stack, db, primary, bf.primary.size(), bf.item_to_itemID.size() + 1);
     cudaDeviceSynchronize();
 
-    // #ifdef DEBUG
-    // printDatabase<<<1,1>>>(db);
-    // cudaDeviceSynchronize();
-    // #endif
-
     while (curr_stack->top != 0)
     {
-        // printf("Stack Size: %d\n", curr_stack->top);
-        #if DEBUG
+// printf("Stack Size: %d\n", curr_stack->top);
+#if DEBUG
         printf("Stack Size: %d\n", curr_stack->top);
-        #endif
+#endif
         uint32_t avg = curr_stack->total_transactions / curr_stack->top;
         uint32_t thread_count = parser.get_uint32("--block_size");
         if (avg < thread_count)
