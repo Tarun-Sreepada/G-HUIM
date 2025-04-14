@@ -8,6 +8,7 @@
 #include "file/parse.hpp"
 #include <algorithm>
 #include <numeric>
+#include "data_types/data_types.hpp"
 
 struct built_file
 {
@@ -21,11 +22,11 @@ struct built_file
     size_t total_items;          ///< Total number of items after pruning.
     size_t max_transaction_size; ///< Size of the largest transaction.
 
-    // std::vector<std::vector<Item>> transactions; ///< List of compacted transactions.
-    std::vector<uint32_t> keys;
-    std::vector<uint32_t> values; ///< Vector of keys and values for each transaction.
-    std::vector<uint32_t> transaction_sizes; ///< Sizes of each transaction.
-    std::vector<uint32_t> transaction_offsets; ///< Offsets for each transaction in the keys/values vector.
+    std::vector<std::vector<Item>> transactions; ///< List of compacted transactions.
+    // std::vector<uint32_t> keys;
+    // std::vector<uint32_t> values; ///< Vector of keys and values for each transaction.
+    // std::vector<uint32_t> transaction_sizes; ///< Sizes of each transaction.
+    // std::vector<uint32_t> transaction_offsets; ///< Offsets for each transaction in the keys/values vector.
 
     std::vector<uint32_t> primary;               ///< Items considered primary (for mining root).
 

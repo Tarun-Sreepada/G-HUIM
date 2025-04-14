@@ -1,35 +1,42 @@
 #pragma once
 #include <cstdint>
-
+#include "data_types.hpp"
 // /**
 //  * @brief Represents a single transaction on GPU.
 //  */
 struct Transaction
 {
-    uint32_t *keys = nullptr; ///< Pointer to array of keys.
-    uint32_t *utilities = nullptr; ///< Pointer to array of utilities.
+    Item *data = nullptr; ///< Pointer to array of items.
+    // uint32_t *keys;
+    // uint32_t *utils;
     uint32_t length = 0;  ///< Number of items.
     uint32_t utility = 0; ///< Transaction utility.
 
     __device__ __host__ uint32_t size() const { return length; }
 
+    __device__ __host__ Item &operator[](unsigned int index) { return data[index]; }
+    __device__ __host__ const Item &operator[](unsigned int index) const { return data[index]; }
+    __device__ __host__ Item *begin() { return data; }
+    __device__ __host__ Item *end() { return data + length; }
+    __device__ __host__ const Item *begin() const { return data; }
+    __device__ __host__ const Item *end() const { return data + length; }
+    __device__ __host__ bool is_empty() const { return length == 0; }
     __device__ __host__ void clear()
     {
-        keys = nullptr;
-        utilities = nullptr;
+        data = nullptr; // Simply reset the pointer
         length = 0;
         utility = 0;
     }
 
     __device__ __host__ int linear_search(uint32_t item)
     {
-        if (length == 0)
+        if (is_empty() || length == 0)
         {
             return -1; // Not found
         }
         for (int i = 0; i < length; ++i)
         {
-            if (keys[i] == item)
+            if (data[i].key == item)
             {
                 return i;
             }
@@ -47,11 +54,11 @@ struct Transaction
         while (left <= right)
         {
             int mid = left + (right - left) / 2;
-            if (keys[mid] == item)
+            if (data[mid].key == item)
             {
                 return mid;
             }
-            int idx = static_cast<int>(keys[mid] > item);
+            int idx = static_cast<int>(data[mid].key > item);
             lr[idx] = mid + arr[idx];
         }
         return -1;
@@ -62,47 +69,22 @@ struct Transaction
         int left = 0;
         int right = length - 1;
 
-        if (length == 0)
+        while (left <= right)
         {
-            return -1; // Not found
-        }
-        if (item < keys[left] || item > keys[right])
-        {
-            return -1; // Not found
-        }
+            int mid = left + ((right - left) >> 1); // Use bit-shift for division by 2
+            uint32_t key = data[mid].key;           // Cache the key locally
 
-        if (item < keys[0] || item > keys[length - 1])
-        {
-            return -1; // Not found
-        }
-
-        if (keys[left] == item)
-        {
-            return left;
-        }
-        if (keys[right] == item)
-        {
-            return right;
-        }
-
-        while (left < right)
-        {
-            int mid = left + (right - left) / 2;
-            if (keys[mid] == item)
-            {
+            if (key == item) {
                 return mid;
             }
-            else if (keys[mid] < item)
-            {
+            else if (key > item) {
+                right = mid - 1;
+            }
+            else {
                 left = mid + 1;
             }
-            else
-            {
-                right = mid;
-            }
         }
-
-        return -1; // Not found
+        return -1;
     }
 
     __device__ __host__ uint32_t util_sum(uint32_t start = 0)
@@ -110,19 +92,22 @@ struct Transaction
         uint32_t total = 0;
         for (int i = start; i < length; ++i)
         {
-            total += utilities[i];
+            total += data[i].util;
         }
         return total;
     }
 };
 
+/**
+ * @brief Represents a GPU-resident transaction database.
+ */
 struct Database
 {
-    uint32_t *keys;           ///< Array of keys.
-    uint32_t *utilities;      ///< Array of utilities.
+    Item *data;                ///< Flat item data.
     Transaction *transactions; ///< Array of transactions.
     int num_transactions;      ///< Number of transactions.
     int num_items;             ///< Total number of items.
+    // uint32_t *cumulative_sum = nullptr; // for util bucket
 
     __device__ __host__ bool compare_transactions(int idx1, int idx2) const
     {
@@ -134,7 +119,7 @@ struct Database
 
         for (int i = 0; i < trans1.length; i++)
         {
-            if (trans1.keys[i] != trans2.keys[i])
+            if (trans1.data[i].key != trans2.data[i].key)
                 return false;
         }
         return true;
@@ -150,6 +135,13 @@ struct Utilities
     static const int EMPTY_KEY = 0;
     static const int EMPTY_LOCAL_UTILITY = 0;
     static const int EMPTY_SUBTREE_UTILITY = 0;
+
+    // enum for local and subtree utility
+    enum UtilityType
+    {
+        LOCAL_UTILITY,
+        SUBTREE_UTILITY
+    };
 
     __device__ void clear()
     {
