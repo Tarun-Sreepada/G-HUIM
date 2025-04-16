@@ -5,7 +5,6 @@
 
 #define MIN_TASKS 2 // for dynamic parallelism i dont want funny contention issues
 
-// A struct for the head. We pack head.index and head.ctr into a 64-bit value.
 struct alignas(16) Head
 {
     int index; // Index where thieves steal.
@@ -17,6 +16,9 @@ union AtomicHead
     Head h;
     unsigned long long value;
 };
+
+
+// https://www.cse.chalmers.se/~tsigas/papers/Work-Stealing-GPUs-Chapter.pdf
 
 template <typename T, int CAPACITY>
 struct Deque
@@ -57,12 +59,10 @@ struct Deque
         return h;
     }
 
-    // --------------------- PUSH ---------------------
     // Push is called only by the owner.
     // Increments active to indicate that new work is submitted.
     __device__ bool push(T item)
     {
-        // (It is assumed that your system guarantees tail - head <= capacity.)
         int idx = atomicAdd((int *)&tail, 1);
         data[idx] = item;
         atomicAdd((int *)&active, 1); // Increase active to signal a new task.
@@ -70,7 +70,6 @@ struct Deque
         return true;
     }
 
-    // --------------------- POP ---------------------
     // This pop is owner-only.
     // It removes the task from the deque but does NOT subtract from active
     // because the task is now in processing.
@@ -89,7 +88,6 @@ struct Deque
         return true;
     }
 
-    // --------------------- STEAL ---------------------
     // A thief attempts to steal from the head.
     // On success, the task is removed and active is not decremented here (for the same reason).
     __device__ bool steal(T &item) {
@@ -97,10 +95,6 @@ struct Deque
         unsigned long long old_val = atomicAdd((unsigned long long *)&a_head.value, 0);
         Head old_head = unpackHead(old_val);
     
-        // If the deque is empty, bail out.
-        // if (tail <= old_head.index) {
-        //     return false;
-        // }
         if (tail - old_head.index < MIN_TASKS) {
             // Not enough items available to steal.
             return false;
@@ -109,13 +103,10 @@ struct Deque
         // Prepare the new head: increment index *and* the version counter.
         Head new_head = old_head;
         new_head.index++; 
-        new_head.ctr++;   // <--- important!
+        new_head.ctr++; 
     
         unsigned long long new_val = packHead(new_head.index, new_head.ctr);
     
-        // It is safest to read 'item' *after* CAS to avoid races,
-        // or at least re-check that CAS succeeded before finalizing 'item'.
-        // Typically we read the item first, but only "commit" it if CAS succeeds.
         T temp = data[old_head.index];
     
         // Attempt to claim that slot via CAS.
@@ -123,19 +114,15 @@ struct Deque
         if (res == old_val) {
             // Success: we have stolen 'temp'.
             item = temp;
-            // Optionally do __threadfence() if you need memory ordering.
             __threadfence(); // Ensure the data is visible.
             return true;
         }
     
-        // CAS failed -> revert the stolen item.
-        // Another thief or the owner changed the head in the meantime.
         item = T::empty();
         return false;
     }
     
 
-    // --------------------- FINISH TASK ---------------------
     // Only call finish_task() when a task is fully processed.
     // This subtracts from active to indicate one less work item is active.
     __device__ void finish_task()

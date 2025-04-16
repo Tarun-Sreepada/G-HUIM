@@ -1,14 +1,10 @@
 #pragma once
 #include <cstdint>
 #include "data_types.hpp"
-// /**
-//  * @brief Represents a single transaction on GPU.
-//  */
+
 struct Transaction
 {
     Item *data = nullptr; ///< Pointer to array of items.
-    // uint32_t *keys;
-    // uint32_t *utils;
     uint32_t length = 0;  ///< Number of items.
     uint32_t utility = 0; ///< Transaction utility.
 
@@ -107,7 +103,6 @@ struct Database
     Transaction *transactions; ///< Array of transactions.
     int num_transactions;      ///< Number of transactions.
     int num_items;             ///< Total number of items.
-    // uint32_t *cumulative_sum = nullptr; // for util bucket
 
     __device__ __host__ bool compare_transactions(int idx1, int idx2) const
     {

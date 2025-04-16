@@ -20,13 +20,11 @@ void save_patterns(const std::string& output_path, const uint32_t *data, const u
         if (data[i] != 0)
         {
             output_file << data[i] << " ";
-            // printf("%d ", data[i]);
         }
         else
         {
             output_file << "\n";
             pattern_count++;
-            // printf("\n");
         }
     }
 

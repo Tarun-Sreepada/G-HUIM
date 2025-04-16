@@ -114,13 +114,6 @@
                    << std::right << std::setw(12) << total << " ms" << std::endl;
      }
  
-     /**
-      * @brief Gets time difference between two labeled points.
-      * @param label1 First label.
-      * @param label2 Second label.
-      * @return Time in milliseconds.
-      * @throw std::runtime_error if label(s) not found.
-      */
      int getTimeDifference(const std::string &label1, const std::string &label2) const
      {
          auto it1 = std::find_if(records.begin(), records.end(), [&label1](const TimeRecord &rec)
