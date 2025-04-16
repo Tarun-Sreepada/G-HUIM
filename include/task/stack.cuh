@@ -2,11 +2,13 @@
 #include <cstdint>
 #include "data_types/data_types.cuh"
 #include "task.cuh"
-#define CAPACITY (1024 * 1024)
+// #define CAPACITY (1024 * 1024 * 1024)
 
+
+template<typename T, int CAPACITY>
 struct Stack
 {
-    Task tasks[CAPACITY];
+    T data[CAPACITY];
 
     volatile unsigned int top;                     // Points to the next free slot
     unsigned long long int total_transactions = 0; // Total transactions in the database
@@ -17,19 +19,18 @@ struct Stack
         total_transactions = 0;
     }
 
-    __device__ bool push(Task item)
+    __device__ bool push(T item)
     {
-        uint32_t old_top = atomicAdd((unsigned int *)&top, 1);
+        data[atomicAdd((unsigned int *)&top, 1)] = item;
         atomicAdd(&total_transactions, (unsigned long long int)item.db->num_transactions);
-        tasks[old_top] = item;
         return true;
     }
 
-    __device__ bool get(Task &item, int index)
+    __device__ bool get(T &item, int index)
     {
         if (index < top)
         {
-            item = tasks[index];
+            item = data[index];
             return true;
         }
         return false;
@@ -37,10 +38,10 @@ struct Stack
 
     __device__ Task &operator[](int index)
     {
-        return tasks[index];
+        return data[index];
     }
     __device__ const Task &operator[](int index) const
     {
-        return tasks[index];
+        return data[index];
     }
 };
