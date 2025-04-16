@@ -2,6 +2,8 @@
 #include <cstdint>
 #include "../data_types/data_types.cuh"
 
+
+
 struct Task
 {
     uint32_t *pattern = nullptr;
@@ -38,6 +40,13 @@ struct Task
     bool is_empty() const
     {
         return pattern == nullptr && db == nullptr && pattern_length == 0;
+    }
+
+    __host__ __device__
+    static Task empty() {
+        Task t;
+        t.clear();
+        return t;
     }
 
 };

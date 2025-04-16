@@ -5,9 +5,11 @@
 #include "patterns/patterns.cuh"
 
 #include "task/task.cuh"
-#include "task/stack.cuh"
 #include "file/build.hpp"
+#include "task/deque.cuh"
+#include "memory/memory.cuh"
 
+#define scale 2
+#define MAX_TASKS (1024 * 128)
 
-
-void dynamic_parallel_mining(built_file &bf, patterns *p);
+void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser);

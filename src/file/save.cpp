@@ -10,6 +10,10 @@ void save_patterns(const std::string& output_path, const uint32_t *data, const u
         return;
     }
 
+    // create a set to store unique patterns
+    std::set<std::string> unique_patterns;
+    std::string pattern;
+
     int32_t pattern_count = 0;
     for (uint32_t i = 0; i < offset; ++i)
     {

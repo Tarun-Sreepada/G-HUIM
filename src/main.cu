@@ -28,7 +28,7 @@ int main(int argc, char *argv[])
         parser.add_argument("--threads", "Number of threads used for file operations", false, "1");
         parser.add_argument("--separator", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
         parser.add_argument("--block_size", "Number of threads per GPU block", false, "1024");
-        parser.add_argument("--num_blocks", "Number of GPU blocks", false, "1");
+        parser.add_argument("--num_blocks", "Number of GPU blocks", false, "0");
         parser.add_argument("--total_memory", "Total memory to allocate for the global allocator", false, "36G");
         parser.add_argument("--patern_memory", "Memory to allocate for the patterns", false, "256M");
         parser.add_argument("--method", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
     }
     else if (parser.get("--method") == "DP")
     {
-        dynamic_parallel_mining(bf, p);
+        dynamic_parallel_mining(bf, p, parser);
     }
     else
     {
@@ -90,9 +90,9 @@ int main(int argc, char *argv[])
 
     timer.recordPoint("Mining Completed");
 
-    #ifdef DEBUG
+#ifdef DEBUG
     std::cout << "Saving to file: " << parser.get("--output") << "\n";
-    #endif
+#endif
 
     save_patterns(parser.get("--output"), p->data, p->offset);
     timer.recordPoint("Save");

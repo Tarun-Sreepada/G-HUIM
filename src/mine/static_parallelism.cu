@@ -1,6 +1,6 @@
 #include "mine/static_parallelism.cuh"
 
-__global__ void copy_work(Stack *work_stack, Database *db, uint32_t *primary, uint32_t primary_size, uint32_t unique)
+__global__ void copy_work(Stack<Task,CAPACITY> *work_stack, Database *db, uint32_t *primary, uint32_t primary_size, uint32_t unique)
 {
     int tid = threadIdx.x;
     __shared__ Task task;
@@ -65,7 +65,7 @@ uint32_t next_pow2(uint32_t n)
     return p;
 }
 
-__device__ __forceinline__ void fetch_task(Stack *work_stack, Task &item)
+__device__ __forceinline__ void fetch_task(Stack<Task,CAPACITY> *work_stack, Task &item)
 {
     int block_id = blockIdx.x;
     int thread_id = threadIdx.x;
@@ -73,6 +73,8 @@ __device__ __forceinline__ void fetch_task(Stack *work_stack, Task &item)
     {
         work_stack->get(item, block_id);
     }
+
+    __syncthreads();
 }
 
 __device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
@@ -182,7 +184,6 @@ __device__ __forceinline__ void add_bucket_util(Utilities *buckets, uint32_t tab
             else
             {
                 atomicAdd(&buckets[idx].subtree_utility, utility);
-                // printf("Key: %d, Subtree Utility: %d\n", buckets[idx].key, atomicAdd(&buckets[idx].subtree_utility, utility));
             }
             return;
         }
@@ -234,6 +235,8 @@ __device__ void scan(const Task &curr_work_item,
                             transaction[j].key, total_util, true);
         }
     }
+
+    __syncthreads();
 }
 
 __device__ void allocate(Task &wi,
@@ -283,7 +286,6 @@ __device__ void write_merge(
             int found = find_item(local_subtree_utilities, max_item * scale, item.key);
             if (local_subtree_utilities[found].local_utility >= min_util)
             {
-                // new_work_item.db->transactions[offset].data[idx] = item;
                 new_transaction[idx++] = item;
                 cumsum += item.util;
             }
@@ -310,8 +312,6 @@ __device__ void write_merge(
 
             hash ^= fasthash(item.key + j);
             temp += item.util;
-            // hash ^= fasthash(new_work_item.db->transactions[offset].data[j].key + idx);
-            // temp += new_work_item.db->transactions[offset].data[j].util;
         }
 
         // merge identical transactions
@@ -385,7 +385,8 @@ __device__ void trim(Task &new_work_item)
 }
 
 __device__ void push_work_item(Utilities *local_subtree_utilities,
-                               Task &new_work_item, Stack *work_stack,
+                               Task &new_work_item, 
+                                 Stack<Task, CAPACITY> *work_stack,
                                uint32_t min_util, uint32_t unique_item_count)
 {
 
@@ -424,10 +425,13 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
             work_stack->push(copy);
         }
     }
+
+    __syncthreads();
 }
 
-__global__ void mine(Stack *curr_stack,
-                     Stack *new_stack,
+__global__ void mine(
+                        Stack<Task, CAPACITY> *curr_stack,
+                        Stack<Task, CAPACITY> *new_stack,
                      patterns *p,
                      uint32_t min_util)
 {
@@ -436,11 +440,8 @@ __global__ void mine(Stack *curr_stack,
     __shared__ Transaction *temporary_transactions;
     __shared__ uint32_t temp_transaction_count;
     __shared__ uint32_t temp_item_count;
-
     __shared__ int32_t *transaction_hashes;
-
     __shared__ Utilities *local_subtree_utilities;
-
     __shared__ Task new_task;
 
     fetch_task(curr_stack, curr_task);
@@ -450,9 +451,7 @@ __global__ void mine(Stack *curr_stack,
                       &transaction_hashes,
                       curr_task.db->num_transactions,
                       curr_task.unique_items);
-    __syncthreads();
 
-    // Reset the shared variables
     reset_structs(&new_task,
                   curr_task,
                   temporary_transactions,
@@ -484,13 +483,13 @@ __global__ void mine(Stack *curr_stack,
 void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 {
     // Allocate memory for the stack
-    Stack *curr_stack;
-    cudaMallocManaged(&curr_stack, sizeof(Stack));
+    Stack <Task, CAPACITY> *curr_stack;
+    cudaMallocManaged(&curr_stack, sizeof(Stack<Task, CAPACITY>));
     curr_stack->init();
 
     // Allocate the stack
-    Stack *new_stack;
-    cudaMallocManaged(&new_stack, sizeof(Stack));
+    Stack <Task, CAPACITY> *new_stack;
+    cudaMallocManaged(&new_stack, sizeof(Stack<Task, CAPACITY>));
     new_stack->init();
 
     Database *db;
@@ -549,4 +548,8 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 
     cudaFree(curr_stack);
     cudaFree(new_stack);
+    cudaFree(db->data);
+    cudaFree(db->transactions);
+    cudaFree(db);
+    cudaFree(primary);
 }
