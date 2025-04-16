@@ -392,12 +392,6 @@ __device__ void d_push_work_item(Utilities *local_subtree_utilities,
 {
     // Safety: make sure our block id is within the range of deques allocated.
     uint32_t bid = blockIdx.x;
-    if (bid >= num_blocks)
-    {
-        // Optionally, print an error (use caution with device printf).
-        // printf("Error: blockIdx.x (%u) is out of range (num_blocks=%u)!\n", bid, num_blocks);
-        return;
-    }
 
     __shared__ uint32_t new_unique_item_count;
     if (threadIdx.x == 0)
@@ -436,7 +430,6 @@ __device__ void d_push_work_item(Utilities *local_subtree_utilities,
             if (!pushed)
             {
                 // Handle the case where the push fails (e.g., deque is full).
-                // This could be a warning or an error, depending on your design.
                 printf("Error: Failed to push to deque %d\n", bid);
             }
         }
@@ -463,8 +456,6 @@ __device__ Task fetch_task(Deque<Task, MAX_TASKS> *dqs, int num_blocks)
     // Only the owner thread (thread 0) fetches a task.
     if (tid == 0)
     {
-        // dqs[bid].pop(task); // Attempt to pop a task from the deque.
-        // Try to pop a task from the block's own deque.
         if (!dqs[bid].pop(task))
         {
             // If pop fails, try stealing from other deques.

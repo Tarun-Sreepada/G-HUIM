@@ -169,9 +169,17 @@ void ArgParser::print_help()
 {
     std::cout << "Usage: " << program_name << " [options]\n\n";
     std::cout << "Options:\n";
+
+    int longest_arg = 0;
     for (const auto &[key, arg] : args)
     {
-        std::cout << "  " << key;
+        longest_arg = std::max(longest_arg, static_cast<int>(key.length()));
+    }
+    longest_arg += 2; // For padding
+
+    for (const auto &[key, arg] : args)
+    {
+        std::cout << "  " << std::left << std::setw(longest_arg) << key;
         if (!arg.is_flag)
             std::cout << " <value>";
         std::cout << "\t" << arg.description;
@@ -180,6 +188,7 @@ void ArgParser::print_help()
         std::cout << "\n";
     }
     std::cout << "  --help, -h\tShow this help message\n";
+
 }
 
 void ArgParser::set(const std::string &name, const std::string &value)

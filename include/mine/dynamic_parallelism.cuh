@@ -10,6 +10,6 @@
 #include "memory/memory.cuh"
 
 #define scale 2
-#define MAX_TASKS (1024 * 128)
+#define MAX_TASKS (1024 * 16)
 
 void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser);
