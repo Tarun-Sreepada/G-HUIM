@@ -43,14 +43,12 @@ namespace allocators {
         {
             if (allocator_base)
             {
-                #ifdef DEBUG
 
                 std::cout << "Memory Usage Summary:\n";
                 std::cout << "  Allocated: " << (allocator_offset / (1024 * 1024)) << " MB\n";
                 std::cout << "  Free: " << ((allocator_total - allocator_offset) / (1024 * 1024)) << " MB\n";
                 std::cout << "  Total: " << (allocator_total / (1024 * 1024)) << " MB\n";
 
-                #endif
                 cudaFree(allocator_base);
                 allocator_base = nullptr;
             }

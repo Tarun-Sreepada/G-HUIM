@@ -62,7 +62,7 @@ __global__ void copy_work(Deque<Task, MAX_TASKS> *dqs, uint32_t num_blocks, Data
     for (int i = tid; i < num_blocks; i += blockDim.x)
     {
         dqs[i].init();
-        dqs[i].capacity = MAX_TASKS;
+        // dqs[i].capacity = MAX_TASKS;
     }
 
     Task copy = task;
@@ -438,58 +438,45 @@ __device__ void d_push_work_item(Utilities *local_subtree_utilities,
     __syncthreads();
 }
 
-__device__ Task fetch_task(Deque<Task, MAX_TASKS> *dqs, int num_blocks)
-{
-    // Declare a shared task.
+// fetch_task: spins until steal() succeeds or all work is done
+__device__ Task fetch_task(Deque<Task,MAX_TASKS>* dqs, int num_blocks) {
     __shared__ Task task;
-
-    // Initialize the shared task on thread 0.
-    if (threadIdx.x == 0)
-    {
-        task = Task::empty();
-    }
+    if (threadIdx.x == 0) task = Task::empty();
     __syncthreads();
 
-    int bid = blockIdx.x;  // Current block's id.
-    int tid = threadIdx.x; // Thread id within the block.
+    int bid = blockIdx.x, tid = threadIdx.x;
+    if (tid == 0) {
+        // first try your own queue
+        if (!dqs[bid].pop(task)) {
+            int sum_active = 1;  // enter loop
+            while (sum_active > 0 && task.is_empty()) {
+                // recompute global active
+                sum_active = 0;
+                #pragma unroll
+                for (int i = 0; i < num_blocks; ++i) {
+                    sum_active += dqs[i].get_active();
+                }
+                if (sum_active <= 0) break;
 
-    // Only the owner thread (thread 0) fetches a task.
-    if (tid == 0)
-    {
-        if (!dqs[bid].pop(task))
-        {
-            // If pop fails, try stealing from other deques.
-            // Start with active = 1 to ensure we enter the loop.
-            int active = 1;
-            while (active > 0 && task.is_empty())
-            {
-                active = 0;
-                // Loop over all deques in a round-robin fashion.
-                for (int i = 0; i < num_blocks; i++)
-                {
-                    // Attempt to steal a task from deque[i].
-                    int active_count = dqs[i].get_active();
-                    if (active_count < MIN_TASKS)
-                        continue; // Skip empty deques.
-
-                    if (dqs[i].steal(task))
-                    {
-                        dqs[bid].add_active(); // Our deque: add active to mark an in-flight task.
-                        dqs[i].finish_task();  // Donor deque: finish (decrement) active.
+                // try steal from others
+                for (int off = 1; off < num_blocks && task.is_empty(); ++off) {
+                    int vid = (bid + off) % num_blocks;
+                    if (dqs[vid].pending() <= 0) continue;
+                    if (dqs[vid].steal(task)) {
+                        // transfer the active count
+                        dqs[bid].add_active();
+                        dqs[vid].finish_task();
                         break;
                     }
-                    // Sum the active counts from deques (using modular indexing if needed).
-                    active += active_count;
                 }
             }
         }
     }
 
-    // Synchronize threads before using the fetched task.
     __syncthreads();
-
     return task;
 }
+
 
 __device__ void finish_task(Deque<Task, MAX_TASKS> *dqs)
 {
