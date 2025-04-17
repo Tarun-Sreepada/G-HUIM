@@ -1,0 +1,59 @@
+Iteration 1
+Input File: /export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt
+Minimum utility: 14500000
+Separator: ' '
+Output File: output.txt
+Threads: 16
+Managed Memory: true
+Number of blocks: 0
+SM count: 114
+Using 114 blocks.
+Number of patterns: 33597
+Memory Usage Summary:
+  Allocated: 420 MB
+  Free: 378459 MB
+  Total: 378880 MB
+Label                       Time (ms)     Memory (KB)
+-----------------------------------------------------
+Start                               0            2248
+CUDA Warmup                       694          106040 (+103792)
+Read                                4          123400 (+17360)
+Parse                              26          152376 (+28976)
+Build                              47          209400 (+57024)
+Allocator Initialized               0          209400 (+0)
+Patterns Allocated                  0          209400 (+0)
+Mining Completed                  131          209828 (+428)
+Save                               22          209828 (+0)
+End                                 6          209892 (+64)
+-----------------------------------------------------
+Total time                        932 ms
+Iteration 2
+Input File: /export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt
+Minimum utility: 14500000
+Separator: ' '
+Output File: output.txt
+Threads: 16
+Managed Memory: true
+Number of blocks: 0
+SM count: 114
+Using 114 blocks.
+Number of patterns: 33597
+Memory Usage Summary:
+  Allocated: 420 MB
+  Free: 378459 MB
+  Total: 378880 MB
+Label                       Time (ms)     Memory (KB)
+-----------------------------------------------------
+Start                               0            2244
+CUDA Warmup                       676          105888 (+103644)
+Read                                4          123396 (+17508)
+Parse                              25          152372 (+28976)
+Build                              47          209132 (+56760)
+Allocator Initialized               0          209132 (+0)
+Patterns Allocated                  0          209132 (+0)
+Mining Completed                   90          209588 (+456)
+Save                               21          209588 (+0)
+End                                 6          209652 (+64)
+-----------------------------------------------------
+Total time                        872 ms
+Iteration 3
