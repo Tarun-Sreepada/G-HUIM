@@ -49,7 +49,7 @@ else()
     message(STATUS "Building in Release mode (optimized)")
     # Native arch tuning, LTO, fast-math, aggressive inlining, no debug
     set(CMAKE_CXX_FLAGS_RELEASE "-O3 -march=native -flto -funroll-loops -DNDEBUG")
-    set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -use_fast_math -lineinfo -Xcompiler=-march=native")
+    set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -use_fast_math -lineinfo -Xcompiler=-march=native -Xptxas -dlcm=cg")
     
     # Optional: make sure LTO is supported
     include(CheckIPOSupported)

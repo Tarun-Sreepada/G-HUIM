@@ -2,11 +2,11 @@
 
 LOOPS=10
 
-INPUT="/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt"
-MINUTIL=14500000
+INPUT="/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt"
+MINUTIL=740000
 THREADS=16
-TOTAL_MEMORY="370G"
-MANAGED=true
+TOTAL_MEMORY="75G"
+MANAGED=false
 OUTPUT="output.txt"
 METHOD="DP"
 
