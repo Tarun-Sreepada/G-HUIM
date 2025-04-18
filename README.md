@@ -13,26 +13,22 @@ Below is a snapshot of the project structure (excluding `build/` and `docs/` dir
 ├── CMakeLists.txt
 ├── Doxyfile
 ├── README.md
+├── a.txt
 ├── include
 │   ├── args.hpp
-│   ├── build.hpp
-│   ├── copy.cuh
-│   ├── data_types.cuh
-│   ├── data_types.hpp
-│   ├── file.hpp
-│   ├── memory.cuh
-│   ├── mine.cuh
-│   ├── stack.cuh
-│   ├── timer.hpp
-│   ├── validate.cuh
-│   └── work.cuh
-├── main.cu
+│   ├── data_types
+│   ├── file
+│   ├── memory
+│   ├── mine
+│   ├── patterns
+│   ├── task
+│   └── timer.hpp
 └── src
-    ├── build.cpp
-    ├── copy.cu
-    ├── file.cpp
-    ├── memory.cu
-    └── mine.cu
+    ├── args.cpp
+    ├── file
+    ├── main.cu
+    ├── memory
+    └── mine
 ```
 
 *(This was generated using: ` tree -L 2 -I 'build|docs' `)*
@@ -99,23 +95,5 @@ After building the project, you can run the application as follows:
   ```bash
     cmake --build build -- -j$(nproc) &&  ./build/cuDPEFIM --input '/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt' --minutil 8000000 --threads 16 --total_memory 20G
   ```
-
----
-
-## Generating Documentation
-
-To generate the project documentation using Doxygen:
-
-1. Run Doxygen on the configuration file:
-   ```bash
-   doxygen Doxyfile
-   ```
-
-2. Build the LaTeX documentation:
-   ```bash
-   cd docs/latex
-   make
-   cd ../..
-   ```
 
 ---
