@@ -64,6 +64,7 @@ __global__ void copy_work(Deque<Task, MAX_TASKS> *dqs, uint32_t num_blocks, Data
         dqs[i].init();
         // dqs[i].capacity = MAX_TASKS;
     }
+    __syncthreads();
 
     Task copy = task;
     for (int i = tid; i < primary_size; i += blockDim.x)
