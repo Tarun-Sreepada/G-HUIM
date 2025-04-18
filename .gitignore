@@ -16,3 +16,7 @@ Makefile
 # OS
 .DS_Store
 Thumbs.db
+
+
+# Other
+run.sh

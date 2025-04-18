@@ -3,7 +3,7 @@
 #include "data_types/data_types.cuh"
 #include "task.cuh"
 
-#define MIN_STEAL 2 // leave at least this many for the owner
+#define MIN_STEAL 1 // leave at least this many for the owner
 
 template <typename T>
 __device__ __forceinline__ T atomic_load(const volatile T *ptr)
@@ -74,7 +74,6 @@ struct Deque
         return true;
     }
 
-    // --------------------------------------------------------------- pop (owner‑only)
     __device__ bool pop(T &out)
     {
         // Snapshot head & tail *atomically*
@@ -92,7 +91,6 @@ struct Deque
         return true;
     }
 
-    // ------------------------------------------------------------- diagnostics
     __device__ int pending()
     {
         Head h = unpackHead(atomic_load(&a_head.value));
@@ -104,7 +102,6 @@ struct Deque
     __device__ void add_active(int c = 1) { atomicAdd((int *)&active, c); }
     __device__ void finish_task() { atomicAdd((int *)&active, -1); }
 
-    // ---------------------------------------------------------------- steal
     __device__ bool steal(T &out)
     {
         unsigned long long old_val = atomic_load(&a_head.value);
@@ -126,7 +123,6 @@ struct Deque
         {
             __threadfence(); // ensure prior writes visible
             out = tmp;
-            // atomicAdd((int *)&active, 1);              // we now own this task
             return true;
         }
         return false; // raced – try again later
