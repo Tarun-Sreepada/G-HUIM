@@ -17,8 +17,8 @@ def main():
     suffix_map = {
         '_utility_spmf_search_only.png': 'Search Only',
         '_search_only.png': 'Search Only',
-        '_utility_spmf_speedup_plot.html': 'Speedup Plot',
-        '_speedup_plot.html': 'Speedup Plot',
+        '_utility_spmf_speedup_plot.html': 'GPU Dynamic Parallelism Sweep Speedup Plot',
+        '_speedup_plot.html': 'GPU Dynamic Parallelism Sweep Speedup Plot',
         '_utility_spmf_search_time_plot.html': 'Search Time Plot',
         '_search_time_plot.html': 'Search Time Plot',
         '_utility_spmf_clustered_by_util.png': 'Execution time',
