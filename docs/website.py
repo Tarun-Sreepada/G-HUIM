@@ -25,7 +25,7 @@ def main():
         '_clustered_by_util.png': 'Execution time',
     }
     # Desired link order
-    link_order = ['Search Only', 'Speedup Plot', 'Search Time Plot', 'Execution time']
+    link_order = ['Search Only', 'GPU Dynamic Parallelism Sweep Speedup Plot', 'Search Time Plot', 'Execution time']
 
     # Group files by dataset prefix
     groups = {}
