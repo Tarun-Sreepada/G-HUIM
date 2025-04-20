@@ -282,6 +282,7 @@ def plot_3d(file_path: str):
     ).astype(float)
 
     # --- 5) Second 3D scatter: speedup ---
+    # add the time taken in the text
     fig2 = go.Figure(
         go.Scatter3d(
             x=df["block_size"],
@@ -289,6 +290,7 @@ def plot_3d(file_path: str):
             z=df["speedup"],
             mode="markers",
             marker=dict(size=6, color=colors_speedup),
+            text=df["search_time"],
         )
     )
 
@@ -298,6 +300,7 @@ def plot_3d(file_path: str):
             x=x_plane,
             y=y_plane,
             z=z_plane_speedup,
+            text=dphim_time,
             opacity=0.1,  # 90% transparent
             showscale=False,
             name="DPHIM Baseline",
@@ -314,6 +317,7 @@ def plot_3d(file_path: str):
             x=x_plane,
             y=y_plane,
             z=z_plane_cuDPEFIM,
+            text=cuDPEFIM_sp_time,
             opacity=0.1,  # 90% transparent
             showscale=False,
             name="cuDPEFIM SP Baseline",
@@ -332,6 +336,7 @@ def plot_3d(file_path: str):
         ),
         margin=dict(l=0, r=0, b=0, t=0),
     )
+
 
     # add title
     fig2.update_layout(
