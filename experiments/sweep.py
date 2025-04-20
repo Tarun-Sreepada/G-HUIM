@@ -234,6 +234,14 @@ def plot_3d(file_path: str):
         margin=dict(l=0, r=0, b=0, t=0),
     )
 
+    # add title
+    fig1.update_layout(
+        title=f"File: {input_file.split('/')[-1]}<br>Minimum Utility: {min_util}",
+        title_x=0.5,
+        title_y=0.95,
+        title_font=dict(size=20)
+    )
+
     out_prefix = input_file.split("/")[-1].rsplit(".", 1)[0]
     fig1.write_html(f"{out_prefix}_search_time_plot.html")
 
@@ -275,6 +283,14 @@ def plot_3d(file_path: str):
             zaxis=dict(title="Speedup", color="green"),
         ),
         margin=dict(l=0, r=0, b=0, t=0),
+    )
+
+    # add title
+    fig2.update_layout(
+        title=f"File: {input_file.split('/')[-1]}<br>Minimum Utility: {min_util}",
+        title_x=0.5,
+        title_y=0.95,
+        title_font=dict(size=20)
     )
 
     fig2.write_html(f"{out_prefix}_speedup_plot.html")
