@@ -2,6 +2,8 @@ File: connect_utility_spmf.txt
 Minimum Utility: 12000000
 DPHIM Baseline
 search_time: 95
+cuDPEFIM Static Parallel Baseline
+search_time: 192
 
 cuDPEFIM Sweep
 block_size,num_blocks,search_time

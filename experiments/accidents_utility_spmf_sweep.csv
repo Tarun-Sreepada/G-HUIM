@@ -2,6 +2,8 @@ File: accidents_utility_spmf.txt
 Minimum Utility: 10000000
 DPHIM Baseline
 search_time: 990
+cuDPEFIM Static Parallel Baseline
+search_time: 435
 
 cuDPEFIM Sweep
 block_size,num_blocks,search_time
