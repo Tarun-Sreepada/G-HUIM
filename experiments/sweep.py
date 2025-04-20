@@ -138,60 +138,77 @@ def run_dphim_once(input_file, min_util, method, cores):
 
 
 def plot_3d(file_path: str):
-    # Read metadata and data
-    lines = open(file_path, "r").readlines()
-    input_file = lines[0].split(": ")[1].strip()
-    min_util = int(lines[1].split(": ")[1].strip())
-    dphim_time = float(lines[3].split(": ")[1].strip())
+    # --- 1) Read metadata + data ---
+    with open(file_path, "r") as f:
+        lines = f.readlines()
+    input_file = lines[0].split(": ", 1)[1].strip()
+    # min utility (not used in plotting)
+    min_util = int(lines[1].split(": ", 1)[1].strip())
+    # DPHIM baseline time to compute speedup
+    dphim_time = float(lines[3].split(": ", 1)[1].strip())
+
+    # data starts at line 7 (0‑indexed row 6)
     df = pd.read_csv(file_path, skiprows=6)
-    
-    # Cast types
     df["block_size"] = df["block_size"].astype(int)
     df["num_blocks"] = df["num_blocks"].astype(int)
     df["search_time"] = df["search_time"].astype(float)
-    
-    # Normalize coordinates for coloring
-    x = df["block_size"]
-    y = df["num_blocks"]
-    z = df["search_time"]
-    x_norm = (x - x.min()) / (x.max() - x.min()) if x.max() != x.min() else x * 0
-    y_norm = (y - y.min()) / (y.max() - y.min()) if y.max() != y.min() else y * 0
-    z_norm = (z - z.min()) / (z.max() - z.min()) if z.max() != z.min() else z * 0
-    
-    # Map normalized coords to RGB: X->R, Z->G, Y->B
-    colors = [
-        f"rgb({int(r*255)}, {int(g*255)}, {int(b*255)})"
-        for r, g, b in zip(x_norm, z_norm, y_norm)
-    ]
-    
-    # Create 3D scatter plot
-    fig = go.Figure(
-        data=[
-            go.Scatter3d(
-                x=x,
-                y=y,
-                z=z,
-                mode="markers",
-                marker=dict(size=6, color=colors)
-            )
+
+    # --- 2) Compute speedup relative to DPHIM baseline ---
+    df["speedup"] = dphim_time / df["search_time"]
+
+    # --- 3) Helper to normalize and map to "rgb(r,g,b)" strings ---
+    def make_rgb(xs, ys, zs):
+        xn = (xs - xs.min()) / (xs.max() - xs.min()) if xs.max() != xs.min() else 0
+        yn = (ys - ys.min()) / (ys.max() - ys.min()) if ys.max() != ys.min() else 0
+        zn = (zs - zs.min()) / (zs.max() - zs.min()) if zs.max() != zs.min() else 0
+        return [
+            f"rgb({int(r*255)}, {int(g*255)}, {int(b*255)})"
+            for r, g, b in zip(xn, zn, yn)
         ]
+
+    colors_time     = make_rgb(df["block_size"], df["num_blocks"], df["search_time"])
+    colors_speedup = make_rgb(df["block_size"], df["num_blocks"], df["speedup"])
+
+    # --- 4) First 3D scatter: search_time ---
+    fig1 = go.Figure(
+        go.Scatter3d(
+            x=df["block_size"],
+            y=df["num_blocks"],
+            z=df["search_time"],
+            mode="markers",
+            marker=dict(size=6, color=colors_time)
+        )
     )
-    
-    # Color the axes
-    fig.update_layout(
+    fig1.update_layout(
         scene=dict(
             xaxis=dict(title="Block Size", color="red"),
             yaxis=dict(title="Num Blocks", color="blue"),
-            zaxis=dict(title="Search Time (ms)", color="green"),
+            zaxis=dict(title="Search Time", color="green")
         ),
         margin=dict(l=0, r=0, b=0, t=0)
     )
-    
-    # Save interactive HTML
-    fig.write_html(f"{file_path.split('.')[0]}_3d_plot.html")
-    print("Saved interactive 3D plot to ", f"{file_path.split('.')[0]}_3d_plot.html")
+    out_prefix = input_file.split("/")[-1].rsplit(".", 1)[0]
+    fig1.write_html(f"{out_prefix}_search_time_plot.html")
 
-
+    # --- 5) Second 3D scatter: speedup ---
+    fig2 = go.Figure(
+        go.Scatter3d(
+            x=df["block_size"],
+            y=df["num_blocks"],
+            z=df["speedup"],
+            mode="markers",
+            marker=dict(size=6, color=colors_speedup)
+        )
+    )
+    fig2.update_layout(
+        scene=dict(
+            xaxis=dict(title="Block Size", color="red"),
+            yaxis=dict(title="Num Blocks", color="blue"),
+            zaxis=dict(title="Speedup", color="green")
+        ),
+        margin=dict(l=0, r=0, b=0, t=0)
+    )
+    fig2.write_html(f"{out_prefix}_speedup_plot.html")
 
 def sweep(input_file, min_util, block_sizes, num_blocks):
 
