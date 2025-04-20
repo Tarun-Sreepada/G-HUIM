@@ -8,6 +8,7 @@ import seaborn as sns
 import matplotlib
 import plotly.graph_objects as go
 
+
 def parse_metrics_cu(output):
     """Extract parse, build, and search times + pattern count from stdout."""
     metrics = {
@@ -54,6 +55,7 @@ def parse_metrics_cu(output):
     search_time = metrics["alloc"] + metrics["patterns"] + metrics["mining"]
     return parse_time, build_time, search_time, metrics["patterns_count"]
 
+
 def parse_metrics_dphim(output):
     # High-level counts
     parse_ms = 0
@@ -83,9 +85,6 @@ def parse_metrics_dphim(output):
     return parse_time, build_time, search_time, patterns
 
 
-
-
-
 EXECUTABLE = "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM"
 
 TOTAL_MEMORY = "78G"
@@ -96,32 +95,48 @@ METHOD = "DP"
 def run_cuDPEFIM_once(input_file, min_util, block_size, num_block):
     cmd = [
         EXECUTABLE,
-        "--input", input_file,
-        "--minutil", str(min_util),
-        "--threads", "24",
-        "--block_size", str(block_size),
-        "--num_blocks", str(num_block),
-        "--total_memory", TOTAL_MEMORY,
-        "--managed", str(MANAGED).lower(),
-        "--method", METHOD,
+        "--input",
+        input_file,
+        "--minutil",
+        str(min_util),
+        "--threads",
+        "24",
+        "--block_size",
+        str(block_size),
+        "--num_blocks",
+        str(num_block),
+        "--total_memory",
+        TOTAL_MEMORY,
+        "--managed",
+        str(MANAGED).lower(),
+        "--method",
+        METHOD,
     ]
 
     try:
-        proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
-        p, b, s, patterns = parse_metrics_cu(proc.stdout) 
+        proc = subprocess.run(
+            cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True
+        )
+        p, b, s, patterns = parse_metrics_cu(proc.stdout)
         return s  # search time only
     except subprocess.CalledProcessError as e:
         print(f"Error running {cmd}: {e}")
         return None
-    
+
+
 def run_dphim_once(input_file, min_util, method, cores):
     cmd = [
         "/export/home1/ltarun/dphim/build/run",
-        "-i", input_file,
-        "-m", str(min_util),
-        "-s", method,
-        "-t", str(cores),
-        "-o", "/dev/null",
+        "-i",
+        input_file,
+        "-m",
+        str(min_util),
+        "-s",
+        method,
+        "-t",
+        str(cores),
+        "-o",
+        "/dev/null",
     ]
 
     print("Running command:", " ".join(cmd))
@@ -156,16 +171,22 @@ def plot_3d(file_path: str):
     # --- 2) Compute speedup relative to smallest block size and smallest num blocks ---
     min_block_size = df["block_size"].min()
     min_num_blocks = df["num_blocks"].min()
+    max_num_blocks = df["num_blocks"].max()
+    max_block_size = df["block_size"].max()
+
+    x_vals = np.linspace(min_block_size, max_block_size, 2)
+    y_vals = np.linspace(min_num_blocks, max_num_blocks, 2)
+    x_plane, y_plane = np.meshgrid(x_vals, y_vals)
 
     df["speedup"] = (
         df["search_time"]
         / df.loc[
-            (df["block_size"] == min_block_size)
-            & (df["num_blocks"] == min_num_blocks),
+            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
             "search_time",
         ].values[0]
     )
 
+    # using the DPHIM baseline time plot a plane which is transparent in the search time plot
 
     # --- 3) Helper to normalize and map to "rgb(r,g,b)" strings ---
     def make_rgb(xs, ys, zs):
@@ -177,7 +198,7 @@ def plot_3d(file_path: str):
             for r, g, b in zip(xn, zn, yn)
         ]
 
-    colors_time     = make_rgb(df["block_size"], df["num_blocks"], df["search_time"])
+    colors_time = make_rgb(df["block_size"], df["num_blocks"], df["search_time"])
     colors_speedup = make_rgb(df["block_size"], df["num_blocks"], df["speedup"])
 
     # --- 4) First 3D scatter: search_time ---
@@ -187,19 +208,42 @@ def plot_3d(file_path: str):
             y=df["num_blocks"],
             z=df["search_time"],
             mode="markers",
-            marker=dict(size=6, color=colors_time)
+            marker=dict(size=6, color=colors_time),
         )
     )
+
+    # Add a plane for the DPHIM baseline
+    z_plane_time = np.full_like(x_plane, dphim_time)
+    fig1.add_trace(
+        go.Surface(
+            x=x_plane,
+            y=y_plane,
+            z=z_plane_time,
+            opacity=0.1,          # 90% transparent
+            showscale=False,
+            name="DPHIM Baseline"
+        )
+    )
+
     fig1.update_layout(
         scene=dict(
             xaxis=dict(title="Block Size", color="red"),
             yaxis=dict(title="Num Blocks", color="blue"),
-            zaxis=dict(title="Search Time", color="green")
+            zaxis=dict(title="Search Time", color="green"),
         ),
-        margin=dict(l=0, r=0, b=0, t=0)
+        margin=dict(l=0, r=0, b=0, t=0),
     )
+
     out_prefix = input_file.split("/")[-1].rsplit(".", 1)[0]
     fig1.write_html(f"{out_prefix}_search_time_plot.html")
+
+    # calculate the speedup relative to the DPHIM baseline
+    dphim_speedup = dphim_time / (
+        df.loc[
+            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+            "search_time",
+        ].values[0]
+    )
 
     # --- 5) Second 3D scatter: speedup ---
     fig2 = go.Figure(
@@ -208,18 +252,33 @@ def plot_3d(file_path: str):
             y=df["num_blocks"],
             z=df["speedup"],
             mode="markers",
-            marker=dict(size=6, color=colors_speedup)
+            marker=dict(size=6, color=colors_speedup),
         )
     )
+
+    z_plane_speedup = np.full_like(x_plane, dphim_speedup)
+    fig2.add_trace(
+        go.Surface(
+            x=x_plane,
+            y=y_plane,
+            z=z_plane_speedup,
+            opacity=0.1,          # 90% transparent
+            showscale=False,
+            name="DPHIM Baseline"
+        )
+    )
+
     fig2.update_layout(
         scene=dict(
             xaxis=dict(title="Block Size", color="red"),
             yaxis=dict(title="Num Blocks", color="blue"),
-            zaxis=dict(title="Speedup", color="green")
+            zaxis=dict(title="Speedup", color="green"),
         ),
-        margin=dict(l=0, r=0, b=0, t=0)
+        margin=dict(l=0, r=0, b=0, t=0),
     )
+
     fig2.write_html(f"{out_prefix}_speedup_plot.html")
+
 
 def sweep(input_file, min_util, block_sizes, num_blocks):
 
@@ -235,7 +294,6 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
 
         return
 
-    
     with open(save_file, "w") as f:
         f.write("File: " + input_file.split("/")[-1] + "\n")
         f.write("Minimum Utility: " + str(min_util) + "\n")
@@ -251,17 +309,22 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
         f.write("block_size,num_blocks,search_time\n")
         for block_size in block_sizes:
             for num_block in num_blocks:
-                search_time = run_cuDPEFIM_once(input_file, min_util, block_size, num_block)
+                search_time = run_cuDPEFIM_once(
+                    input_file, min_util, block_size, num_block
+                )
                 if search_time is not None:
                     f.write(f"{block_size},{num_block},{search_time}\n")
-                    print(f"block_size: {block_size}, num_blocks: {num_block}, search_time: {search_time}")
+                    print(
+                        f"block_size: {block_size}, num_blocks: {num_block}, search_time: {search_time}"
+                    )
                 else:
-                    print(f"Failed to run with block_size: {block_size}, num_blocks: {num_block}")
+                    print(
+                        f"Failed to run with block_size: {block_size}, num_blocks: {num_block}"
+                    )
                 f.flush()
                 os.fsync(f.fileno())
 
     plot_3d(save_file)
-
 
 
 # Sweep settings
