@@ -153,8 +153,19 @@ def plot_3d(file_path: str):
     df["num_blocks"] = df["num_blocks"].astype(int)
     df["search_time"] = df["search_time"].astype(float)
 
-    # --- 2) Compute speedup relative to DPHIM baseline ---
-    df["speedup"] = dphim_time / df["search_time"]
+    # --- 2) Compute speedup relative to smallest block size and smallest num blocks ---
+    min_block_size = df["block_size"].min()
+    min_num_blocks = df["num_blocks"].min()
+
+    df["speedup"] = (
+        df["search_time"]
+        / df.loc[
+            (df["block_size"] == min_block_size)
+            & (df["num_blocks"] == min_num_blocks),
+            "search_time",
+        ].values[0]
+    )
+
 
     # --- 3) Helper to normalize and map to "rgb(r,g,b)" strings ---
     def make_rgb(xs, ys, zs):
