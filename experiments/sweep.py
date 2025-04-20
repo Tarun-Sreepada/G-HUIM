@@ -178,13 +178,18 @@ def plot_3d(file_path: str):
     y_vals = np.linspace(min_num_blocks, max_num_blocks, 2)
     x_plane, y_plane = np.meshgrid(x_vals, y_vals)
 
-    df["speedup"] = (
-        df["search_time"]
-        / df.loc[
-            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
-            "search_time",
-        ].values[0]
-    )
+    # df["speedup"] = (
+    #     df["search_time"]
+    #     / df.loc[
+    #         (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+    #         "search_time",
+    #     ].values[0]
+    # )
+
+    df["speedup"] = (df.loc[
+        (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+        "search_time",
+    ].values[0] / df["search_time"]).astype(float)
 
     # using the DPHIM baseline time plot a plane which is transparent in the search time plot
 
@@ -246,12 +251,16 @@ def plot_3d(file_path: str):
     fig1.write_html(f"{out_prefix}_search_time_plot.html")
 
     # calculate the speedup relative to the DPHIM baseline
-    dphim_speedup = dphim_time / (
-        df.loc[
-            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
-            "search_time",
-        ].values[0]
-    )
+    # dphim_speedup = dphim_time / (
+    #     df.loc[
+    #         (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+    #         "search_time",
+    #     ].values[0]
+    # )
+    dphim_speedup = (df.loc[
+        (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+        "search_time",
+    ].values[0] / dphim_time).astype(float)
 
     # --- 5) Second 3D scatter: speedup ---
     fig2 = go.Figure(
