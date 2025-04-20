@@ -85,14 +85,7 @@ def parse_metrics_dphim(output):
     return parse_time, build_time, search_time, patterns
 
 
-EXECUTABLE = "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM"
-
-TOTAL_MEMORY = "78G"
-MANAGED = False
-METHOD = "DP"
-
-
-def run_cuDPEFIM_once(input_file, min_util, block_size, num_block):
+def run_cuDPEFIM_once(input_file, min_util, block_size, num_block, method):
     cmd = [
         EXECUTABLE,
         "--input",
@@ -107,10 +100,8 @@ def run_cuDPEFIM_once(input_file, min_util, block_size, num_block):
         str(num_block),
         "--total_memory",
         TOTAL_MEMORY,
-        "--managed",
-        str(MANAGED).lower(),
         "--method",
-        METHOD,
+        method,
     ]
 
     try:
@@ -161,9 +152,10 @@ def plot_3d(file_path: str):
     min_util = int(lines[1].split(": ", 1)[1].strip())
     # DPHIM baseline time to compute speedup
     dphim_time = float(lines[3].split(": ", 1)[1].strip())
+    cuDPEFIM_sp_time = float(lines[5].split(": ", 1)[1].strip())
 
     # data starts at line 7 (0‑indexed row 6)
-    df = pd.read_csv(file_path, skiprows=6)
+    df = pd.read_csv(file_path, skiprows=8)
     df["block_size"] = df["block_size"].astype(int)
     df["num_blocks"] = df["num_blocks"].astype(int)
     df["search_time"] = df["search_time"].astype(float)
@@ -178,18 +170,13 @@ def plot_3d(file_path: str):
     y_vals = np.linspace(min_num_blocks, max_num_blocks, 2)
     x_plane, y_plane = np.meshgrid(x_vals, y_vals)
 
-    # df["speedup"] = (
-    #     df["search_time"]
-    #     / df.loc[
-    #         (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
-    #         "search_time",
-    #     ].values[0]
-    # )
-
-    df["speedup"] = (df.loc[
-        (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
-        "search_time",
-    ].values[0] / df["search_time"]).astype(float)
+    df["speedup"] = (
+        df.loc[
+            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+            "search_time",
+        ].values[0]
+        / df["search_time"]
+    ).astype(float)
 
     # using the DPHIM baseline time plot a plane which is transparent in the search time plot
 
@@ -224,9 +211,30 @@ def plot_3d(file_path: str):
             x=x_plane,
             y=y_plane,
             z=z_plane_time,
-            opacity=0.1,          # 90% transparent
+            opacity=0.1,  # 90% transparent
             showscale=False,
-            name="DPHIM Baseline"
+            name="DPHIM Baseline",
+            colorscale=[[0, "red"], [1, "red"]],  # solid blue color
+            surfacecolor=np.zeros_like(z_plane_time),  # required for color to apply
+            cmin=0,
+            cmax=1,
+        )
+    )
+
+    # add a plane for the cuDPEFIM static parallel baseline
+    z_plane_cuDPEFIM = np.full_like(x_plane, cuDPEFIM_sp_time)
+    fig1.add_trace(
+        go.Surface(
+            x=x_plane,
+            y=y_plane,
+            z=z_plane_cuDPEFIM,
+            opacity=0.1,  # 90% transparent
+            showscale=False,
+            name="cuDPEFIM SP Baseline",
+            colorscale=[[0, "blue"], [1, "blue"]],  # solid blue color
+            surfacecolor=np.zeros_like(z_plane_cuDPEFIM),  # required for color to apply
+            cmin=0,
+            cmax=1,
         )
     )
 
@@ -244,7 +252,7 @@ def plot_3d(file_path: str):
         title=f"File: {input_file.split('/')[-1]}<br>Minimum Utility: {min_util}",
         title_x=0.5,
         title_y=0.95,
-        title_font=dict(size=20)
+        title_font=dict(size=20),
     )
 
     out_prefix = input_file.split("/")[-1].rsplit(".", 1)[0]
@@ -257,10 +265,21 @@ def plot_3d(file_path: str):
     #         "search_time",
     #     ].values[0]
     # )
-    dphim_speedup = (df.loc[
-        (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
-        "search_time",
-    ].values[0] / dphim_time).astype(float)
+    dphim_speedup = (
+        df.loc[
+            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+            "search_time",
+        ].values[0]
+        / dphim_time
+    ).astype(float)
+
+    cuDPEFIM_sp_speedup = (
+        df.loc[
+            (df["block_size"] == min_block_size) & (df["num_blocks"] == min_num_blocks),
+            "search_time",
+        ].values[0]
+        / cuDPEFIM_sp_time
+    ).astype(float)
 
     # --- 5) Second 3D scatter: speedup ---
     fig2 = go.Figure(
@@ -279,9 +298,29 @@ def plot_3d(file_path: str):
             x=x_plane,
             y=y_plane,
             z=z_plane_speedup,
-            opacity=0.1,          # 90% transparent
+            opacity=0.1,  # 90% transparent
             showscale=False,
-            name="DPHIM Baseline"
+            name="DPHIM Baseline",
+            colorscale=[[0, "red"], [1, "red"]],  # solid red color
+            surfacecolor=np.zeros_like(z_plane_speedup),  # required for color to apply
+            cmin=0,
+            cmax=1,
+        )
+    )
+
+    z_plane_cuDPEFIM = np.full_like(x_plane, cuDPEFIM_sp_speedup)
+    fig2.add_trace(
+        go.Surface(
+            x=x_plane,
+            y=y_plane,
+            z=z_plane_cuDPEFIM,
+            opacity=0.1,  # 90% transparent
+            showscale=False,
+            name="cuDPEFIM SP Baseline",
+            colorscale=[[0, "blue"], [1, "blue"]],  # solid blue color
+            surfacecolor=np.zeros_like(z_plane_cuDPEFIM),  # required for color to apply
+            cmin=0,
+            cmax=1,
         )
     )
 
@@ -299,7 +338,7 @@ def plot_3d(file_path: str):
         title=f"File: {input_file.split('/')[-1]}<br>Minimum Utility: {min_util}",
         title_x=0.5,
         title_y=0.95,
-        title_font=dict(size=20)
+        title_font=dict(size=20),
     )
 
     fig2.write_html(f"{out_prefix}_speedup_plot.html")
@@ -313,10 +352,9 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
     if os.path.exists(save_file):
         # print("File already exists, deleting...")
         # os.remove(save_file)
+
         print("File already exists, skipping...")
-
         plot_3d(save_file)
-
         return
 
     with open(save_file, "w") as f:
@@ -325,6 +363,10 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
 
         f.write("DPHIM Baseline\n")
         s = run_dphim_once(input_file, min_util, "dphim", 48)
+        f.write(f"search_time: {s}\n")
+
+        f.write("cuDPEFIM Static Parallel Baseline\n")
+        s = run_cuDPEFIM_once(input_file, min_util, 1024, 114, "SP")
         f.write(f"search_time: {s}\n\n")
 
         f.flush()
@@ -335,7 +377,7 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
         for block_size in block_sizes:
             for num_block in num_blocks:
                 search_time = run_cuDPEFIM_once(
-                    input_file, min_util, block_size, num_block
+                    input_file, min_util, block_size, num_block, "DP"
                 )
                 if search_time is not None:
                     f.write(f"{block_size},{num_block},{search_time}\n")
@@ -355,6 +397,12 @@ def sweep(input_file, min_util, block_sizes, num_blocks):
 # Sweep settings
 block_sizes = [2**i for i in range(5, 11)]  # 1,2,4,...,1024
 num_blocks = [1, 2, 4, 8, 16, 32, 64, 114]
+
+
+EXECUTABLE = "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM"
+
+TOTAL_MEMORY = "78G"
+MANAGED = False
 
 process_data = [
     [

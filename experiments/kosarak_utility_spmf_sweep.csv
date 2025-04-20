@@ -2,6 +2,8 @@ File: kosarak_utility_spmf.txt
 Minimum Utility: 740000
 DPHIM Baseline
 search_time: 12706
+cuDPEFIM Static Parallel Baseline
+search_time: 337
 
 cuDPEFIM Sweep
 block_size,num_blocks,search_time

@@ -2,6 +2,8 @@ File: ecommerce_retail.txt
 Minimum Utility: 700000
 DPHIM Baseline
 search_time: 171
+cuDPEFIM Static Parallel Baseline
+search_time: 69
 
 cuDPEFIM Sweep
 block_size,num_blocks,search_time
