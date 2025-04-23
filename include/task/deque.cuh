@@ -38,6 +38,7 @@ struct Deque
     volatile int tail;
     volatile int active;
     int capacity;
+    int processed;
 
     __device__ __host__ Deque() { init(); }
 
@@ -47,6 +48,7 @@ struct Deque
         tail = 0;
         active = 0;
         capacity = CAPACITY;
+        processed = 0;
     }
 
     __device__ static __forceinline__ unsigned long long packHead(int idx, int ctr)
@@ -88,6 +90,7 @@ struct Deque
         }
         __threadfence(); // make sure data is ready
         out = data[t];
+        processed++;
         return true;
     }
 

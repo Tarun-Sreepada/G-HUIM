@@ -71,6 +71,7 @@
         "bitset": "cpp",
         "codecvt": "cpp",
         "list": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "complex": "cpp"
     }
 }

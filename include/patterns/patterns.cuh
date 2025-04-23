@@ -7,6 +7,7 @@ struct patterns
 {
     uint32_t *data = nullptr;        ///< Pointer to array of patterns.
     uint32_t offset = 0; ///< Offset in the patterns array.
+    uint32_t pattern_count = 0; ///< Number of patterns.
 
     __host__ void init(uint32_t size)
     {
@@ -34,6 +35,7 @@ struct patterns
             {
                 pattern_offset = atomicAdd(&offset, (task.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
                 data[pattern_offset + task.pattern_length] = task.utility;      // Store the utility
+                atomicAdd(&pattern_count, 1); // Increment the pattern count
             }
             __syncthreads();
 

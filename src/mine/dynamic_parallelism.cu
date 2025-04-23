@@ -467,6 +467,7 @@ __device__ Task fetch_task(Deque<Task,MAX_TASKS>* dqs, int num_blocks) {
                         // transfer the active count
                         dqs[bid].add_active();
                         dqs[vid].finish_task();
+                        dqs[bid].processed += 1;
                         break;
                     }
                 }
@@ -551,6 +552,16 @@ __global__ void mine(Deque<Task, MAX_TASKS> *dqs, uint32_t num_blocks, patterns 
     }
 }
 
+// print_deque
+__global__ void print_deque(Deque<Task, MAX_TASKS> *dqs, uint32_t num_blocks)
+{
+    int bid = blockIdx.x;
+    if (bid < num_blocks)
+    {
+        printf("Deque %d: %d\n", bid, dqs[bid].processed);
+    }
+}
+
 void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 {
 
@@ -560,33 +571,13 @@ void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
     // Zero out the memory so that top and bottom are initialized to zero.
     cudaMalloc((void **)&deques, sizeof(Deque<Task, MAX_TASKS>) * parser.get_uint32("--num_blocks"));
     cudaMemset(deques, 0, sizeof(Deque<Task, MAX_TASKS>) * parser.get_uint32("--num_blocks"));
-
-    Database *db;
-    cudaMallocManaged(&db, sizeof(Database));
-
-    db->num_items = bf.total_items;
-    db->num_transactions = bf.transactions.size();
-
-    cudaMallocManaged(&db->data, sizeof(Item) * bf.total_items);
-    cudaMallocManaged(&db->transactions, sizeof(Transaction) * bf.transaction_count);
-
-    uint32_t offset = 0;
-
-    for (int i = 0; i < bf.transaction_count; i++)
-    {
-        const std::vector<Item> &transaction = bf.transactions[i];
-        db->transactions[i].data = &db->data[offset];
-        db->transactions[i].length = transaction.size();
-        memcpy(&db->data[offset], transaction.data(), sizeof(Item) * transaction.size());
-        offset += transaction.size();
-    }
-
+    
     uint32_t *primary;
     cudaMallocManaged(&primary, sizeof(uint32_t) * bf.primary.size());
     memcpy(primary, bf.primary.data(), sizeof(uint32_t) * bf.primary.size());
 
     // Copy the database to the stack
-    copy_work<<<1, 1024>>>(deques, parser.get_uint32("--num_blocks"), db, primary, bf.primary.size(), bf.item_to_itemID.size() + 1);
+    copy_work<<<1, 1024>>>(deques, parser.get_uint32("--num_blocks"), bf.db, primary, bf.primary.size(), bf.max_id + 1);
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
@@ -594,10 +585,17 @@ void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
     gpuErrchk(cudaPeekAtLastError());
     gpuErrchk(cudaDeviceSynchronize());
 
+    // print the processed count
+    #ifdef DEBUG
+    print_deque<<<parser.get_uint32("--num_blocks"),1>>>(deques, parser.get_uint32("--num_blocks"));
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+    #endif
+
     // Deallocate the database
-    cudaFree(db->data);
-    cudaFree(db->transactions);
-    cudaFree(db);
+    cudaFree(bf.db->data);
+    cudaFree(bf.db->transactions);
+    cudaFree(bf.db);
     cudaFree(primary);
     cudaFree(deques);
 }

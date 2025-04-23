@@ -438,33 +438,33 @@ def plot_search_only(csv_path="combined_results.csv"):
 process_data = [
     [
         "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
-        [2100000, 2200000, 2300000, 2400000, 2500000],
+        [1950000, 2000000, 2050000, 2100000, 2150000],
     ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/ecommerce_retail.txt",
-        [750000, 760000, 770000, 780000, 790000],
-    ],
+    # [
+    #     "/export/home1/ltarun/cuEFIM/datasets/ecommerce_retail.txt",
+    #     [750000, 760000, 770000, 780000, 790000],
+    # ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
-        [8000000, 9000000, 10000000, 11000000, 12000000, 15000000, 20000000],
+        [4000000, 5000000, 6000000, 7000000, 8000000],
     ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-        [720000, 730000, 740000, 750000, 760000],
+        [710000, 720000, 730000, 740000, 750000],
     ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
-        [2025000, 2030000, 2035000, 2040000, 2045000, 2050000],
+        [2000000, 2010000, 2020000, 2030000, 2040000],
     ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
-        [12000000, 12500000, 13000000, 13500000, 14000000, 14500000],
+        [11000000, 11100000, 11200000, 11300000, 11400000],
     ],
 ]
 
 
 results_df = load_results()
-run_cuDPEFIM(process_data, "DP", repeats=3)
+# run_cuDPEFIM(process_data, "DP", repeats=3)
 run_cuDPEFIM(process_data, "SP", repeats=3)
 run_dphim(process_data, methods=["dphim"], cores=48, repeats=3)
 plot_clustered_by_util()

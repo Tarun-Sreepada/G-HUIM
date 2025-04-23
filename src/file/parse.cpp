@@ -1,150 +1,143 @@
 #include "file/parse.hpp"
 
-
-// Helper to parse one transaction line
-std::tuple<std::vector<uint32_t>, std::vector<uint32_t>, uint32_t>
-parse_line(const char *data, size_t start, size_t end, const char separator)
+// fast in-place parser: fills `items` and sets txn_util
+static inline void parse_line_fast(
+    const char *buf, size_t len, char sep,
+    std::vector<Item>& items, uint32_t &txn_util)
 {
-    ParseState state = PARSE_ITEMS;
-    std::vector<uint32_t> items, utilities;
-    uint32_t total_utility = 0;
-    size_t pos = start;
+    enum State { ITEMS, TOTAL, UTILS } st = ITEMS;
+    txn_util = 0;
+    size_t util_idx = 0;
 
-    while (pos < end)
-    {
-        while (pos < end && (data[pos] == separator || data[pos] == '\n' || data[pos] == ':'))
-        {
-            if (data[pos] == ':')
-            {
-                if (state == PARSE_ITEMS)
-                    state = PARSE_TOTAL_UTILITY;
-                else if (state == PARSE_TOTAL_UTILITY)
-                    state = PARSE_UTILITIES;
+    items.clear();
+    items.reserve(16);
+
+    for (size_t i = 0; i < len; /*++i in body*/) {
+        char c = buf[i];
+        // skip separators & handle ':' flip
+        if (c == sep || c == '\n' || c == '\r' || c == ':') {
+            if (c == ':') {
+                if (st == ITEMS)  st = TOTAL;
+                else if (st == TOTAL) st = UTILS;
             }
-            ++pos;
-        }
-        if (pos >= end)
-            break;
-
-        size_t token_end = pos;
-        while (token_end < end && data[token_end] != separator && data[token_end] != ':' && data[token_end] != '\n')
-            ++token_end;
-
-        uint32_t value = 0;
-        auto res = std::from_chars(data + pos, data + token_end, value);
-        if (res.ec != std::errc())
-        {
-            std::cerr << "Error parsing number at position " << pos << std::endl;
+            ++i;
             continue;
         }
 
-        switch (state)
-        {
-        case PARSE_ITEMS:
-            items.push_back(value);
-            break;
-        case PARSE_TOTAL_UTILITY:
-            total_utility = value;
-            break;
-        case PARSE_UTILITIES:
-            utilities.push_back(value);
-            break;
+        // parse unsigned integer
+        uint32_t v = 0;
+        while (i < len && buf[i] >= '0' && buf[i] <= '9') {
+            v = v * 10 + (buf[i] - '0');
+            ++i;
         }
 
-        pos = token_end;
+        switch (st) {
+          case ITEMS:
+            items.emplace_back(Item{v, 0});
+            break;
+          case TOTAL:
+            txn_util = v;
+            break;
+          case UTILS:
+            if (util_idx < items.size())
+                items[util_idx++].util = v;
+            break;
+        }
     }
-
-    if (items.size() != utilities.size())
-    {
-        std::cerr << "Mismatch: " << items.size() << " items vs " << utilities.size() << " utils\n";
-    }
-
-    return {items, utilities, total_utility};
 }
 
-parsed_file parse_file(raw_file &file, int threads, const char separator)
+bool keysAreContiguousFromOne(
+    const std::unordered_map<uint32_t,uint32_t>& twu)
+{
+    if (twu.empty()) 
+        return false;           // or true, depending on how you want to treat empty
+
+    // 1) find max key and collect them
+    uint32_t max_key = 0;
+    std::vector<uint32_t> keys;
+    keys.reserve(twu.size());
+    for (auto const& p : twu) {
+        max_key = std::max(max_key, p.first);
+        keys.push_back(p.first);
+    }
+
+    // 2) quick size check: if there are holes, size < max_key
+    if (keys.size() != max_key) 
+        return false;
+
+    // 3) mark presence
+    std::vector<char> seen(max_key + 1, 0);
+    for (auto k : keys) 
+        seen[k] = 1;
+
+    // 4) ensure every i in [1..max_key] was seen
+    for (uint32_t i = 1; i <= max_key; ++i) {
+        if (!seen[i]) 
+            return false;
+    }
+    return true;
+}
+
+// optimized parse_file
+parsed_file parse(raw_file &file, int threads, const char separator)
 {
     parsed_file pf;
-
     const char *data = file.data;
     size_t size = file.retrieved_bytes;
 
-
-    // ---- STEP 1: PARALLEL FIND NEWLINE POSITIONS ----
-    std::vector<size_t> newline_positions;
-
-    std::vector<std::vector<size_t>> thread_newlines(threads);
-
-#pragma omp parallel num_threads(threads)
-    {
-        int tid = omp_get_thread_num();
-        size_t chunk_size = (size + threads - 1) / threads;
-        size_t start = tid * chunk_size;
-        size_t end = std::min(start + chunk_size, size);
-
-        auto &local_newlines = thread_newlines[tid];
-        for (size_t i = start; i < end; ++i)
-        {
-            if (data[i] == '\n')
-            {
-                local_newlines.push_back(i);
-            }
-        }
-    }
-
-    for (const auto &vec : thread_newlines)
-        newline_positions.insert(newline_positions.end(), vec.begin(), vec.end());
-
-    std::sort(newline_positions.begin(), newline_positions.end());
-
-    // ---- STEP 2: BUILD LINE START INDICES ----
+    //── STEP 1: BUILD LINE STARTS (single pass) ──
     std::vector<size_t> line_starts;
-    line_starts.reserve(newline_positions.size() + 2);
+    line_starts.reserve(size / 20);  // hint: avg line ~20 bytes
     line_starts.push_back(0);
-    for (size_t pos : newline_positions)
-    {
-        if (pos + 1 < size)
-            line_starts.push_back(pos + 1);
+    for (size_t i = 0; i < size; ++i) {
+        if (data[i] == '\n' && i + 1 < size)
+            line_starts.push_back(i + 1);
     }
-    line_starts.push_back(size); // final end-of-buffer
+    line_starts.push_back(size);
 
     size_t line_count = line_starts.size() - 1;
+    pf.database.resize(line_count);
 
-    // ---- STEP 3: PARSE LINES IN PARALLEL ----
+    //── STEP 2: PARSE IN PARALLEL ──
+    std::vector<std::unordered_map<uint32_t,uint64_t>> local_twu(threads);
 
-    std::vector<std::unordered_map<uint32_t, uint64_t>> local_twu(threads);
-    pf.key_value_pairs.resize(threads);
- 
 #pragma omp parallel num_threads(threads)
     {
         int tid = omp_get_thread_num();
         auto &twu = local_twu[tid];
-        auto &kvps = pf.key_value_pairs[tid];
 
-        #pragma omp for schedule(guided) nowait
-        for (long i = 0; i < static_cast<long>(line_count); ++i)
-        {
+        // thread-local scratch
+        std::vector<Item> items;
+        items.reserve(16);
+
+        #pragma omp for schedule(guided)
+        for (long i = 0; i < (long)line_count; ++i) {
             size_t start = line_starts[i];
-            size_t end = line_starts[i + 1];
+            size_t end   = line_starts[i+1];
+            uint32_t txn_util;
 
-            auto [items, utilities, total_utility] = parse_line(data, start, end, separator);
+            // parse directly into items[]
+            parse_line_fast(data + start, end - start, separator, items, txn_util);
 
-            for (const auto &item : items)
-                twu[item] += total_utility;
+            // accumulate TWU
+            for (auto &it : items)
+                twu[it.key] += txn_util;
 
-            kvps.emplace_back(std::move(items), std::move(utilities));
+            // store into final database
+            pf.database[i] = items;  // vector<Item> has just the right size
         }
     }
 
-    // ---- STEP 4: MERGE LOCAL TWU MAPS ----
-    for (const auto &local_map : local_twu)
-    {
-        for (const auto &[item, utility] : local_map)
-        {
-            pf.twu[item] += utility;
-        }
-    }
+    //── STEP 3: MERGE TWU MAPS ──
+    for (auto &lm : local_twu)
+        for (auto &kv : lm)
+            pf.twu[kv.first] += kv.second;
 
+    //── STEP 4: CHECK KEYS ──
+    if (!keysAreContiguousFromOne(pf.twu)) {
+        fprintf(stderr, "Error: keys are not contiguous from 1 to max_key.\n");
+        exit(1);
+    }
 
     return pf;
 }
