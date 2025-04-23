@@ -2,7 +2,8 @@
 #include "timer.hpp"
 #include "file/load.hpp"
 #include "file/parse.hpp"
-#include "file/build.hpp"
+// #include "file/build.hpp"
+#include "file/build.cuh"
 #include "file/save.hpp"
 #include "memory/memory.cuh"
 #include "patterns/patterns.cuh"
@@ -21,17 +22,17 @@ int main(int argc, char *argv[])
     try
     {
 
-        parser.add_argument("--input", "Input file path", true);
-        parser.add_argument("--minutil", "Minimum utility", true);
-        parser.add_argument("--output", "Output file path", false, "/dev/null");
-        parser.add_argument("--managed", "Use managed memory", false, "false");
-        parser.add_argument("--threads", "Number of threads used for file operations", false, "1");
-        parser.add_argument("--separator", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
-        parser.add_argument("--block_size", "Number of threads per GPU block", false, "1024");
-        parser.add_argument("--num_blocks", "Number of GPU blocks", false, "0");
-        parser.add_argument("--total_memory", "Total memory to allocate for the global allocator", false, "36G");
-        parser.add_argument("--patern_memory", "Memory to allocate for the patterns", false, "256M");
-        parser.add_argument("--method", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
+        parser.add_argument("--input", "string", "Input file path", true);
+        parser.add_argument("--minutil", "int", "Minimum utility", true);
+        parser.add_argument("--output", "string", "Output file path", false, "/dev/null");
+        parser.add_argument("--managed", "bool", "Use managed memory", false, "false");
+        parser.add_argument("--threads", "int", "Number of threads used for file operations", false, "1");
+        parser.add_argument("--separator", "string", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
+        parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
+        parser.add_argument("--num_blocks", "int", "Number of GPU blocks", false, "0");
+        parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
+        parser.add_argument("--patern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
+        parser.add_argument("--method", "string", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
         parser.parse(argc, argv);
 
         std::cout << "Input File: " << parser.get("--input") << "\n";
@@ -57,11 +58,12 @@ int main(int argc, char *argv[])
     timer.recordPoint("Read");
 
     // Parse File
-    parsed_file pf = parse_file(rf, parser.get_uint32("--threads"), parser.get_separator("--separator"));
+    parsed_file pf = parse(rf, parser.get_uint32("--threads"), parser.get_separator("--separator"));
     timer.recordPoint("Parse");
 
     // Build file
-    built_file bf = build_file(pf, parser.get_uint32("--threads"), parser.get_uint64("--minutil"));
+    built_file bf = build(pf, parser.get_uint64("--minutil"), parser);
+    // built_file bf = build_file(pf, parser.get_uint32("--threads"), parser.get_uint64("--minutil"));
     timer.recordPoint("Build");
 
     // Initialize memory for GPU mining
@@ -90,9 +92,9 @@ int main(int argc, char *argv[])
 
     timer.recordPoint("Mining Completed");
 
-#ifdef DEBUG
-    std::cout << "Saving to file: " << parser.get("--output") << "\n";
-#endif
+    #ifdef DEBUG
+        std::cout << "Saving to file: " << parser.get("--output") << "\n";
+    #endif
 
     save_patterns(parser.get("--output"), p->data, p->offset);
     timer.recordPoint("Save");
@@ -103,6 +105,10 @@ int main(int argc, char *argv[])
 
     timer.recordPoint("End");
     timer.printRecords();
+
+    std::cout << "Total Patterns: " << p->pattern_count << "\n";
+
+    // Free resources
 
     return 0;
 }

@@ -92,6 +92,14 @@ struct Transaction
         }
         return total;
     }
+
+    __device__ __host__ bool operator==(const Transaction& other) const {
+        if (length != other.length) return false;
+        for (uint32_t i = 0; i < length; ++i)
+            if (data[i].key != other.data[i].key)
+                return false;
+        return true;
+    }
 };
 
 /**
@@ -119,6 +127,7 @@ struct Database
         }
         return true;
     }
+    
 };
 
 struct Utilities

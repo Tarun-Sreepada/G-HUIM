@@ -492,32 +492,12 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
     cudaMallocManaged(&new_stack, sizeof(Stack<Task, CAPACITY>));
     new_stack->init();
 
-    Database *db;
-    cudaMallocManaged(&db, sizeof(Database));
-
-    db->num_items = bf.total_items;
-    db->num_transactions = bf.transactions.size();
-
-    cudaMallocManaged(&db->data, sizeof(Item) * bf.total_items);
-    cudaMallocManaged(&db->transactions, sizeof(Transaction) * bf.transaction_count);
-
-    uint32_t offset = 0;
-
-    for (int i = 0; i < bf.transaction_count; i++)
-    {
-        const std::vector<Item> &transaction = bf.transactions[i];
-        db->transactions[i].data = &db->data[offset];
-        db->transactions[i].length = transaction.size();
-        memcpy(&db->data[offset], transaction.data(), sizeof(Item) * transaction.size());
-        offset += transaction.size();
-    }
-
     uint32_t *primary;
     cudaMallocManaged(&primary, sizeof(uint32_t) * bf.primary.size());
     memcpy(primary, bf.primary.data(), sizeof(uint32_t) * bf.primary.size());
 
     // Copy the database to the stack
-    copy_work<<<1, 1024>>>(curr_stack, db, primary, bf.primary.size(), bf.item_to_itemID.size() + 1);
+    copy_work<<<1, 1024>>>(curr_stack, bf.db, primary, bf.primary.size(), bf.max_id + 1);
     cudaDeviceSynchronize();
 
     while (curr_stack->top != 0)
@@ -548,8 +528,9 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 
     cudaFree(curr_stack);
     cudaFree(new_stack);
-    cudaFree(db->data);
-    cudaFree(db->transactions);
-    cudaFree(db);
+
+    cudaFree(bf.db->data);
+    cudaFree(bf.db->transactions);
+    cudaFree(bf.db);
     cudaFree(primary);
 }

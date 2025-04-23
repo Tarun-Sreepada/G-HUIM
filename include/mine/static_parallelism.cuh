@@ -6,7 +6,8 @@
 
 #include "task/task.cuh"
 #include "task/stack.cuh"
-#include "file/build.hpp"
+// #include "file/build.hpp"
+#include "file/build.cuh"
 #include "memory/memory.cuh"
 
 #define scale 2

@@ -3,6 +3,14 @@
 
 void save_patterns(const std::string& output_path, const uint32_t *data, const uint32_t offset)
 {
+
+    // if /dev/null is used, do not write to file
+    if (output_path == "/dev/null")
+    {
+        std::cout << "Output is directed to /dev/null, no file will be created.\n";
+        return;
+    }
+
     std::ofstream output_file(output_path);
     if (!output_file.is_open())
     {
