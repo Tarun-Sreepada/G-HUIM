@@ -63,7 +63,10 @@ bool keysAreContiguousFromOne(
 
     // 2) quick size check: if there are holes, size < max_key
     if (keys.size() != max_key) 
+    {
+        std::cout << "keys.size() = " << keys.size() << ", max_key = " << max_key << std::endl;
         return false;
+    }
 
     // 3) mark presence
     std::vector<char> seen(max_key + 1, 0);
@@ -72,8 +75,11 @@ bool keysAreContiguousFromOne(
 
     // 4) ensure every i in [1..max_key] was seen
     for (uint32_t i = 1; i <= max_key; ++i) {
-        if (!seen[i]) 
+        if (!seen[i])
+        {
+            std::cout << "key " << i << " not seen" << std::endl;
             return false;
+        }
     }
     return true;
 }
