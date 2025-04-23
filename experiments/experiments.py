@@ -446,16 +446,17 @@ process_data = [
     # ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
-        [4000000, 5000000, 6000000, 7000000, 8000000],
+        # [4000000, 5000000, 6000000, 7000000, 8000000],
+          [8000000, 9000000, 10000000, 11000000, 12000000],
     ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-        [710000, 720000, 730000, 740000, 750000],
-    ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
-        [2000000, 2010000, 2020000, 2030000, 2040000],
-    ],
+    # [
+    #     "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
+    #     [710000, 720000, 730000, 740000, 750000],
+    # ],
+    # [
+    #     "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
+    #     [2000000, 2010000, 2020000, 2030000, 2040000],
+    # ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
         [11000000, 11100000, 11200000, 11300000, 11400000],

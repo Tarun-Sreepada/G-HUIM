@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
     timer.recordPoint("End");
     timer.printRecords();
 
-    std::cout << "Total Patterns: " << p->pattern_count << "\n";
+    std::cout << "Number of patterns: " << p->pattern_count << "\n";
 
     // Free resources
 
