@@ -29,6 +29,12 @@ find_library(LIBURING_LIB NAMES uring REQUIRED)
 find_path  (LIBURING_INCLUDE_DIR NAMES liburing.h REQUIRED)
 include_directories(${LIBURING_INCLUDE_DIR})
 
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+  message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
+endif()
+
 # find OpenMP
 find_package(OpenMP REQUIRED)
 if(OpenMP_CXX_FOUND)
@@ -60,11 +66,10 @@ else()  # Release or RelWithDebInfo
   message(STATUS "Configuring Release flags")
 
   # --- C++ release flags (mega-fast) ---
-  set(CMAKE_CXX_FLAGS_RELEASE "${BASE_CXX_WARN_FLAGS} -Ofast -march=native -flto -funroll-loops -ffast-math -funsafe-math-optimizations -fstrict-aliasing -fstrict-overflow -fprefetch-loop-arrays -fdata-sections -ffunction-sections -fuse-linker-plugin -fomit-frame-pointer -fno-rtti -DNDEBUG")
-
+  set(CMAKE_CXX_FLAGS_RELEASE "${BASE_CXX_WARN_FLAGS} -Ofast -g0 -march=native -flto -DNDEBUG")
 
   # --- CUDA release flags ---
-  set(CMAKE_CUDA_FLAGS_RELEASE "${BASE_CUDA_WARN_FLAGS} -O3 --use_fast_math --extra-device-vectorization --expt-relaxed-constexpr --expt-extended-lambda --disable-warnings -lineinfo -Xptxas=-O3,-v,-dlcm=ca -Xptxas=-maxrregcount=32 -Xcompiler=-march=native -Xcompiler=-funroll-loops -Xcompiler=-fno-rtti -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_89,code=sm_89 -gencode arch=compute_90,code=sm_90")
+  set(CMAKE_CUDA_FLAGS_RELEASE "${BASE_CUDA_WARN_FLAGS} -O3 --use_fast_math --extra-device-vectorization --expt-relaxed-constexpr --expt-extended-lambda --disable-warnings -lineinfo -Xptxas=-O3,-v,-dlcm=ca -Xptxas=-maxrregcount=64 -Xcompiler=-march=native -Xcompiler=-funroll-loops -Xcompiler=-fno-rtti -gencode arch=compute_75,code=sm_75 -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_89,code=sm_89 -gencode arch=compute_90,code=sm_90")
 endif()
 
 # ─── 7) Link libraries ────────────────────────────────────────────────────────

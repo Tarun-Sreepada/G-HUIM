@@ -16,6 +16,7 @@ def load_results(csv_path="combined_results.csv"):
         "File",
         "Minimum_Utility",
         "Parse_Time",
+        "TWU_Time",
         "Build_Time",
         "Search_Time",
         "Frequent_Patterns",
@@ -27,7 +28,7 @@ def append_if_best(df, entry, csv_path):
     """Insert or replace the row that gives the lowest total_time
     for (Algorithm, Method, File, Minimum_Utility)."""
     key_cols = ["Algorithm", "Method", "File", "Minimum_Utility"]
-    total_time = entry["Parse_Time"] + entry["Build_Time"] + entry["Search_Time"]
+    total_time = entry["Parse_Time"] + entry["Build_Time"] + entry["Search_Time"] + entry["TWU_Time"]
 
     mask = (df[key_cols] == pd.Series(entry)[key_cols]).all(axis=1)
 
@@ -36,7 +37,7 @@ def append_if_best(df, entry, csv_path):
         df.loc[len(df)] = entry
     else:
         cur_idx = df.index[mask][0]
-        cur_total = df.loc[cur_idx, ["Parse_Time", "Build_Time", "Search_Time"]].sum()
+        cur_total = df.loc[cur_idx, ["Parse_Time", "TWU_Time", "Build_Time", "Search_Time"]].sum()
         if total_time < cur_total:
             df.loc[cur_idx] = entry  # replace with faster one
     save_results(df, csv_path)
@@ -44,6 +45,7 @@ def append_if_best(df, entry, csv_path):
 
 def save_results(df, csv_path="combined_results.csv"):
     """Save results DataFrame to CSV."""
+    print(df)
     df.to_csv(csv_path, index=False)
 
 
@@ -66,6 +68,7 @@ def parse_metrics_cu(output):
         for k in [
             "read",
             "parse_temp",
+            "twu",
             "build",
             "alloc",
             "patterns",
@@ -82,6 +85,8 @@ def parse_metrics_cu(output):
         key = parts[0]
         if key == "Read":
             metrics["read"] = int(parts[1])
+        elif key == "CalcTWU":
+            metrics["twu"] = int(parts[1])
         elif key == "Parse":
             metrics["parse_temp"] = int(parts[1])
         elif key == "Build":
@@ -103,7 +108,9 @@ def parse_metrics_cu(output):
     parse_time = metrics["read"] + metrics["parse_temp"]
     build_time = metrics["build"]
     search_time = metrics["alloc"] + metrics["patterns"] + metrics["mining"]
-    return parse_time, build_time, search_time, metrics["patterns_count"]
+    twu_time = metrics["twu"]
+
+    return parse_time, twu_time, build_time, search_time, metrics["patterns_count"]
 
 def run_cuDPEFIM(
     process_data,
@@ -122,7 +129,7 @@ def run_cuDPEFIM(
         for min_util in min_utils:
             method_label = f"{method}_{'managed' if managed else 'device'}"
 
-            # ──► skip if we already have a record for this key
+            # skip if we already have a record for this key
             if has_run_before(df, "cuDPEFIM", method_label, base, min_util):
                 print(f"Skipping cuDPEFIM ({method_label})  {base}  min_util={min_util}")
                 continue
@@ -145,10 +152,10 @@ def run_cuDPEFIM(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         text=True, check=True
                     )
-                    p, b, s, patterns = parse_metrics_cu(proc.stdout)
-                    total = p + b + s
+                    p, t, b, s, patterns = parse_metrics_cu(proc.stdout)
+                    total = p + b + s + t
                     if best is None or total < best["total"]:
-                        best = dict(total=total, p=p, b=b, s=s, patterns=patterns)
+                        best = dict(total=total, p=p, b=b, s=s, patterns=patterns, t=t)
                 except subprocess.CalledProcessError as e:
                     print(f"Error: {e}; continuing with other runs")
 
@@ -159,6 +166,7 @@ def run_cuDPEFIM(
                     "File": base,
                     "Minimum_Utility": min_util,
                     "Parse_Time": best["p"],
+                    "TWU_Time": best["t"],
                     "Build_Time": best["b"],
                     "Search_Time": best["s"],
                     "Frequent_Patterns": best["patterns"],
@@ -177,7 +185,6 @@ def parse_metrics_dphim(output):
     for line in output.splitlines():
         line = line.strip().split()
         line = [x for x in line if x]
-
         if "parse:" in line:
             parse_ms = int(line[1])
         elif "calcTWU:" in line:
@@ -189,10 +196,14 @@ def parse_metrics_dphim(output):
         elif "count:" in line and "itemsets" in line:
             patterns = int(line[-1])
 
-    parse_time = parse_ms + calc_ms
+    parse_time = parse_ms
+    calc_time = calc_ms
     build_time = build_ms
     search_time = search_ms
-    return parse_time, build_time, search_time, patterns
+
+
+
+    return parse_time, calc_time, build_time, search_time, patterns
 
 def run_dphim(
     process_data,
@@ -228,10 +239,10 @@ def run_dphim(
                     proc = subprocess.run(
                         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                     )
-                    p, b, s, pat = parse_metrics_dphim(proc.stdout)
-                    total = p + b + s
+                    p, t, b, s, pat = parse_metrics_dphim(proc.stdout)
+                    total = p + b + s + t
                     if best is None or total < best["total"]:
-                        best = dict(total=total, p=p, b=b, s=s, pat=pat)
+                        best = dict(total=total, p=p, b=b, s=s, pat=pat, t=t)
 
                 if best:  # save the fastest run
                     entry = {
@@ -240,6 +251,7 @@ def run_dphim(
                         "File": base,
                         "Minimum_Utility": min_util,
                         "Parse_Time": best["p"],
+                        "TWU_Time": best["t"],
                         "Build_Time": best["b"],
                         "Search_Time": best["s"],
                         "Frequent_Patterns": best["pat"],
@@ -256,7 +268,11 @@ def plot_clustered_by_util(csv_path="combined_results.csv"):
     # rename column Parse_Time to Parse+TWU
 
     df = pd.read_csv(csv_path)
-    df = df.rename(columns={"Parse_Time": "Parse+TWU"})
+    df = df.rename(columns={"Parse_Time": "Parse"})
+    df = df.rename(columns={"TWU_Time": "TWU"})
+    df = df.rename(columns={"Build_Time": "Build"})
+    df = df.rename(columns={"Search_Time": "Search"})
+
     df["Minimum_Utility"] = df["Minimum_Utility"].astype(int)
     df["AlgoMeth"] = df["Algorithm"] + "_" + df["Method"]
 
@@ -265,11 +281,12 @@ def plot_clustered_by_util(csv_path="combined_results.csv"):
     n_methods = len(all_methods)
 
     # styling maps (same as before)
-    phases = ["Parse+TWU", "Build_Time", "Search_Time"]
+    phases = ["Parse", "TWU", "Build", "Search"]
     phase_colors = {
-        "Parse+TWU": "#2ca02c",
-        "Build_Time": "#ffdd57",
-        "Search_Time": "#ff7f0e",
+        "Parse": "#2ca02c",
+        "TWU": "#1f77b4",
+        "Build": "#ffdd57",
+        "Search": "#ff7f0e",
     }
     linestyles = ["-", "--", ":", "-."]
     hatches = ["/", "\\", "x", "o", ".", "*", "+", "-"]
@@ -438,7 +455,7 @@ def plot_search_only(csv_path="combined_results.csv"):
 process_data = [
     [
         "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
-        [1950000, 2000000, 2050000, 2100000, 2150000],
+        [1950000, 2000000, 2050000, 2100000, 2150000, 2500000, 3000000],
     ],
     # [
     #     "/export/home1/ltarun/cuEFIM/datasets/ecommerce_retail.txt",
@@ -447,26 +464,27 @@ process_data = [
     [
         "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
         # [4000000, 5000000, 6000000, 7000000, 8000000],
-          [8000000, 9000000, 10000000, 11000000, 12000000],
+          [8000000, 9000000, 10000000, 11000000, 12000000, 15000000, 20000000],
     ],
-    # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-    #     [710000, 720000, 730000, 740000, 750000],
-    # ],
+    [
+        "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
+        [730000, 735000, 740000, 745000, 750000],
+    ],
     # [
     #     "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
     #     [2000000, 2010000, 2020000, 2030000, 2040000],
     # ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
-        [11000000, 11100000, 11200000, 11300000, 11400000],
+        # [11000000, 11100000, 11200000, 11300000, 11400000],
+        [10000000, 10500000, 11000000, 11500000, 12000000, 15000000, 16000000],
     ],
 ]
 
 
 results_df = load_results()
 # run_cuDPEFIM(process_data, "DP", repeats=3)
-run_cuDPEFIM(process_data, "SP", repeats=3)
-run_dphim(process_data, methods=["dphim"], cores=48, repeats=3)
+run_cuDPEFIM(process_data, "SP", repeats=1)
+run_dphim(process_data, methods=["dphim"], cores=48, repeats=1)
 plot_clustered_by_util()
 plot_search_only()
