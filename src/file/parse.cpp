@@ -13,32 +13,32 @@ static inline void parse_line_fast(
     } st = ITEMS;
     txn_util = 0;
     size_t util_idx = 0;
-
     items.clear();
 
-    for (size_t i = 0; i < len; /*++i in body*/)
+    const char *ptr = buf;
+    const char *end = buf + len;
+
+    while (ptr < end)
     {
-        char c = buf[i];
-        // skip separators & handle ':' flip
-        if (c == sep || c == '\n' || c == '\r' || c == ':')
+        char c = *ptr;
+        if (c == sep || c == '\n' || c == '\r')
         {
-            if (c == ':')
-            {
-                if (st == ITEMS)
-                    st = TOTAL;
-                else if (st == TOTAL)
-                    st = UTILS;
-            }
-            ++i;
+            ++ptr;
+            continue;
+        }
+        if (c == ':')
+        {
+            st = (st == ITEMS ? TOTAL : (st == TOTAL ? UTILS : st)); // if items -> total if total -> utils
+            ++ptr;
             continue;
         }
 
-        // parse unsigned integer
+        // parse a number—stop as soon as you hit ANY non-digit
         uint32_t v = 0;
-        while (i < len && buf[i] >= '0' && buf[i] <= '9')
+        while (ptr < end && *ptr >= '0' && *ptr <= '9')
         {
-            v = v * 10 + (buf[i] - '0');
-            ++i;
+            v = v * 10 + (*ptr - '0');
+            ++ptr;
         }
 
         switch (st)
@@ -57,11 +57,174 @@ static inline void parse_line_fast(
     }
 }
 
+// optimized parse_file
+parsed_file parse(const std::string &filename, int threads, char sep)
+{
+    parsed_file pf;
+
+    // 1) open & mmap whole file
+    int fd = open(filename.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
+    {
+        perror("open");
+        return pf;
+    }
+    struct stat sb;
+    fstat(fd, &sb);
+    size_t size = sb.st_size;
+
+    char *buf = static_cast<char *>(
+        mmap(nullptr, size, PROT_READ, MAP_PRIVATE, fd, 0));
+    if (buf == MAP_FAILED)
+    {
+        perror("mmap");
+        close(fd);
+        return pf;
+    }
+    close(fd);
+
+    // 2) compute chunk boundaries
+    std::vector<size_t> pos(threads + 1);
+    for (int t = 0; t <= threads; ++t)
+        pos[t] = t * (size / threads);
+    pos[threads] = size;
+
+    // 3) per-thread storage
+    std::vector<std::vector<std::vector<Item>>> items_per_thread(threads);
+    std::vector<std::vector<uint32_t>> utils_per_thread(threads);
+
+// 4) parallel parse with pre-scan for reservation
+#pragma omp parallel num_threads(threads)
+    {
+        int tid = omp_get_thread_num();
+        size_t start_offset = pos[tid];
+        size_t end_offset = pos[tid + 1];
+
+        // Adjust start boundary: snap to just after the first newline (unless tid == 0)
+        if (tid > 0 && start_offset < size)
+        {
+            char *potential_start = buf + start_offset;
+            char *nl = static_cast<char *>(memchr(potential_start, '\n', size - start_offset));
+            if (nl)
+            {
+                start_offset = (nl - buf) + 1;
+                // Ensure we don't go past the original end_offset
+                if (start_offset > pos[tid + 1])
+                {
+                    start_offset = pos[tid + 1];
+                }
+            }
+            else
+            {
+                // No newline found after start_offset in the rest of the file,
+                // this thread has nothing to process.
+                start_offset = end_offset;
+            }
+        }
+
+        // Adjust end boundary: snap end *to* the first newline at or after the boundary
+        // (unless tid == threads - 1).
+        if (tid < threads - 1 && end_offset < size)
+        {
+            char *potential_end = buf + end_offset;
+            // Search for the next newline *starting from* the calculated end_offset
+            char *nl = static_cast<char *>(memchr(potential_end, '\n', size - end_offset));
+            if (nl)
+            {
+                end_offset = (nl - buf) + 1; // End *after* the newline
+            }
+            else
+            {
+                // No more newlines in the file, extend chunk to the end of the file
+                end_offset = size;
+            }
+        }
+
+        // Pointers for the adjusted chunk for this thread
+        char *start_ptr = buf + start_offset;
+        char *end_ptr = buf + end_offset;
+
+        // --- Pre-scan phase ---
+        size_t line_count = 0;
+        if (start_ptr < end_ptr)
+        { // Only scan if there's data in the chunk
+            char *current = start_ptr;
+            while (true)
+            {
+                char *next_nl = static_cast<char *>(memchr(current, '\n', end_ptr - current));
+                if (next_nl)
+                {
+                    line_count++;
+                    current = next_nl + 1;
+                }
+                else
+                {
+                    break;
+                }
+            }
+        }
+
+        // --- Reserve exact space ---
+        if (line_count > 0)
+        {
+            items_per_thread[tid].reserve(line_count);
+            utils_per_thread[tid].reserve(line_count);
+        }
+
+        // --- Parsing phase ---
+        char *line_start = start_ptr;
+        while (line_start < end_ptr)
+        {
+            char *eol = static_cast<char *>(memchr(line_start, '\n', end_ptr - line_start));
+
+            if (!eol)
+            {
+                break; // Stop if no more complete lines found in the chunk
+            }
+
+            size_t len = eol - line_start;
+            parse_line_fast(
+                line_start, len, sep,
+                items_per_thread[tid].emplace_back(),
+                utils_per_thread[tid].emplace_back());
+
+            line_start = eol + 1; // Move to the beginning of the next line
+        }
+    } // End of parallel region
+
+    // 5) merge in single thread
+    size_t total_txns = 0;
+    for (int t = 0; t < threads; ++t)
+    {
+        total_txns += items_per_thread[t].size();
+    }
+
+    pf.database.reserve(total_txns);
+
+    for (int t = 0; t < threads; ++t)
+    {
+        pf.database.insert(
+            pf.database.end(),
+            std::make_move_iterator(items_per_thread[t].begin()),
+            std::make_move_iterator(items_per_thread[t].end()));
+
+        pf.total_util.insert(
+            pf.total_util.end(),
+            utils_per_thread[t].begin(),
+            utils_per_thread[t].end());
+    }
+
+    // 7) Cleanup mmap
+    munmap(buf, size);
+
+    return std::move(pf);
+}
+
 bool keysAreContiguousFromOne(
     const std::unordered_map<uint32_t, uint32_t> &twu)
 {
     if (twu.empty())
-        return false; // or true, depending on how you want to treat empty
+        return false;
 
     // 1) find max key and collect them
     uint32_t max_key = 0;
@@ -94,113 +257,4 @@ bool keysAreContiguousFromOne(
         }
     }
     return true;
-}
-
-// optimized parse_file
-parsed_file parse(raw_file &file, int threads, const char separator)
-{
-    parsed_file pf;
-    const char *data = file.data;
-    size_t size = file.retrieved_bytes;
-
-    // ── STEP 1: BUILD LINE STARTS (single pass) ──
-    std::vector<size_t> line_starts;                        // final, ordered
-    std::vector<std::vector<size_t>> local_starts(threads); // per-thread scratch
-
-    const size_t chunk = (size + threads - 1) / threads; // ceil-divide
-
-#pragma omp parallel num_threads(threads)
-    {
-        const int tid = omp_get_thread_num();
-        const size_t begin = tid * chunk;
-        const size_t end = std::min(begin + chunk, size);
-
-        auto &vec = local_starts[tid];
-
-        // Thread 0 contributes the very first line start.
-        if (tid == 0)
-            vec.push_back(0);
-
-        // Scan this chunk for ‘\n’.
-        for (size_t i = begin; i < end; ++i)
-        {
-            if (data[i] == '\n' && i + 1 < size) // keep sentinel <size>
-                vec.push_back(i + 1);
-        }
-    }
-
-    // Merge the thread-local arrays
-    for (int t = 0; t < threads; ++t)
-        line_starts.insert(line_starts.end(),
-                           local_starts[t].begin(),
-                           local_starts[t].end());
-
-    // Closing sentinel (one-past-last byte)
-    line_starts.push_back(size);
-
-    std::sort(line_starts.begin() + 1, line_starts.end() - 1);
-    line_starts.erase(std::unique(line_starts.begin(), line_starts.end()),
-                      line_starts.end());
-
-    size_t line_count = line_starts.size() - 1;
-    pf.database.resize(line_count);
-    std::vector<uint32_t> total_util(line_count, 0);
-
-    // ── STEP 2: PARSE IN PARALLEL ──
-    std::vector<std::unordered_map<uint32_t, uint64_t>> local_twu(threads);
-
-#pragma omp parallel num_threads(threads)
-    {
-        // thread-local scratch
-        std::vector<Item> items;
-
-#pragma omp for schedule(guided)
-        for (long i = 0; i < (long)line_count; ++i)
-        {
-            size_t start = line_starts[i];
-            size_t end = line_starts[i + 1];
-            uint32_t txn_util;
-
-            // parse directly into items[]
-            parse_line_fast(data + start, end - start, separator, items, txn_util);
-
-            // store into final database
-            pf.database[i] = items; // vector<Item> has just the right size
-            total_util[i] = txn_util;
-        }
-    }
-
-#pragma omp parallel num_threads(threads)
-    {
-        int tid = omp_get_thread_num();
-        auto &twu = local_twu[tid];
-
-        // thread-local scratch
-        std::vector<Item> items;
-
-#pragma omp for schedule(guided)
-        for (long i = 0; i < (long)line_count; ++i)
-        {
-            uint32_t txn_util = total_util[i];
-            auto &items = pf.database[i];
-
-            // accumulate TWU
-            for (auto &it : items)
-                twu[it.key] += txn_util;
-        }
-    }
-
-    // ── STEP 3: MERGE TWU MAPS ──
-    for (auto &lm : local_twu)
-        for (auto &kv : lm)
-            pf.twu[kv.first] += kv.second;
-
-    // ── STEP 4: CHECK KEYS ──
-    if (!keysAreContiguousFromOne(pf.twu))
-    {
-        fprintf(stderr, "Error: keys are not contiguous from 1 to max_key.\n");
-        exit(1);
-    }
-
-    return pf;
 }

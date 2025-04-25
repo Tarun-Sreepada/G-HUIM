@@ -53,17 +53,22 @@ int main(int argc, char *argv[])
     cudaFree(0);
     timer.recordPoint("CUDA Warmup");
 
-    // Load File
-    raw_file rf = load_file(parser.get("--input"), parser.get_uint32("--threads"));
-    timer.recordPoint("Read");
-
     // Parse File
-    parsed_file pf = parse(rf, parser.get_uint32("--threads"), parser.get_separator("--separator"));
+    parsed_file pf = parse(parser.get("--input"), parser.get_uint32("--threads"), parser.get_separator("--separator"));
     timer.recordPoint("Parse");
+
+    for (size_t i = 0; i < pf.database.size(); ++i)
+    {
+        const auto &items = pf.database[i]; // Use const&
+        uint32_t util = pf.total_util[i];
+        for (const auto &it : items) { // Use const&
+            pf.twu[it.key] += util; 
+        }
+    }
+    timer.recordPoint("CalcTWU");
 
     // Build file
     built_file bf = build(pf, parser.get_uint64("--minutil"), parser);
-    // built_file bf = build_file(pf, parser.get_uint32("--threads"), parser.get_uint64("--minutil"));
     timer.recordPoint("Build");
 
     // Initialize memory for GPU mining
