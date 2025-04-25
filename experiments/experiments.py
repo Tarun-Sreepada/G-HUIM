@@ -468,7 +468,8 @@ process_data = [
     ],
     [
         "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-        [730000, 735000, 740000, 745000, 750000],
+        # [730000, 735000, 740000, 745000, 750000],
+        [760000, 770000, 780000, 790000, 800000, 900000, 1000000],
     ],
     # [
     #     "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
