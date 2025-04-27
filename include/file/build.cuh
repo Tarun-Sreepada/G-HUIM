@@ -3,6 +3,7 @@
 #include "file/parse.hpp"   
 #include "data_types/data_types.cuh"
 #include "args.hpp"
+#include "file/parse.cuh"
 
 
 struct Item_mapping
@@ -28,4 +29,4 @@ struct built_file
     std::vector<uint32_t> primary;
 };
 
-built_file build(parsed_file &pf, uint32_t minutil, ArgParser &parser);
+built_file build(Parsed &pf, uint32_t minutil, ArgParser &parser, Item_mapping *item_map);

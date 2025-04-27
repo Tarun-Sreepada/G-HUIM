@@ -15,3 +15,5 @@
 
 
 void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser);
+
+uint32_t next_pow2(uint32_t n);
