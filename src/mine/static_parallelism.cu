@@ -1,6 +1,6 @@
 #include "mine/static_parallelism.cuh"
 
-__global__ void copy_work(Stack<Task,CAPACITY> *work_stack, Database *db, uint32_t *primary, uint32_t primary_size, uint32_t unique)
+__global__ void copy_work(Stack<Task, CAPACITY> *work_stack, Database *db, uint32_t *primary, uint32_t primary_size, uint32_t unique)
 {
     int tid = threadIdx.x;
     __shared__ Task task;
@@ -65,7 +65,7 @@ uint32_t next_pow2(uint32_t n)
     return p;
 }
 
-__device__ __forceinline__ void fetch_task(Stack<Task,CAPACITY> *work_stack, Task &item)
+__device__ __forceinline__ void fetch_task(Stack<Task, CAPACITY> *work_stack, Task &item)
 {
     int block_id = blockIdx.x;
     int thread_id = threadIdx.x;
@@ -307,7 +307,7 @@ __device__ void write_merge(
             // add the utility to the transaction
             add_bucket_util(local_subtree_utilities,
                             max_item * scale,
-                            item.key, 
+                            item.key,
                             cumsum - temp, false);
 
             hash ^= fasthash(item.key + j);
@@ -321,7 +321,7 @@ __device__ void write_merge(
         {
             int old = atomicCAS(&transaction_hashes[hash_index], -1, offset);
             if (old == -1)
-                break; // Successfully inserted
+                break;                                               // Successfully inserted
             if (new_work_item.db->compare_transactions(old, offset)) // if same
             {
                 // Found a duplicate transaction
@@ -385,8 +385,8 @@ __device__ void trim(Task &new_work_item)
 }
 
 __device__ void push_work_item(Utilities *local_subtree_utilities,
-                               Task &new_work_item, 
-                                 Stack<Task, CAPACITY> *work_stack,
+                               Task &new_work_item,
+                               Stack<Task, CAPACITY> *work_stack,
                                uint32_t min_util, uint32_t unique_item_count)
 {
 
@@ -430,10 +430,10 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
 }
 
 __global__ void mine(
-                        Stack<Task, CAPACITY> *curr_stack,
-                        Stack<Task, CAPACITY> *new_stack,
-                     patterns *p,
-                     uint32_t min_util)
+    Stack<Task, CAPACITY> *curr_stack,
+    Stack<Task, CAPACITY> *new_stack,
+    patterns *p,
+    uint32_t min_util)
 {
     // Shared memory
     __shared__ Task curr_task;
@@ -483,12 +483,12 @@ __global__ void mine(
 void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 {
     // Allocate memory for the stack
-    Stack <Task, CAPACITY> *curr_stack;
+    Stack<Task, CAPACITY> *curr_stack;
     cudaMallocManaged(&curr_stack, sizeof(Stack<Task, CAPACITY>));
     curr_stack->init();
 
     // Allocate the stack
-    Stack <Task, CAPACITY> *new_stack;
+    Stack<Task, CAPACITY> *new_stack;
     cudaMallocManaged(&new_stack, sizeof(Stack<Task, CAPACITY>));
     new_stack->init();
 
@@ -506,15 +506,20 @@ void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
 #if DEBUG
         printf("Stack Size: %d\n", curr_stack->top);
 #endif
-        uint32_t avg = curr_stack->total_transactions / curr_stack->top;
+
         uint32_t thread_count = parser.get_uint32("--block_size");
-        if (avg < thread_count)
+
+        if (parser.get_bool("--adaptive"))
         {
-            thread_count = next_pow2(avg);
-        }
-        if (thread_count < 32)
-        {
-            thread_count = 32;
+            uint32_t avg = curr_stack->total_transactions / curr_stack->top;
+            if (avg < thread_count)
+            {
+                thread_count = next_pow2(avg);
+            }
+            if (thread_count < 32)
+            {
+                thread_count = 32;
+            }
         }
 
         mine<<<curr_stack->top, thread_count>>>(curr_stack, new_stack, p, (uint32_t)parser.get_uint32("--minutil"));

@@ -146,40 +146,43 @@ namespace builder
 
 } // namespace builder
 
-built_file build(parsed_file &pf, uint32_t minutil, ArgParser &parser)
+built_file build(Parsed &pf, uint32_t minutil, ArgParser &parser, Item_mapping *item_map)
 {
-    // Allocate and initialize item map
-    size_t map_size = pf.twu.size() + 1;
-    Item_mapping *item_map;
-    cudaMallocManaged(&item_map, (map_size) * sizeof(Item_mapping));
+    // // Allocate and initialize item map
+    // size_t map_size = pf.twu.size() + 1;
+    // Item_mapping *item_map;
+    // cudaMallocManaged(&item_map, (map_size) * sizeof(Item_mapping));
 
 
     // Init mapping and filter items
-    uint32_t max_id = builder::initItemMapping(item_map, pf.twu, minutil);
-    builder::assignItemIDs(item_map, map_size, minutil, max_id);
+    // uint32_t max_id = builder::initItemMapping(item_map, pf.twu, minutil);
+    // builder::assignItemIDs(item_map, map_size, minutil, max_id);
+    builder::assignItemIDs(item_map, pf.max_item, minutil, pf.max_item);
 
 
-    // Prepare database memory and copy transactions
-    Database *db = nullptr;
-    builder::prepareDatabase(db, pf);
+    // // Prepare database memory and copy transactions
+    // Database *db = nullptr;
+    // builder::prepareDatabase(pf.db, pf);
 
 
     // Remap item keys
     uint32_t block_size = parser.get_uint32("--block_size");
-    builder::launchBuilding(db->data, db->num_items, item_map, block_size);
+    // builder::launchBuilding(db->data, db->num_items, item_map, block_size);
+    builder::launchBuilding(pf.db->data, pf.db->num_items, item_map, block_size);
 
     // Allocate and init utilities
     Utilities *utils;
-    cudaMallocManaged(&utils, sizeof(Utilities) * (max_id + 1));
-    for (uint32_t i = 0; i <= max_id; ++i)
+    cudaMallocManaged(&utils, sizeof(Utilities) * (pf.max_item));
+    for (uint32_t i = 0; i <= pf.max_item; ++i)
         utils[i].key = i;
 
     // Sort transactions and compute subtree utilities
-    builder::launchSortTransactions(db->transactions, db->num_transactions, utils, block_size);
+    // builder::launchSortTransactions(db->transactions, db->num_transactions, utils, block_size);
+    builder::launchSortTransactions(pf.db->transactions, pf.db->num_transactions, utils, block_size);
 
 
     std::vector<uint32_t> primary;
-    for (uint32_t i = 0; i <= max_id; ++i)
+    for (uint32_t i = 0; i <= pf.max_item; ++i)
     {
         if (utils[i].subtree_utility >= minutil)
         {
@@ -190,10 +193,10 @@ built_file build(parsed_file &pf, uint32_t minutil, ArgParser &parser)
     std::sort(primary.begin(), primary.end());
 
     built_file bf;
-    bf.db = db;
+    bf.db = pf.db;
     bf.item_map = item_map;
     bf.utils = utils;
-    bf.max_id = max_id;
+    bf.max_id = pf.max_item;
     bf.primary = primary;
 
     return bf;
