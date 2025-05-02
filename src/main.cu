@@ -5,7 +5,7 @@
 // #include "file/parse.hpp"
 // #include "file/build.hpp"
 #include "file/build.cuh"
-#include "file/save.hpp"
+#include "file/save.cuh"
 #include "memory/memory.cuh"
 #include "patterns/patterns.cuh"
 #include "mine/dynamic_parallelism.cuh"
@@ -73,8 +73,9 @@ int main(int argc, char *argv[])
         std::cout << "Minimum utility: " << parser.get("--minutil") << "\n";
         std::cout << "Separator: '" << parser.get_separator("--separator") << "'\n";
         std::cout << "Output File: " << parser.get("--output") << "\n";
-        std::cout << "Threads: " << parser.get_uint32("--threads") << "\n";
         std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
+        std::cout << "Adaptive: " << (parser.get_bool("--adaptive") ? "true" : "false") << "\n";
+        
     }
     catch (const std::exception &e)
     {
@@ -134,11 +135,11 @@ int main(int argc, char *argv[])
 
     if (parser.get("--method") == "SP")
     {
-        static_parallel_mining(bf, p, parser);
+        static_parallel_mining(bf, p, parser, timer);
     }
     else if (parser.get("--method") == "DP")
     {
-        dynamic_parallel_mining(bf, p, parser);
+        dynamic_parallel_mining(bf, p, parser, timer); 
     }
     else
     {
@@ -152,7 +153,7 @@ int main(int argc, char *argv[])
         std::cout << "Saving to file: " << parser.get("--output") << "\n";
     #endif
 
-    save_patterns(parser.get("--output"), p->data, p->offset);
+    save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
     timer.recordPoint("Save");
 
     // free allocator
@@ -163,6 +164,8 @@ int main(int argc, char *argv[])
     timer.printRecords();
 
     std::cout << "Number of patterns: " << p->pattern_count << "\n";
+
+    cudaFree(item_map);
 
     // Free resources
 

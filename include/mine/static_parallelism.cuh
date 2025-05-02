@@ -9,11 +9,12 @@
 // #include "file/build.hpp"
 #include "file/build.cuh"
 #include "memory/memory.cuh"
+#include "timer.hpp"
 
 #define scale 2
 #define CAPACITY (1024 * 1024 * 1024)
 
 
-void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser);
+void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser, Timer &timer);
 
 uint32_t next_pow2(uint32_t n);

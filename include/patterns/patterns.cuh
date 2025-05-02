@@ -12,6 +12,7 @@ struct patterns
     __host__ void init(uint32_t size)
     {
         cudaMallocManaged(&data, size * sizeof(uint32_t));
+        pattern_count = 0;
         offset = 0;
     }
 

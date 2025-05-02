@@ -308,7 +308,7 @@ Parsed gpuParse(const std::string &filename, const char separator)
     CUDA_CHECK(cudaDeviceSynchronize());
 
     std::cout << "Lines: " << *line_count
-              << ", Items: " << *item_count
+              << ", Est. Items: " << *item_count
               << "\n";
 
     uint32_t *line_positions;

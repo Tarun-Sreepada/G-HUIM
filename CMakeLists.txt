@@ -69,7 +69,7 @@ else()  # Release or RelWithDebInfo
   set(CMAKE_CXX_FLAGS_RELEASE "${BASE_CXX_WARN_FLAGS} -Ofast -g0 -march=native -flto -DNDEBUG")
 
   # --- CUDA release flags ---
-  set(CMAKE_CUDA_FLAGS_RELEASE "${BASE_CUDA_WARN_FLAGS} -O3 --use_fast_math --extra-device-vectorization --expt-relaxed-constexpr --expt-extended-lambda --disable-warnings -lineinfo -Xptxas=-O3,-v,-dlcm=ca -Xptxas=-maxrregcount=64 -Xcompiler=-march=native -Xcompiler=-funroll-loops -Xcompiler=-fno-rtti -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_89,code=sm_89 -gencode arch=compute_90,code=sm_90")
+  set(CMAKE_CUDA_FLAGS_RELEASE "${BASE_CUDA_WARN_FLAGS} -O3 --use_fast_math --extra-device-vectorization --expt-relaxed-constexpr --expt-extended-lambda --generate-line-info -Xptxas=-O3,-v,-dlcm=ca -Xcompiler=-march=native -Xcompiler=-funroll-loops -Xcompiler=-fno-rtti -gencode arch=compute_80,code=sm_80 -gencode arch=compute_86,code=sm_86 -gencode arch=compute_89,code=sm_89 -gencode arch=compute_90,code=sm_90")
 endif()
 
 # ─── 7) Link libraries ────────────────────────────────────────────────────────
