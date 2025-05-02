@@ -562,7 +562,7 @@ __global__ void print_deque(Deque<Task, MAX_TASKS> *dqs, uint32_t num_blocks)
     }
 }
 
-void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser)
+void dynamic_parallel_mining(built_file &bf, patterns *p, ArgParser &parser, Timer &timer)
 {
 
     validate_block_count(parser);
