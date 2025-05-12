@@ -17,9 +17,9 @@ __global__ void compute_only(std::uint64_t total_work, int *dummy)
 __global__ void sync_only(int sync_iters, int *dummy)
 {
     // sync n times
-    extern __shared__ int scratch[];             // size = blockDim.x
+    extern __shared__ int scratch[];    // size = blockDim.x
     for (int i = 0; i < sync_iters; ++i) {
-        scratch[threadIdx.x] = i;                // inflate barrier traffic
+        scratch[threadIdx.x] = i;   // inflate barrier traffic
         __syncthreads();
     }
     if (threadIdx.x == 0) dummy[0] = scratch[0];
@@ -51,6 +51,8 @@ __global__ void mixed(std::uint64_t total_work,
     std::uint64_t local = 0;
 
     const std::uint64_t chunk = (total_work + sync_iters - 1) / sync_iters;
+
+    // for every sync iteration, compute a chunk of work
 
     for (int iter = 0; iter < sync_iters; ++iter) {
 
@@ -96,12 +98,23 @@ static float launch_and_time(const void *kernel,
     return ms;
 }
 
-int main()
+int main(int argc, char *argv[])
 {
     const std::vector<int> blocksizes{32, 64, 128, 256, 512, 1024};
 
-    const std::uint64_t TOTAL_WORK = 1ull << 20; // keep this big enough
-    const int           SYNC_ITERS = 1ull << 13;      // barrier loops
+    // const std::uint64_t TOTAL_WORK = 1ull << 20; // keep this big enough
+    // const int           SYNC_ITERS = 1ull << 13;      // barrier loops
+
+    int TOTAL_WORK = 0;
+    int SYNC_ITERS = 0;
+
+    if (argc == 3) {
+        TOTAL_WORK = std::atoi(argv[1]);
+        SYNC_ITERS = std::atoi(argv[2]);
+    } else {
+        printf("Usage: %s <total_work> <sync_iters>\n", argv[0]);
+        return 1;
+    }
 
     int *d_dummy{};
     cudaMalloc(&d_dummy, sizeof(int));
