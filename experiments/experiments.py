@@ -68,7 +68,6 @@ def has_run_before(df, algorithm, method, file_name, min_util):
     )
     return not df[mask].empty
 
-
 def parse_metrics_cu(output):
     """Extract parse, build, and search times + pattern count from stdout."""
     metrics = {
@@ -86,11 +85,14 @@ def parse_metrics_cu(output):
         ]
     }
 
+    iteration_total = 0
+
     for line in output.splitlines():
         parts = line.strip().split()
         if not parts:
             continue
         key = parts[0]
+
         if key == "Read":
             metrics["read"] = int(parts[1])
         elif key == "CalcTWU":
@@ -105,6 +107,12 @@ def parse_metrics_cu(output):
             metrics["patterns"] = int(parts[-3])
         elif key == "Mining" and "Completed" in line:
             metrics["mining"] = int(parts[2])
+        elif key == "Iteration":
+            try:
+                print(parts)
+                iteration_total += int(parts[2])
+            except (IndexError, ValueError):
+                pass
         elif key == "Save":
             metrics["save"] = int(parts[1])
         elif "Number of patterns:" in line:
@@ -113,13 +121,14 @@ def parse_metrics_cu(output):
             )
         elif "Allocated" in line:
             print("Allocated memory:", line.split("Allocated")[-1].strip())
+
     parse_time = metrics["read"] + metrics["parse_temp"]
     build_time = metrics["build"]
-    search_time = metrics["alloc"] + metrics["patterns"] + metrics["mining"]
+    # Include sum of iteration times in search time
+    search_time = iteration_total + metrics["mining"]
     twu_time = metrics["twu"]
 
     return parse_time, twu_time, build_time, search_time, metrics["patterns_count"]
-
 
 def run_cuDPEFIM(
     process_data,
@@ -295,337 +304,224 @@ def run_dphim(
                     }
                     append_if_best(df, entry, csv_path)
 
+import os
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
+import matplotlib.colors as mcolors
 
 def plot_total(csv_path="combined_results.csv"):
     if not os.path.exists(csv_path):
         print(f"CSV file '{csv_path}' not found.")
         return
 
-    # ─── load & rename ──────────────────────────────────────────────────────────
-    df = pd.read_csv(csv_path)
-    df = df.rename(
-        columns={
-            "Parse_Time": "Parse",
-            "TWU_Time": "TWU",
-            "Build_Time": "Build",
-            "Search_Time": "Search",
-        }
-    )
+    # Load and preprocess data
+    df = pd.read_csv(csv_path).rename(columns={
+        "Parse_Time": "Parse",
+        "TWU_Time": "TWU",
+        "Build_Time": "Build",
+        "Search_Time": "Search",
+    })
     df["Minimum_Utility"] = df["Minimum_Utility"].astype(int)
     df["AlgoMeth"] = df["Algorithm"] + "_" + df["Method"]
 
-    # ─── sort methods ────────────────────────────────────────────────────────────
     def sort_key(x):
         parts = x.split("_")
         algo, suffix = parts[0], parts[-1].lower()
-        if suffix.isdigit():
-            num = int(suffix)
-        elif suffix == "adaptive":
-            num = float("inf")
-        else:
-            num = 0
-        if algo == "DPHIM":
-            grp = 0
-        elif algo == "cuDPEFIM":
-            grp = 1
-        else:
-            grp = 2
+        num = float("inf") if suffix == "adaptive" else int(suffix) if suffix.isdigit() else 0
+        grp = {"DPHIM": 0, "cuDPEFIM": 1}.get(algo, 2)
         return (grp, num)
 
     all_methods = sorted(df["AlgoMeth"].unique(), key=sort_key)
-    print("Methods:", all_methods)
     n_methods = len(all_methods)
 
     method_nice_names = {
         "DPHIM_DPHIM_dphim": "DPHIM",
-        "cuDPEFIM_SP_fixed_32": "cuDPEFIM Block size 32",
-        "cuDPEFIM_SP_fixed_64": "cuDPEFIM Block size 64",
-        "cuDPEFIM_SP_fixed_128": "cuDPEFIM Block size 128",
-        "cuDPEFIM_SP_fixed_256": "cuDPEFIM Block size 256",
-        "cuDPEFIM_SP_fixed_512": "cuDPEFIM Block size 512",
-        "cuDPEFIM_SP_fixed_1024": "cuDPEFIM Block size 1024",
-        "cuDPEFIM_SP_adaptive": "cuDPEFIM Adaptive",
+        "cuDPEFIM_SP_fixed_32": "GS-HUIM(32)",
+        "cuDPEFIM_SP_fixed_64": "GS-HUIM(64)",
+        "cuDPEFIM_SP_fixed_128": "GS-HUIM(128)",
+        "cuDPEFIM_SP_fixed_256": "GS-HUIM(256)",
+        "cuDPEFIM_SP_fixed_512": "GS-HUIM(512)",
+        "cuDPEFIM_SP_fixed_1024": "GS-HUIM(1024)",
+        "cuDPEFIM_SP_adaptive": "GA-HUIM",
     }
 
-    # ─── styles ─────────────────────────────────────────────────────────────────
+    # Define styles
     phases = ["Parse", "TWU", "Build", "Search"]
     phase_colors = {
-        "Parse": "#2ca02c",
-        "TWU": "#1f77b4",
-        "Build": "#ffdd57",
-        "Search": "#ff7f0e",
+        "Parse": "#2ca02c", "TWU": "#1f77b4", "Build": "#ffdd57", "Search": "#ff7f0e"
     }
+
+    method_colors = {
+        "DPHIM_DPHIM_dphim": "#1f77b4",         # Blue
+        "cuDPEFIM_SP_adaptive": "#d62728",      # Red
+    }
+    method_markers = {
+        "DPHIM_DPHIM_dphim": "^",
+        "cuDPEFIM_SP_adaptive": "o",
+    }
+
+    static_methods = [
+    "cuDPEFIM_SP_fixed_32", "cuDPEFIM_SP_fixed_64", "cuDPEFIM_SP_fixed_128",
+    "cuDPEFIM_SP_fixed_256", "cuDPEFIM_SP_fixed_512", "cuDPEFIM_SP_fixed_1024",
+    ]
+
+    # Hex values for green going from light to dark (FF → E5 → CC → B2 → 99 → 7F, etc.)
+    green_steps = ["5F", "5F", "5F", "5F", "5F", "5F"]
+
+    for method, green_hex in zip(static_methods, green_steps):
+        hex_color = f"#00{green_hex}00"
+        method_colors[method] = hex_color
+        method_markers[method] = ""
+
+    line_styles = ["-", "--", ":", "-.", (0, (3, 5, 1, 5)), (0, (1, 1)), (0, (5, 10))]
+    method_linestyles = {m: line_styles[i % len(line_styles)] for i, m in enumerate(all_methods)}
+
     linestyles = ["-", "--", ":", "-."]
     hatches = ["/", "\\", "x", "o", ".", "*", "+", "-"]
     method_style = {
-        m: {
-            "linestyle": linestyles[i % len(linestyles)],
-            "hatch": hatches[i % len(hatches)],
-        }
+        m: {"linestyle": linestyles[i % len(linestyles)], "hatch": hatches[i % len(hatches)]}
         for i, m in enumerate(all_methods)
     }
 
-    # ─── per file ───────────────────────────────────────────────────────────────
+    FIG_W_IN, FIG_H_IN = 3, 3
+    DPI = 500
+    BAR_FACTOR = 0.05
+    GAP_MULT = 1.5
+
+    bar_width = BAR_FACTOR / n_methods
+
+    gap_indices = {
+        i for i in range(n_methods - 1)
+        if ("dphim" in all_methods[i].lower() and
+            any(all_methods[i + 1].lower().endswith(str(d)) for d in range(10)))
+        or (any(all_methods[i]    .lower().endswith(str(d)) for d in range(10)) and
+            "adaptive" in all_methods[i + 1].lower())
+    }
+
+    extra_spacing = [0.0] * n_methods
+    acc = 0.0
+    for i in range(1, n_methods):
+        if (i - 1) in gap_indices:
+            acc += bar_width * GAP_MULT
+        extra_spacing[i] = acc
+
+    first_file = True
     for file_name in sorted(df["File"].unique()):
         df_file = df[df["File"] == file_name]
         utils = sorted(df_file["Minimum_Utility"].unique())
         if not utils:
             continue
+        min_util = utils[0]
 
-        min_util = utils[0]  # <- minimum utility
-
-        ## ─────────────────────────────
-        ## 1. FIRST IMAGE: min util stacked bars for all methods
-        ## ─────────────────────────────
-        fig, ax = plt.subplots(figsize=(4, 4))
+        fig, ax = plt.subplots(figsize=(FIG_W_IN, FIG_H_IN), dpi=DPI)
         fig.subplots_adjust(right=0.95)
 
-        total_width = 0.8
-        bar_width = total_width / n_methods
-
-        gap_indices = set()
-        for i in range(n_methods - 1):
-            curr = all_methods[i].lower()
-            nxt = all_methods[i + 1].lower()
-            if "dphim" in curr and nxt.endswith(tuple(str(d) for d in range(10))):
-                gap_indices.add(i)
-            if curr.endswith(tuple(str(d) for d in range(10))) and "adaptive" in nxt:
-                gap_indices.add(i)
-
-        gap_width = bar_width * 0.3
-        extra = [0.0] * n_methods
-        acc = 0.0
-        for i in range(1, n_methods):
-            if (i - 1) in gap_indices:
-                acc += gap_width
-            extra[i] = acc
-
-        x = np.array([0])
-
+        x0 = np.array([0.0])
         for i, method in enumerate(all_methods):
-            xpos = x[0] + (i - (n_methods - 1) / 2) * bar_width + extra[i]
-            bottom = 0
-            style = method_style[method]
-            row = df_file[
-                (df_file["Minimum_Utility"] == min_util)
-                & (df_file["AlgoMeth"] == method)
-            ]
+            xpos = x0[0] + (i - (n_methods - 1)/2) * bar_width + extra_spacing[i]
+            row = df_file[(df_file["Minimum_Utility"] == min_util) &
+                          (df_file["AlgoMeth"] == method)]
             if row.empty:
                 continue
+            bottom = 0.0
             for phase in phases:
-                height = row[phase].iloc[0]
-                ax.bar(
-                    xpos,
-                    height,
-                    bar_width,
-                    bottom=bottom,
-                    color=phase_colors[phase],
-                    edgecolor="black",
-                    linewidth=1,
-                    linestyle=style["linestyle"],
-                    hatch=style["hatch"],
-                )
+                height = row[phase].iloc[0] / 1000.0
+                ax.bar(xpos, height, bar_width, bottom=bottom,
+                       color=phase_colors[phase], edgecolor="black", linewidth=1,
+                       linestyle=method_style[method]["linestyle"],
+                       hatch=method_style[method]["hatch"])
                 bottom += height
+            
+            friendly_name = method_nice_names.get(method, method)
+            if method.startswith("cuDPEFIM_SP_fixed_"):
+                if method.endswith("32"):
+                    label = friendly_name  # Full name for 32
+                else:
+                    label = f"({friendly_name.split('(')[-1]}"  # Only the number in parentheses
+            else:
+                label = friendly_name
+
+            ax.text(xpos, bottom + 0.01, label, ha='center', va='bottom', fontsize=6, rotation=0)
 
         ax.set_xticks([])
-        # ax.set_xlabel(f"Minimum Utility = {min_util}", fontsize=14)
-        ax.set_ylabel("Execution Time (ms)", fontsize=14)
-        # ax.set_title(f"All Methods at Minimum Utility for '{file_name}'")
         ax.grid(True)
 
-                # make all font larger
-        plt.xticks(fontsize=14)
-        plt.yticks(fontsize=14)
-        # set label font size
-        for label in ax.get_xticklabels():
-            label.set_fontsize(14)
-        for label in ax.get_yticklabels():
-            label.set_fontsize(14)
-            
- 
+        if first_file:
+            ax.legend(handles=[Patch(facecolor=phase_colors[p], label=p) for p in phases], fontsize=10, loc="upper right")
+            ax.set_ylabel("Execution Time (s)", fontsize=14)
 
-        plt.savefig(f"{file_name}_min_util.png", bbox_inches="tight", dpi=500)
+        plt.savefig(f"{file_name}_min_util.png", bbox_inches="tight", dpi=DPI)
         plt.close(fig)
 
-        ## ─────────────────────────────
-        ## 2. SECOND IMAGE: adaptive methods over min_util
-        ## ─────────────────────────────
-
-        # df_adaptive = df_file[df_file["AlgoMeth"].str.lower().str.contains("adaptive")]
-        # if df_adaptive.empty:
-        #     continue
-        # adaptive_methods = sorted(df_adaptive["AlgoMeth"].unique(), key=sort_key)
-
-        # n_adaptive = len(adaptive_methods)
-        # total_width = 0.8
-        # bar_width = total_width / n_adaptive
-
-        # utils = sorted(df_adaptive["Minimum_Utility"].unique())
-        # x_base = np.arange(len(utils))
-
-        # fig, ax = plt.subplots(figsize=(4, 4))
-
-        # util_to_idx = {u: idx for idx, u in enumerate(utils)}
-
-        # for i, method in enumerate(adaptive_methods):
-        #     style = method_style.get(method, {"linestyle": "-", "hatch": "/"})
-        #     df_meth = df_adaptive[df_adaptive["AlgoMeth"] == method]
-
-        #     xpos = [
-        #         util_to_idx[u] + (i - (n_adaptive - 1) / 2) * bar_width
-        #         for u in df_meth["Minimum_Utility"].values
-        #     ]
-
-        #     bottom = np.zeros_like(xpos, dtype=float)
-
-        #     for phase in phases:
-        #         heights = df_meth[phase].values
-        #         ax.bar(
-        #             xpos,
-        #             heights,
-        #             bar_width,
-        #             bottom=bottom,
-        #             color=phase_colors[phase],
-        #             edgecolor="black",
-        #             linewidth=1,
-        #             hatch=style["hatch"],
-        #         )
-        #         bottom += heights
-
-        # ax.set_xticks(x_base)
-        # ax.set_xticklabels([str(u) for u in utils], rotation=45, ha="right")
-        # ax.set_xlabel("Minimum Utility", fontsize=14)
-        # ax.set_ylabel("Execution Time (ms)", fontsize=14)
-        # # ax.set_title(f"Adaptive Methods over Utility for '{file_name}'")
-        # ax.grid(True)
-
-        #         # make all font larger
-        # plt.xticks(fontsize=14)
-        # plt.yticks(fontsize=14)
-        # # set label font size
-        # for label in ax.get_xticklabels():
-        #     label.set_fontsize(14)
-        # for label in ax.get_yticklabels():
-        #     label.set_fontsize(14)
-            
-
-
-        # plt.savefig(f"{file_name}_adaptive_vs_util.png", bbox_inches="tight", dpi=500)
-        # plt.close(fig)
-        df_adaptive = df_file[df_file["AlgoMeth"].str.lower().str.contains("adaptive")]
-        if df_adaptive.empty:
-            continue
-        adaptive_methods = sorted(df_adaptive["AlgoMeth"].unique(), key=sort_key)
-
-        n_adaptive = len(adaptive_methods)
-        total_width = 0.8
-        bar_width = total_width / n_adaptive
-
-        utils = sorted(df_adaptive["Minimum_Utility"].unique())
-        x_base = np.arange(len(utils))
+        df_total = df_file.copy()
+        df_total["TotalTime"] = df_total[phases].sum(axis=1) / 1000.0
+        methods_in_file = sorted(df_total["AlgoMeth"].unique(), key=sort_key)
 
         fig, ax = plt.subplots(figsize=(4, 4))
+        for method in methods_in_file:
+            df_m = df_total[df_total["AlgoMeth"] == method]
+            if df_m.empty:
+                continue
+            times = [df_m[df_m["Minimum_Utility"] == u]["TotalTime"].iloc[0]
+                     if not df_m[df_m["Minimum_Utility"] == u].empty else np.nan
+                     for u in utils]
+            color = method_colors.get(method, "black")
+            marker = method_markers.get(method, "")
+            linestyle = method_linestyles.get(method, "-")
+            label = method_nice_names.get(method, method)
 
-        util_to_idx = {u: idx for idx, u in enumerate(utils)}
+            ax.plot(utils, times, label=label,
+                    linestyle=linestyle,
+                    marker=marker,
+                    linewidth=2,
+                    color=color,
+                    markersize=6)
 
-        for i, method in enumerate(adaptive_methods):
-            style = method_style.get(method, {"linestyle": "-", "hatch": "/"})
-            df_meth = df_adaptive[df_adaptive["AlgoMeth"] == method]
-
-            xpos = [
-                util_to_idx[u] + (i - (n_adaptive - 1) / 2) * bar_width
-                for u in df_meth["Minimum_Utility"].values
-            ]
-
-            bottom = np.zeros_like(xpos, dtype=float)
-
-            for phase in phases:
-                heights = df_meth[phase].values
-                ax.bar(
-                    xpos,
-                    heights,
-                    bar_width,
-                    bottom=bottom,
-                    color=phase_colors[phase],
-                    edgecolor="black",
-                    linewidth=1,
-                    hatch=style["hatch"],
-                )
-                bottom += heights
-
-        # Determine scaling factor
         log_utils = [np.log10(u) for u in utils]
         rounded_exponents = [int(np.floor(x)) for x in log_utils]
-
-        # Check if all utils have the same or similar exponent (±1 allowed)
         if max(rounded_exponents) - min(rounded_exponents) <= 1 and max(utils) > 10000:
-            common_exp = int(np.median(rounded_exponents))
+            common_exp = int(np.median(rounded_exponents)) - 2
             scale_factor = 10 ** common_exp
             xtick_labels = [f"{u / scale_factor:.1f}".rstrip("0").rstrip(".") for u in utils]
             ax.set_xlabel(f"Minimum Utility (×$10^{common_exp}$)", fontsize=14)
+            ax.set_xticks(utils)
+            ax.set_xticklabels(xtick_labels, rotation=45, ha="right")
         else:
-            xtick_labels = [str(u) for u in utils]
             ax.set_xlabel("Minimum Utility", fontsize=14)
 
-        ax.set_xticks(x_base)
-        ax.set_xticklabels(xtick_labels, rotation=45, ha="right")
-        ax.set_ylabel("Execution Time (ms)", fontsize=14)
         ax.grid(True)
+        if first_file:
+            ax.legend(fontsize=10)
+            ax.set_ylabel("Execution Time (s)", fontsize=14)
 
         plt.xticks(fontsize=14)
         plt.yticks(fontsize=14)
-        for label in ax.get_xticklabels():
-            label.set_fontsize(14)
-        for label in ax.get_yticklabels():
-            label.set_fontsize(14)
 
-        plt.savefig(f"{file_name}_adaptive_vs_util.png", bbox_inches="tight", dpi=500)
+        plt.savefig(f"{file_name}_total_time_vs_util.png", bbox_inches="tight", dpi=500)
         plt.close(fig)
 
-
-        ## ─────────────────────────────
-        ## 3. SEPARATE LEGEND IMAGES
-        ## ─────────────────────────────
-        # Phase Legend (vertical)
-        fig_phase_leg, ax_phase_leg = plt.subplots(figsize=(2, 3))
-        phase_handles = [Patch(facecolor=phase_colors[p], label=p) for p in phases]
-        ax_phase_leg.axis("off")
-        leg1 = ax_phase_leg.legend(
-            handles=phase_handles,
-            title="Phase",
-            loc="center left",
-            frameon=False,
-        )
-        plt.tight_layout()
-        plt.savefig(f"{file_name}_phase_legend.png", bbox_inches="tight", pad_inches=0.1, dpi=500)
-        plt.close(fig_phase_leg)
-
-        # Method Legend (horizontal)
-        fig_method_leg, ax_method_leg = plt.subplots(figsize=(len(all_methods) * 1.5, 2))  # auto-wide
-        method_handles = [
-            Patch(
-                facecolor="white",
-                edgecolor="black",
-                hatch=method_style[m]["hatch"],
-                label=method_nice_names.get(m, m),
+        if first_file:
+            fig_method_leg, ax_method_leg = plt.subplots(figsize=(len(all_methods) * 1.5, 2))
+            method_handles = [
+                Patch(facecolor=method_colors.get(m, "white"), edgecolor="black",
+                      hatch=method_style[m]["hatch"],
+                      label=method_nice_names.get(m, m))
+                for m in all_methods
+            ]
+            ax_method_leg.axis("off")
+            ax_method_leg.legend(
+                handles=method_handles, title="Method", loc="center", ncol=len(method_handles),
+                frameon=False, handlelength=3, handleheight=2, fontsize="small"
             )
-            for m in all_methods
-        ]
-        ax_method_leg.axis("off")
-        leg2 = ax_method_leg.legend(
-            handles=method_handles,
-            title="Method",
-            loc="center",
-            ncol=len(method_handles),  # all in 1 row horizontally
-            frameon=False,
-            handlelength=3,
-            handleheight=2,
-            fontsize="small",
-        )
-        plt.tight_layout()
-        plt.savefig(f"{file_name}_method_legend.png", bbox_inches="tight", pad_inches=0.1, dpi=500)
-        plt.close(fig_method_leg)
+            plt.tight_layout()
+            plt.savefig(f"{file_name}_method_legend.png", bbox_inches="tight", pad_inches=0.1, dpi=500)
+            plt.close(fig_method_leg)
 
+        first_file = False
+
+        
 process_data = [
     # [
     #     "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
