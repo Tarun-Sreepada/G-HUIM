@@ -1,27 +1,84 @@
+import os
 import subprocess
-import matplotlib.pyplot as plt
+import csv
+from pathlib import Path
+from typing import Dict, List, Tuple, Union
 
+import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-import os
 
-def run_iteration_times(input_file, minutil, adaptive=False, block_size=None, total_memory="78G", method="SP"):
+###############################################################################
+# Persistent cache (CSV) utilities                                            #
+###############################################################################
+
+CSV_CACHE = Path("iteration_times_cache.csv")
+
+CACHE_COLUMNS = [
+    "dataset",       # absolute path of the dataset file                     
+    "minutil",       # minimum utility threshold                             
+    "method",        # cuDPEFIM_SP_fixed_32 | cuDPEFIM_SP_adaptive | ...     
+    "adaptive",      # bool                                                 
+    "block_size",    # int or None                                          
+    "iteration",     # iteration index (int)                                 
+    "time_ms",       # execution time in ms (float)                          
+]
+
+
+def _load_cache() -> pd.DataFrame:
+    """Load existing cache or create an empty DataFrame with the right schema."""
+    if CSV_CACHE.exists():
+        return pd.read_csv(CSV_CACHE)
+    return pd.DataFrame(columns=CACHE_COLUMNS)
+
+
+def _append_to_cache(rows: List[Tuple[Union[str, int, float]]]) -> None:
+    """Append new rows to the CSV cache in an atomic‑ish way."""
+    df_new = pd.DataFrame(rows, columns=CACHE_COLUMNS)
+    if CSV_CACHE.exists():
+        df_new.to_csv(CSV_CACHE, mode="a", header=False, index=False)
+    else:
+        df_new.to_csv(CSV_CACHE, mode="w", header=True, index=False)
+
+
+###############################################################################
+# Low‑level execution helper                                                  #
+###############################################################################
+
+def run_iteration_times(
+    input_file: str,
+    minutil: int,
+    adaptive: bool = False,
+    block_size: int | None = None,
+    total_memory: str = "78G",
+    method: str = "SP",
+) -> Dict[int, float]:
+    """Run cuDPEFIM once and return iteration→time (ms) mapping."""
+
     cmd = [
         "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM",
         "--input", input_file,
         "--minutil", str(minutil),
         "--method", method,
         "--total_memory", total_memory,
-        "--output", "/dev/null"
+        "--output", "/dev/null",
     ]
+
     if adaptive:
         cmd += ["--adaptive", "true"]
     else:
         cmd += ["--adaptive", "false", "--block_size", str(block_size)]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    times = {}
+
+    result = subprocess.run(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+        check=True,
+    )
+
+    times: Dict[int, float] = {}
     for line in result.stdout.splitlines():
-        # print(line)
         if line.startswith("Iteration"):
             parts = line.split()
             it = int(parts[1])
@@ -30,129 +87,226 @@ def run_iteration_times(input_file, minutil, adaptive=False, block_size=None, to
     return times
 
 
+###############################################################################
+# Public helper with caching                                                  #
+###############################################################################
 
-import matplotlib.pyplot as plt
-def plot_for_configs(input_file, minutil, block_sizes, total_memory="78G", method="SP"):
+def get_or_run_iteration_times(
+    input_file: str,
+    minutil: int,
+    adaptive: bool,
+    block_size: int | None,
+    total_memory: str,
+    method: str,
+) -> Dict[int, float]:
+    """Return iteration times, reusing cached results when available."""
+
+    cache = _load_cache()
+
+    if not cache.empty:
+        mask = (
+            (cache["dataset"] == input_file)
+            & (cache["minutil"] == minutil)
+            & (cache["method"] == method)
+            & (cache["adaptive"] == adaptive)
+            & (cache["block_size"].fillna(-1).astype(int) == (block_size or -1))
+        )
+        subset = cache.loc[mask]
+        if not subset.empty:
+            # Reconstruct dict and return
+            return dict(zip(subset["iteration"].astype(int), subset["time_ms"].astype(float)))
+
+    # Otherwise execute and store
+    times = run_iteration_times(
+        input_file,
+        minutil,
+        adaptive=adaptive,
+        block_size=block_size,
+        total_memory=total_memory,
+        method=method,
+    )
+
+    rows = [
+        (
+            input_file,
+            minutil,
+            method,
+            adaptive,
+            block_size,
+            it,
+            t,
+        )
+        for it, t in times.items()
+    ]
+    _append_to_cache(rows)
+    return times
+
+
+###############################################################################
+# Nice‑name mapping & style dictionaries (DO NOT MODIFY)                      #
+###############################################################################
+
+method_nice_names = {
+    "DPHIM_DPHIM_dphim": "DPHIM",
+    "cuDPEFIM_SP_fixed_32": "GS-HUIM(32)",
+    "cuDPEFIM_SP_fixed_64": "GS-HUIM(64)",
+    "cuDPEFIM_SP_fixed_128": "GS-HUIM(128)",
+    "cuDPEFIM_SP_fixed_256": "GS-HUIM(256)",
+    "cuDPEFIM_SP_fixed_512": "GS-HUIM(512)",
+    "cuDPEFIM_SP_fixed_1024": "GS-HUIM(1024)",
+    "cuDPEFIM_SP_adaptive": "GA-HUIM",
+}
+
+# Define styles
+phases = ["Parse", "TWU", "Build", "Search"]
+phase_colors = {
+    "Parse": "#2ca02c", "TWU": "#1f77b4", "Build": "#ffdd57", "Search": "#ff7f0e"
+}
+
+method_colors = {
+    "DPHIM_DPHIM_dphim": "#1f77b4",         # Blue
+    "cuDPEFIM_SP_adaptive": "#d62728",      # Red
+}
+method_markers = {
+    "DPHIM_DPHIM_dphim": "^",
+    "cuDPEFIM_SP_adaptive": "o",
+}
+
+static_methods = [
+    "cuDPEFIM_SP_fixed_32", "cuDPEFIM_SP_fixed_64", "cuDPEFIM_SP_fixed_128",
+    "cuDPEFIM_SP_fixed_256", "cuDPEFIM_SP_fixed_512", "cuDPEFIM_SP_fixed_1024",
+]
+
+# Hex values for green going from light to dark (FF → E5 → CC → B2 → 99 → 7F, etc.)
+# green_steps = ["FF", "DF", "AF", "9F", "7F", "5F"]
+green_steps = ["5F", "5F", "5F", "5F", "5F", "5F"]
+
+
+for method, green_hex in zip(static_methods, green_steps):
+    hex_color = f"#00{green_hex}00"
+    method_colors[method] = hex_color
+    method_markers[method] = ""
+
+line_styles = ["-", "--", ":", "-.", (0, (3, 5, 1, 5)), (0, (1, 1)), (0, (5, 10))]
+all_methods = list(method_nice_names.keys())
+method_linestyles = {m: line_styles[i % len(line_styles)] for i, m in enumerate(all_methods)}
+
+linestyles = ["-", "--", ":", "-."]
+hatches = ["/", "\\", "x", "o", ".", "*", "+", "-"]
+method_style = {
+    m: {"linestyle": linestyles[i % len(linestyles)], "hatch": hatches[i % len(hatches)]}
+    for i, m in enumerate(all_methods)
+}
+
+###############################################################################
+# Plotting                                                                   #
+###############################################################################
+
+def plot_for_configs(
+    input_file: str,
+    minutil: int,
+    block_sizes: List[int],
+    total_memory: str = "78G",
+    method: str = "SP",
+    include_legend: bool = False,
+) -> None:
+    """Plot iteration‑wise times for adaptive + several fixed block sizes."""
+
     configs = [("adaptive", None)] + [(f"static_{bs}", bs) for bs in block_sizes]
-    all_iterations = set()
-    results = {}
 
-    method_nice_names = {
-        "DPHIM_DPHIM_dphim": "DPHIM",
-        "cuDPEFIM_SP_fixed_32": "cuDPEFIM Block size 32",
-        "cuDPEFIM_SP_fixed_64": "cuDPEFIM Block size 64",
-        "cuDPEFIM_SP_fixed_128": "cuDPEFIM Block size 128",
-        "cuDPEFIM_SP_fixed_256": "cuDPEFIM Block size 256",
-        "cuDPEFIM_SP_fixed_512": "cuDPEFIM Block size 512",
-        "cuDPEFIM_SP_fixed_1024": "cuDPEFIM Block size 1024",
-        "cuDPEFIM_SP_adaptive": "cuDPEFIM Adaptive",
-    }
+    all_iterations: set[int] = set()
+    results: Dict[str, Dict[int, float]] = {}
 
-    # Gather iteration times for each config
+    # Collect / compute data (cache aware)
     for label, bs in configs:
-        times = run_iteration_times(
-            input_file, minutil,
-            adaptive=(label == "adaptive"),
+        adaptive_flag = label == "adaptive"
+        method_key = (
+            "cuDPEFIM_SP_adaptive" if adaptive_flag else f"cuDPEFIM_SP_fixed_{bs}"
+        )
+        times = get_or_run_iteration_times(
+            input_file,
+            minutil,
+            adaptive=adaptive_flag,
             block_size=bs,
             total_memory=total_memory,
-            method=method
+            method=method,
         )
         results[label] = times
         all_iterations.update(times.keys())
 
     iterations = sorted(all_iterations)
+
+    # ──────────────────────────────────────────────────────────── plotting ────
     plt.figure(figsize=(4, 4))
 
-    linestyles = ['-', '--', ':', '-.']
-    legend_handles = []
+    legend_handles: list[Line2D] = []
+
     adaptive_times = [results["adaptive"].get(i, 0) for i in iterations]
     max_adaptive_time = max(adaptive_times) if adaptive_times else 0
     height_cutoff = 1.5 * max_adaptive_time
 
-    
-    for idx, (label, bs) in enumerate(configs):
-        y = [results[label].get(i, 0) for i in iterations]
-        style = linestyles[idx % len(linestyles)]
-
-        method_key = f"cuDPEFIM_SP_adaptive" if label == "adaptive" else f"cuDPEFIM_SP_fixed_{bs}"
+    for label, bs in configs:
+        adaptive_flag = label == "adaptive"
+        method_key = (
+            "cuDPEFIM_SP_adaptive" if adaptive_flag else f"cuDPEFIM_SP_fixed_{bs}"
+        )
         display_name = method_nice_names.get(method_key, label)
 
-        line, = plt.plot(iterations, y,
-                        label=display_name,
-                        linestyle=style,
-                        marker='o' if label == "adaptive" else None)
+        y = [results[label].get(i, 0) for i in iterations]
 
-        # Use actual line color from plot
+        line, = plt.plot(
+            iterations,
+            y,
+            label=display_name,
+            linestyle=method_linestyles[method_key],
+            marker=method_markers.get(method_key, None),
+            color=method_colors.get(method_key, None),
+        )
+
         legend_handles.append(
-            Line2D([0], [0],
-                linestyle=style,
-                marker='o' if label == "adaptive" else None,
-                color=line.get_color(),  # fix: apply plot color
-                label=display_name)
+            Line2D(
+                [0],
+                [0],
+                linestyle=method_linestyles[method_key],
+                marker=method_markers.get(method_key, None),
+                color=line.get_color(),
+                label=display_name,
+            )
         )
 
     plt.ylim(0, height_cutoff)
     plt.xlabel("Iteration", fontsize=14)
-    plt.ylabel("Time (ms)", fontsize=14)
-    plt.tight_layout()
-
-    # add caption
-    # plt.figtext(0.5, 0.01, f"Minimum Utility: {minutil}", ha="center", fontsize=14)
-
-    # make all font larger
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
 
-    for label in (plt.gca().get_xticklabels() + plt.gca().get_yticklabels()):
-        label.set_fontsize(14)
-
-    # Save main plot without legend
-    file_base = os.path.splitext(os.path.basename(input_file))[0]
+    file_base = Path(input_file).stem
     file_name = f"iteration_times_{file_base}_minutil_{minutil}.png"
+
+    if include_legend:
+        plt.ylabel("Execution Time (ms)", fontsize=14)
+        plt.legend(handles=legend_handles, fontsize=12, loc="best", frameon=True)
+
+    plt.tight_layout()
     plt.savefig(file_name, dpi=500)
     plt.close()
 
-    # === Create a separate legend figure ===
-    fig_leg, ax_leg = plt.subplots(figsize=(max(6, len(legend_handles) * 1.5), 1.5))
-    ax_leg.axis("off")
-    # leg = ax_leg.legend(handles=legend_handles, loc="center", frameon=False, ncol=len(legend_handles))
-    leg = ax_leg.legend(handles=legend_handles, loc="center", frameon=False, ncol=1)
-    legend_file = f"legend_{file_base}_minutil_{minutil}.png"
-    plt.savefig(legend_file, bbox_inches="tight", pad_inches=0.1, dpi=500)
-    plt.close(fig_leg)
 
+###############################################################################
+# Example usage                                                              #
+###############################################################################
 
-# Example usage
 if __name__ == "__main__":
     block_sizes = [32, 64, 128, 256, 512, 1024]
-    
-        
-        
+
     process_data = [
-        # [
-        #     "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
-        #     [2000000, 2050000, 2100000, 2150000, 2200000, 2500000, 3000000],
-        # ],
         [
             "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
             [8000000, 9000000, 10000000, 11000000, 12000000, 15000000, 20000000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-        #     [740000, 770000, 780000, 790000, 800000, 900000, 1000000],
-        # ],
         [
             "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
             [10000000, 10500000, 11000000, 11500000, 12000000, 15000000, 16000000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuEFIM/datasets/chess_utility.txt",
-        #     [300000, 310000, 320000, 330000, 340000, 350000],
-        # ],
-        # [
-        #     "/export/home1/ltarun/cuEFIM/datasets/mushroom.txt",
-        #     [35000, 40000, 45000, 50000, 55000],
-        # ],
         [
             "/export/home1/ltarun/cuEFIM/datasets/pumsb_utility.txt",
             [9500000, 11300000, 11400000],
@@ -160,13 +314,13 @@ if __name__ == "__main__":
         [
             "/export/home1/ltarun/cuEFIM/datasets/retail.txt",
             [1345, 1346, 1347, 1348, 1349],
-        ]
+        ],
     ]
 
-        
-    
-    # plot_for_configs(input_path, minutil, block_sizes)
     for input_path, minutils in process_data:
         minutil = minutils[0]
         print(f"Processing {input_path} with minutil {minutil}")
-        plot_for_configs(input_path, minutil, block_sizes)
+        if input_path.endswith("accidents_utility_spmf.txt"):
+            plot_for_configs(input_path, minutil, block_sizes, include_legend=True)
+        else:
+            plot_for_configs(input_path, minutil, block_sizes)
