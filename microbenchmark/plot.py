@@ -25,6 +25,9 @@ def get_df(work_done: int, sync_times: int) -> pd.DataFrame:
     # if your exe outputs space- or tab-delimited, specify sep='\s+' or '\t'
     return pd.read_csv(io.StringIO(csv_out))
 
+
+first = True
+
 for work_done in work_vals:
     for sync_times in sync_vals:
         
@@ -42,15 +45,22 @@ for work_done in work_vals:
         ax1.set_xlabel("Threads per Block")
         ax1.set_ylabel("Execution Time (ms)")
         ax1.set_xlim(0, df.block_size.max() * 1.1)
-        ax1.set_ylim(0, df.mixed_ms.max() * 1.1)
+        
         ax1.grid(True, which="both", linestyle="--", linewidth=0.5)
-        ax1.legend(loc="upper left")
+        
+
+            
 
         ax2 = ax1.twinx()
         ax2.plot(df.block_size, [work_done]*len(df), color="gray",
                  linestyle="-.", marker="x", label="Total Work")
         ax2.set_ylabel("Total Work (Iterations)")
-        ax2.legend(loc="upper right")
+        
+        if first:
+            ax1.legend(loc="upper left")
+            ax2.legend(loc="upper right")
+            
+            
 
         fig.tight_layout()
         fig.savefig(f"w_{work_done}_{sync_times}_linear.jpg", dpi=500)
@@ -66,13 +76,18 @@ for work_done in work_vals:
         ax1.set_ylabel("Execution Time (ms)")
         ax1.set_xlim(df.block_size.min() * 0.9, df.block_size.max() * 1.1)
         ax1.grid(True, which="both", linestyle="--", linewidth=0.5)
-        ax1.legend(loc="upper left")
+        # ax1.legend(loc="upper left")
 
         ax2 = ax1.twinx()
         ax2.plot(df.block_size, [work_done]*len(df), color="gray",
                  linestyle="-.", marker="x", label="Total Work")
         ax2.set_ylabel("Total Work (Iterations)")
-        ax2.legend(loc="upper right")
+        # ax2.legend(loc="upper right")
+        
+        if first:
+            ax1.legend(loc="upper left")
+            ax2.legend(loc="upper right")
+            first = False
 
         fig.tight_layout()
         fig.savefig(f"w_{work_done}_{sync_times}_log.jpg", dpi=500)
