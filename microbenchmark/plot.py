@@ -7,8 +7,8 @@ import io
 EXE_PATH = "./thread_usage"
 
 # ranges for work_done and sync_times
-work_vals = [2**i for i in range(0, 21)]   # 4, 8, …, 1<<20
-sync_vals = [2**i for i in range(0, 14)]   
+work_vals = [2**i for i in range(10, 25)]   # 4, 8, …, 1<<20
+sync_vals = [2**i for i in range(0, 15)]   
 
 def get_df(work_done: int, sync_times: int) -> pd.DataFrame:
     """
