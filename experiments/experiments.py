@@ -385,26 +385,27 @@ def plot_total(csv_path="combined_results.csv"):
         for i, m in enumerate(all_methods)
     }
 
-    FIG_W_IN, FIG_H_IN = 3, 3
+    FIG_W_IN, FIG_H_IN = 4, 4
     DPI = 500
-    BAR_FACTOR = 0.05
-    GAP_MULT = 1.5
+    BAR_FACTOR = 0.5
+    GAP_MULT = 1.1
 
     bar_width = BAR_FACTOR / n_methods
 
-    gap_indices = {
-        i for i in range(n_methods - 1)
-        if ("dphim" in all_methods[i].lower() and
-            any(all_methods[i + 1].lower().endswith(str(d)) for d in range(10)))
-        or (any(all_methods[i]    .lower().endswith(str(d)) for d in range(10)) and
-            "adaptive" in all_methods[i + 1].lower())
-    }
+    transition_gap_map = {}
+
+    for i in range(n_methods - 1):
+        m1, m2 = all_methods[i].lower(), all_methods[i + 1].lower()
+
+        if "dphim" in m1 and any(m2.endswith(str(d)) for d in range(10)):
+            transition_gap_map[i] = bar_width * 0.6  # normal DPHIM → static gap
+        elif any(m1.endswith(str(d)) for d in range(10)) and "adaptive" in m2:
+            transition_gap_map[i] = bar_width * 0.6  # smaller static → GA-HUIM gap
 
     extra_spacing = [0.0] * n_methods
     acc = 0.0
     for i in range(1, n_methods):
-        if (i - 1) in gap_indices:
-            acc += bar_width * GAP_MULT
+        acc += transition_gap_map.get(i - 1, 0.0)
         extra_spacing[i] = acc
 
     first_file = True
@@ -436,21 +437,50 @@ def plot_total(csv_path="combined_results.csv"):
             
             friendly_name = method_nice_names.get(method, method)
             if method.startswith("cuDPEFIM_SP_fixed_"):
-                if method.endswith("32"):
-                    label = friendly_name  # Full name for 32
-                else:
-                    label = f"({friendly_name.split('(')[-1]}"  # Only the number in parentheses
+                label = f"({friendly_name.split('(')[-1]}"  # Only the number in parentheses
+                # remove brackets from label
+                label = label.replace("(", "").replace(")", "")
             else:
                 label = friendly_name
 
-            ax.text(xpos, bottom + 0.01, label, ha='center', va='bottom', fontsize=6, rotation=0)
+            if first_file:
+                ax.text(xpos, bottom + 0.002, label, ha='center', va='bottom', fontsize=10, rotation=0)
+
+        static_indices = [
+            i for i, m in enumerate(all_methods)
+            if m.startswith("cuDPEFIM_SP_fixed_") and m.endswith(tuple(str(p) for p in [32, 64, 128, 256, 512, 1024]))
+        ]
+
+        if static_indices and first_file:
+            # Compute center x position of the static bars
+            left_x = x0[0] + (static_indices[0] - (n_methods - 1)/2) * bar_width + extra_spacing[static_indices[0]]
+            right_x = x0[0] + (static_indices[-1] - (n_methods - 1)/2) * bar_width + extra_spacing[static_indices[-1]]
+            center_x = (left_x + right_x) / 2
+            y_pos = 2.475  # adjust this if it's too close or too far from the bars
+
+            ax.text(
+                center_x, y_pos, "|<--- GS-HUIM (static) --->|",
+                ha="center", va="top", fontsize=10, transform=ax.transData
+            )
+
+        # get curent y-axis limits
+        y_min, y_max = ax.get_ylim()
+        # set y-axis limits to be 10% larger than the max value
+        y_max = y_max * 1.05
+        ax.set_ylim(y_min, y_max)
+
 
         ax.set_xticks([])
         ax.grid(True)
 
         if first_file:
             ax.legend(handles=[Patch(facecolor=phase_colors[p], label=p) for p in phases], fontsize=10, loc="upper right")
+            # bring it a little bit down
+            ax.legend_.set_bbox_to_anchor((1.0, 0.95))
             ax.set_ylabel("Execution Time (s)", fontsize=14)
+
+        plt.xticks(fontsize=14)
+        plt.yticks(fontsize=14)
 
         plt.savefig(f"{file_name}_min_util.png", bbox_inches="tight", dpi=DPI)
         plt.close(fig)
@@ -471,25 +501,29 @@ def plot_total(csv_path="combined_results.csv"):
             marker = method_markers.get(method, "")
             linestyle = method_linestyles.get(method, "-")
             label = method_nice_names.get(method, method)
+            # remove brackets from label
 
             ax.plot(utils, times, label=label,
                     linestyle=linestyle,
                     marker=marker,
                     linewidth=2,
                     color=color,
-                    markersize=6)
+                    markersize=8)
 
         log_utils = [np.log10(u) for u in utils]
         rounded_exponents = [int(np.floor(x)) for x in log_utils]
+
         if max(rounded_exponents) - min(rounded_exponents) <= 1 and max(utils) > 10000:
             common_exp = int(np.median(rounded_exponents)) - 2
             scale_factor = 10 ** common_exp
             xtick_labels = [f"{u / scale_factor:.1f}".rstrip("0").rstrip(".") for u in utils]
             ax.set_xlabel(f"Minimum Utility (×$10^{common_exp}$)", fontsize=14)
-            ax.set_xticks(utils)
-            ax.set_xticklabels(xtick_labels, rotation=45, ha="right")
         else:
+            xtick_labels = [str(u) for u in utils]
             ax.set_xlabel("Minimum Utility", fontsize=14)
+
+        ax.set_xticks(utils)
+        ax.set_xticklabels(xtick_labels, rotation=45, ha="right")
 
         ax.grid(True)
         if first_file:
@@ -523,42 +557,42 @@ def plot_total(csv_path="combined_results.csv"):
 
         
 process_data = [
+    # # [
+    # #     "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
+    # #     [2000000, 2050000, 2100000, 2150000, 2200000, 2500000, 3000000],
+    # # ],
     # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/chainstore.txt",
-    #     [2000000, 2050000, 2100000, 2150000, 2200000, 2500000, 3000000],
+    #     "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
+    #     [8000000, 9000000, 10000000, 11000000, 12000000, 15000000, 20000000],
     # ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt",
-        [8000000, 9000000, 10000000, 11000000, 12000000, 15000000, 20000000],
-    ],
+    # # [
+    # #     "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
+    # #     [760000, 770000, 780000, 790000, 800000, 900000, 1000000],
+    # # ],
+    # # [
+    # #     "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
+    # #     [2025000, 2030000, 2035000, 2040000, 2045000],
+    # # ],
     # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/kosarak_utility_spmf.txt",
-    #     [760000, 770000, 780000, 790000, 800000, 900000, 1000000],
+    #     "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
+    #     [10000000, 10500000, 11000000, 11500000, 12000000, 15000000, 16000000],
+    # ],
+    # # [
+    # #     "/export/home1/ltarun/cuEFIM/datasets/chess_utility.txt",
+    # #     [300000, 310000, 320000, 330000, 340000, 350000],
+    # # ],
+    # # [
+    # #     "/export/home1/ltarun/cuEFIM/datasets/mushroom.txt",
+    # #     [35000, 40000, 45000, 50000, 55000],
+    # # ],
+    # [
+    #     "/export/home1/ltarun/cuEFIM/datasets/pumsb_utility.txt",
+    #     [11000000, 11100000, 11200000, 11300000, 11400000],
     # ],
     # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/BMS_utility_spmf.txt",
-    #     [2025000, 2030000, 2035000, 2040000, 2045000],
+    #     "/export/home1/ltarun/cuEFIM/datasets/retail.txt",
+    #     [1345, 1346, 1347, 1348, 1349],
     # ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/connect_utility_spmf.txt",
-        [10000000, 10500000, 11000000, 11500000, 12000000, 15000000, 16000000],
-    ],
-    # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/chess_utility.txt",
-    #     [300000, 310000, 320000, 330000, 340000, 350000],
-    # ],
-    # [
-    #     "/export/home1/ltarun/cuEFIM/datasets/mushroom.txt",
-    #     [35000, 40000, 45000, 50000, 55000],
-    # ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/pumsb_utility.txt",
-        [11000000, 11100000, 11200000, 11300000, 11400000],
-    ],
-    [
-        "/export/home1/ltarun/cuEFIM/datasets/retail.txt",
-        [1345, 1346, 1347, 1348, 1349],
-    ],
 ]
 
 
