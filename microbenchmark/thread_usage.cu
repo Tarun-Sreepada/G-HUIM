@@ -100,7 +100,14 @@ static float launch_and_time(const void *kernel,
 
 int main(int argc, char *argv[])
 {
-    const std::vector<int> blocksizes{32, 64, 128, 256, 512, 1024};
+    // const std::vector<int> blocksizes{32, 64, 128, 256, 512, 1024};
+
+    // 32 to 1024 threads per block
+    const std::vector<int> blocksizes{32, 64, 128, 192, 256, 384, 512, 768, 1024 };
+    // std::vector<int> blocksizes;
+    // for (int i = 32; i <= 1024; i += 32) {
+    //     blocksizes.push_back(i);
+    // }
 
     // const std::uint64_t TOTAL_WORK = 1ull << 20; // keep this big enough
     // const int           SYNC_ITERS = 1ull << 13;      // barrier loops
@@ -156,4 +163,4 @@ int main(int argc, char *argv[])
 // ./thread_usage > results.csv
 
 
-// nvcc -O3 -arch=sm_90 thread_usage.cu -o thread_usage && rm results.csv &&  ./thread_usage >> results.csv && /export/home1/ltarun/miniforge3/envs/rapids-25.02/bin/python /export/home1/ltarun/cuDPEFIM/microbenchmark/plot.py
+// nvcc -O3 -arch=sm_90 thread_usage.cu -o thread_usage && /export/home1/ltarun/miniforge3/envs/rapids-25.02/bin/python /export/home1/ltarun/cuDPEFIM/microbenchmark/plot.py
