@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
         parser.add_argument("--num_blocks", "int", "Number of GPU blocks", false, "0");
         parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
-        parser.add_argument("--patern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
+        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
         parser.add_argument("--method", "string", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
         parser.parse(argc, argv);
@@ -130,7 +130,7 @@ int main(int argc, char *argv[])
     // Allocate memory for patterns
     patterns *p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
-    p->init(parser.get_memory("--patern_memory"));
+    p->init(parser.get_memory("--pattern_memory"));
     timer.recordPoint("Patterns Allocated");
 
     if (parser.get("--method") == "SP")
