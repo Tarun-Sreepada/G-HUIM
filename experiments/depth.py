@@ -274,10 +274,36 @@ def plot_for_configs(
             )
         )
 
+    # plt.ylim(0, height_cutoff)
+    # plt.xlabel("Iteration", fontsize=14)
+    # plt.xticks(fontsize=14)
+    # plt.yticks(fontsize=14)
+
+    # plt.xlim(1, max(iterations))  # Start from 1, not 0
+    # plt.xticks([1])  # Force tick at 1
+    # plt.set_xlim(0.8, max(iterations))  # start slightly before 1
+    # plt.gca().xaxis.set_major_locator(plt.MaxNLocator(integer=True))  # Let matplotlib pick the rest
+
+
+    ax = plt.gca()
+    ax.set_xlim(0.8, max(iterations))
+    ax.set_ylim(0, height_cutoff)
+
+    # Ensure integer ticks and include tick 1
+    ticks = ax.get_xticks()
+    if 1 not in ticks:
+        ax.set_xticks([1] + list(ticks))
+    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+
+    # Labels
     plt.ylim(0, height_cutoff)
+    plt.xticks([1] + list(ax.get_xticks()), fontsize=14)
     plt.xlabel("Iteration", fontsize=14)
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
+
+
+
 
     file_base = Path(input_file).stem
     file_name = f"iteration_times_{file_base}_minutil_{minutil}.png"
