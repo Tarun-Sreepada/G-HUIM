@@ -15,6 +15,13 @@
 
 __global__ void __warmup() { }
 
+size_t get_shared_memory_per_block()
+{
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, 0); // Assuming device 0
+    return prop.sharedMemPerBlock;
+}
+
 // calcTWU<<<pf.db->num_transactions, 1024>>>(pf.db, item_map);
 // cudaDeviceSynchronize();
 
@@ -133,9 +140,11 @@ int main(int argc, char *argv[])
     p->init(parser.get_memory("--pattern_memory"));
     timer.recordPoint("Patterns Allocated");
 
+    size_t shared_memory = get_shared_memory_per_block();
+
     if (parser.get("--method") == "SP")
     {
-        static_parallel_mining(bf, p, parser, timer);
+        static_parallel_mining(bf, p, parser, timer, shared_memory);
     }
     else if (parser.get("--method") == "DP")
     {

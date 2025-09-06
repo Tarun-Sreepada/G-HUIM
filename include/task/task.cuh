@@ -6,6 +6,8 @@
 
 struct Task
 {
+    uint64_t memory_usage = 0; // in bytes
+
     uint32_t *pattern = nullptr;
     uint32_t pattern_length = 0;
 
