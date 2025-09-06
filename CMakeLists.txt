@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(cuDPEFIM LANGUAGES CXX CUDA)
+project(cuDPEFIM LANGUAGES CUDA CXX)
 
 # ─── 1) C++ / CUDA standards ───────────────────────────────────────────────────
 set(CMAKE_CXX_STANDARD      20)
@@ -77,7 +77,6 @@ target_link_libraries(cuDPEFIM
   PRIVATE
     ${LIBURING_LIB}
     cuda
-    cudart
     OpenMP::OpenMP_CXX
 )
 

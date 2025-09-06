@@ -14,17 +14,20 @@
  #include <string>
  #include <vector>
  #include <algorithm>
+ #include "memory/memory.cuh"
  
  /**
   * @struct TimeRecord
   * @brief Stores timestamp and memory usage for a labeled point in time.
   */
  struct TimeRecord
- {
-     std::string label;  ///< Label for the time point.
-     std::chrono::high_resolution_clock::time_point timestamp;  ///< Time recorded.
-     size_t rss;  ///< Resident Set Size (memory in KB).
- };
+{
+    std::string label;                                     ///< Label for the time point.
+    std::chrono::high_resolution_clock::time_point timestamp;  ///< Time recorded.
+    size_t rss;                                            ///< Resident Set Size (memory in KB).
+    unsigned long long gpu_mem_offset_before;              ///< GPU allocator offset before the operation.
+    unsigned long long gpu_mem_offset_after;               ///< GPU allocator offset after the operation.
+};
  
  /**
   * @brief Reads the current memory RSS from /proc/self/status.
@@ -59,14 +62,16 @@
       * @brief Records a timestamp and current memory with a label.
       * @param label Label to identify the checkpoint.
       */
-     void recordPoint(const std::string &label)
-     {
-         TimeRecord rec;
-         rec.label = label;
-         rec.timestamp = std::chrono::high_resolution_clock::now();
-         rec.rss = getMemoryRSS();
-         records.push_back(rec);
-     }
+     void recordPoint(const std::string &label, unsigned long long before = 0, unsigned long long after = 0)
+    {
+        TimeRecord rec;
+        rec.label = label;
+        rec.timestamp = std::chrono::high_resolution_clock::now();
+        rec.rss = getMemoryRSS();
+        rec.gpu_mem_offset_before = before;
+        rec.gpu_mem_offset_after = after;
+        records.push_back(rec);
+    }
  
      /**
       * @brief Prints all recorded time points and memory usage.
@@ -74,45 +79,61 @@
       * Shows differences between points and total elapsed time.
       */
      void printRecords() const
-     {
-         if (records.empty())
-         {
-             std::cout << "No records to display." << std::endl;
-             return;
-         }
- 
-         size_t max_label_len = 0;
-         for (const auto &rec : records)
-             max_label_len = std::max(max_label_len, rec.label.length());
- 
-         std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << "Label"
-                   << std::right << std::setw(12) << "Time (ms)"
-                   << std::right << std::setw(16) << "Memory (KB)" << std::endl;
-         std::cout << std::string(max_label_len + 32, '-') << std::endl;
- 
-         std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << records[0].label
-                   << std::right << std::setw(12) << 0
-                   << std::right << std::setw(16) << records[0].rss << std::endl;
- 
-         for (size_t i = 1; i < records.size(); ++i)
-         {
-             auto time_diff = std::chrono::duration_cast<std::chrono::milliseconds>(
-                                  records[i].timestamp - records[i - 1].timestamp)
-                                  .count();
-             auto mem_diff = static_cast<int>(records[i].rss) - static_cast<int>(records[i - 1].rss);
-             std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << records[i].label
-                       << std::right << std::setw(12) << time_diff
-                       << std::right << std::setw(16) << records[i].rss
-                       << " (" << (mem_diff >= 0 ? "+" : "") << mem_diff << ")" << std::endl;
-         }
- 
-         auto total = std::chrono::duration_cast<std::chrono::milliseconds>(
+    {
+        if (records.empty())
+        {
+            std::cout << "No records to display." << std::endl;
+            return;
+        }
+
+        size_t max_label_len = 0;
+        for (const auto &rec : records)
+            max_label_len = std::max(max_label_len, rec.label.length());
+
+        // IMPROVEMENT: Adjust headers for clarity.
+        std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << "Label"
+                  << std::right << std::setw(12) << "Time (ms)"
+                  << std::right << std::setw(20) << "Before (MB)"
+                  << std::right << std::setw(20) << "After (MB)"
+                  << std::right << std::setw(20) << "Diff (MB)" << std::endl;
+        std::cout << std::string(max_label_len + 76, '-') << std::endl;
+
+        unsigned long long total_gpu_mem_allocated = 0;
+
+        for (size_t i = 0; i < records.size(); ++i)
+        {
+            auto time_diff = (i == 0) ? 0 : std::chrono::duration_cast<std::chrono::milliseconds>(
+                                                  records[i].timestamp - records[i - 1].timestamp)
+                                                  .count();
+
+            unsigned long long before_mb = records[i].gpu_mem_offset_before / (1024 * 1024);
+            unsigned long long after_mb = records[i].gpu_mem_offset_after / (1024 * 1024);
+            long long diff_bytes = records[i].gpu_mem_offset_after - records[i].gpu_mem_offset_before;
+            if (records[i].gpu_mem_offset_after < records[i].gpu_mem_offset_before) { // Wrapped
+                diff_bytes = (allocators::atomic::allocator_total - records[i].gpu_mem_offset_before) + records[i].gpu_mem_offset_after;
+            }
+            
+            long long diff_mb = diff_bytes / (1024 * 1024);
+            total_gpu_mem_allocated += diff_bytes;
+
+            std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << records[i].label
+                      << std::right << std::setw(12) << time_diff
+                      << std::right << std::setw(20) << before_mb
+                      << std::right << std::setw(20) << after_mb
+                      << std::right << std::setw(20) << diff_mb
+                      << std::endl;
+        }
+
+        auto total_time = std::chrono::duration_cast<std::chrono::milliseconds>(
                           records.back().timestamp - records.front().timestamp)
                           .count();
-         std::cout << std::string(max_label_len + 32, '-') << std::endl;
-         std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << "Total time"
-                   << std::right << std::setw(12) << total << " ms" << std::endl;
-     }
+        std::cout << std::string(max_label_len + 76, '-') << std::endl;
+        std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << "Total time"
+                  << std::right << std::setw(12) << total_time << " ms" << std::endl;
+        // IMPROVEMENT: Add a final summary for total GPU memory allocated across all iterations.
+        std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << "Total GPU Memory Allocated"
+                  << std::right << std::setw(12) << (total_gpu_mem_allocated / (1024 * 1024)) << " MB" << std::endl;
+    }
  
      int getTimeDifference(const std::string &label1, const std::string &label2) const
      {
@@ -132,4 +153,3 @@
  private:
      std::vector<TimeRecord> records; ///< List of recorded points.
  };
- 

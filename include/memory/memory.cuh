@@ -22,9 +22,14 @@ namespace allocators {
         extern __managed__ char *allocator_base;
         extern __managed__ unsigned long long allocator_offset;
         extern __managed__ unsigned long long allocator_total;
+        extern __managed__ unsigned long long reclaim_boundary;
+        extern __managed__ unsigned long long current_reclaim_boundary;
+        extern __managed__ bool allocator_wrapped;
 
         void init_global_allocator(uint64_t total_memory, bool managed = false);
         void free_global_allocator();
+        void reclaim_memory();
+        void reset_allocator_wrapped_flag();
         __device__ void *gmalloc(unsigned long long size);
         __host__ void *gmalloc_host(unsigned long long size);
         __device__ void gfree(void *ptr);
