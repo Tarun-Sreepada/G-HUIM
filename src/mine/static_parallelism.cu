@@ -1,18 +1,5 @@
-// static_parallelism.cu  (cleaned; shared path kept but disabled at launch)
+// static_parallelism.cu 
 #include "mine/static_parallelism.cuh"
-
-// ------ Debug toggles for device-side logging (very chatty) ------
-#ifndef DEBUG_SM
-#define DEBUG_SM 1
-#endif
-
-#if DEBUG_SM
-#define SMDBG(fmt, ...)   \
-    if (threadIdx.x == 0) \
-    printf("[B%u] " fmt, blockIdx.x, ##__VA_ARGS__)
-#else
-#define SMDBG(fmt, ...) ((void)0)
-#endif
 
 __managed__ uint32_t max_task_memory;
 const size_t SHARED_MEM_HEURISTIC_FACTOR = 3; // input DB + output DB + temp
@@ -331,6 +318,8 @@ __device__ void write_merge(Transaction *temporary_transactions,
 
         for (int j = 0; j < idx; ++j)
             nt[j] = temp_item_buffer[j];
+
+            // temp_item_buffer[idx] = Item{0, 0}; // sentinel
 
         // 3) subtree utils + merge duplicates
         uint64_t hash = 0;
@@ -870,6 +859,27 @@ __device__ __forceinline__ void smem_build_projected_db(Task &s_curr,
     scan_smem(s_curr, s_new, local_subtree_utilities, temporary_transactions,
               p_temp_transaction_count, p_temp_item_count);
 
+    if (threadIdx.x == 0)
+    {
+        printf("Thread %d, scanning for item %u found %u transactions with %u items\n",
+               threadIdx.x, s_curr.primary, *p_temp_transaction_count, *p_temp_item_count);
+
+        printf("Original DB had %u transactions, %u unique items\n",
+               s_curr.db->num_transactions, s_curr.unique_items);
+
+        printf("Local utilities:\n");
+        for (int i = 0; i < s_curr.unique_items * scale; ++i)
+        {
+            if (local_subtree_utilities[i].key != 0)
+            {
+                printf("  Item %u: local_util=%u, subtree_util=%u\n",
+                       local_subtree_utilities[i].key,
+                       local_subtree_utilities[i].local_utility,
+                       local_subtree_utilities[i].subtree_utility);
+            }
+        }
+    }
+
     // Step 2: Add the candidate pattern to the results list.
     p->add_pattern(s_new, min_util);
 
@@ -878,9 +888,9 @@ __device__ __forceinline__ void smem_build_projected_db(Task &s_curr,
     {
         allocate_smem(s_new, *p_temp_item_count, *p_temp_transaction_count, alloc);
 
-        write_merge_smem(temporary_transactions, *p_temp_transaction_count,
-                         transaction_hashes, local_subtree_utilities, s_new, min_util,
-                         s_curr.db->num_transactions, s_curr.unique_items);
+        // write_merge_smem(temporary_transactions, *p_temp_transaction_count,
+        //                  transaction_hashes, local_subtree_utilities, s_new, min_util,
+        //                  s_curr.db->num_transactions, s_curr.unique_items);
         
     //     // If merging duplicates creates empty slots, compact the transaction array.
     //     // After this, s_new.db->num_transactions might be 0.
@@ -1080,6 +1090,11 @@ void static_parallel_mining(built_file &bf,
 
             for (int i = 1; i < dist_size; ++i)
             {
+                printf("  Dist[%d] = %6d\n", i*32, transaction_distribution[i]);
+            }
+
+            for (int i = 1; i < dist_size; ++i)
+            {
                 const uint32_t num_tasks = transaction_distribution[i];
                 if (num_tasks > 0)
                 {
@@ -1118,22 +1133,27 @@ void static_parallel_mining(built_file &bf,
         //     curr_stack, new_stack, p,
         //     (uint32_t)parser.get_uint32("--minutil"),
         //     transaction_distribution);
-        if (use_shared_memory_path)
-        {
-            printf("  Launching %u blocks of %u threads (shared mem: %zu KB)\n",
-                   curr_stack->top, thread_count, dynamic_smem_size / 1024);
-            mine<<<curr_stack->top, thread_count, dynamic_smem_size>>>(
-                curr_stack, new_stack, p,
-                (uint32_t)parser.get_uint32("--minutil"),
-                transaction_distribution);
-        }
-        else
-        {
-            mine<<<curr_stack->top, thread_count>>>(
-                curr_stack, new_stack, p,
-                (uint32_t)parser.get_uint32("--minutil"),
-                transaction_distribution);
-        }
+        // if (use_shared_memory_path)
+        // {
+        //     // printf("  Launching %u blocks of %u threads (shared mem: %zu KB)\n",
+        //     //        curr_stack->top, thread_count, dynamic_smem_size / 1024);
+        //     // mine_shared
+        //         mine
+        //         <<<
+        //         curr_stack->top
+        //         // 1
+        //         , thread_count, dynamic_smem_size>>>(
+        //         curr_stack, new_stack, p,
+        //         (uint32_t)parser.get_uint32("--minutil"),
+        //         transaction_distribution);
+        // }
+        // else
+        // {
+        mine<<<curr_stack->top, thread_count>>>(
+            curr_stack, new_stack, p,
+            (uint32_t)parser.get_uint32("--minutil"),
+            transaction_distribution);
+        // }
 
         gpuErrchk(cudaPeekAtLastError());
         gpuErrchk(cudaDeviceSynchronize());
