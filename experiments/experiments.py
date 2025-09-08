@@ -343,14 +343,21 @@ def plot_total(csv_path="combined_results.csv"):
             left_pos = positions[static_indices[0]] - bar_width / 2
             right_pos = positions[static_indices[-1]] + bar_width / 2
             ax.text((left_pos + right_pos) / 2, max(static_bar_heights.values() or [0]) * 1.05,
-                    "|<-- GS-HUIM (static) -->|", ha="center", va="bottom", fontsize=9)
+                    "|<----------- GS-HUIM (static) ----------->|", ha="center", va="bottom", fontsize=9)
         
         ax.set_ylabel("Execution Time (s)", fontsize=12)
         ax.set_xticks(positions)
         ax.set_xticklabels([])
+
+
+        title = file_name.split("_")[0].capitalize()
+        plt.title(f"{title}")
         ax.grid(True, axis='y', linestyle='--', alpha=0.7)
         ax.set_ylim(top=ax.get_ylim()[1] * 1.15)
         fig.tight_layout()
+
+
+
         plt.savefig(f"{file_name}_breakdown.png", dpi=300)
         plt.close(fig)
 
@@ -395,8 +402,13 @@ def plot_total(csv_path="combined_results.csv"):
 
         ax.set_xticks(utils)
         ax.set_xticklabels(xtick_labels, rotation=45, ha="right", fontsize=9)
+        plt.title(f"Total Execution Time vs. Minimum Utility on {title}")
+
         
         fig.tight_layout()
+        # title = file_base.split("_")[0]
+        title = file_name.split("_")[0]
+
         plt.savefig(f"{file_name}_total_time_vs_util.png", dpi=300)
         plt.close(fig)
 
@@ -430,6 +442,24 @@ def plot_total(csv_path="combined_results.csv"):
             plt.tight_layout()
             plt.savefig("legend_methods.png", bbox_inches="tight", pad_inches=0.1, dpi=300)
             plt.close(fig_method_leg)
+
+
+
+            # Line Legend
+            fig_line_leg, ax_line_leg = plt.subplots(figsize=(len(all_methods) * 1.5 / 2, 2.5))
+            line_handles = []
+            for m in all_methods:
+                nice_name = method_nice_names.get(m, m)
+                handle = plt.Line2D([0], [0], color=method_colors[m], 
+                                    linestyle=method_linestyles[m], marker=method_markers[m], 
+                                    markersize=8, label=nice_name)
+                line_handles.append(handle)
+            ax_line_leg.axis("off")
+            ax_line_leg.legend(handles=line_handles, title="Method", loc="center", ncol=2, frameon=False)
+            plt.tight_layout()
+            plt.savefig("legend_lines.png", bbox_inches="tight", pad_inches=0.1, dpi=300)
+            plt.close(fig_line_leg)
+
             
             legends_generated = True
 
@@ -472,6 +502,22 @@ if __name__ == '__main__':
                 "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
                 [9000, 10000, 11000, 12000, 13000, 14000, 15000]
             ],
+            [
+                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg5.txt",
+                [5, 10, 15, 20, 25, 30, 35]
+            ],
+            [
+                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg10.txt",
+                [90000, 100000, 110000, 120000, 130000, 140000, 150000]
+            ],
+            [
+                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni50_avg10.txt",
+                [75000, 80000, 85000, 90000, 95000, 100000, 105000]
+            ],
+            [
+                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni25_avg10.txt",
+                [10, 20, 30, 40, 50, 60, 70]
+            ]
         ]
 
     results_df = load_results()

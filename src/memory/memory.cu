@@ -17,56 +17,6 @@ namespace allocators {
 
         __managed__ bool allocator_wrapped = false;
 
-        void print_memory_map()
-        {
-            printf("--- GPU Memory Map ---\n");
-            // All values converted to MB for readability
-            unsigned long long int total_mb = allocator_total / (1024 * 1024);
-            unsigned long long int current_b_mb = current_reclaim_boundary / (1024 * 1024);
-            unsigned long long int next_b_mb = next_reclaim_boundary / (1024 * 1024);
-            unsigned long long int offset_mb = allocator_offset / (1024 * 1024);
-
-            // This logic handles both the normal (linear) and wrapped-around cases.
-            // By sorting the points of interest, we can iterate through the segments correctly.
-            std::vector<std::pair<unsigned long long int, std::string>> points;
-            points.push_back({0, "Start"});
-            points.push_back({current_reclaim_boundary, "Current Boundary"});
-            points.push_back({next_reclaim_boundary, "Next Boundary"});
-            points.push_back({allocator_offset, "Offset"});
-            points.push_back({allocator_total, "End"});
-
-            // Remove duplicate points and sort
-            std::sort(points.begin(), points.end());
-            points.erase(std::unique(points.begin(), points.end()), points.end());
-
-            for (size_t i = 0; i < points.size() - 1; ++i)
-            {
-                unsigned long long int start = points[i].first;
-                unsigned long long int end = points[i+1].first;
-
-                if (start == end) continue; // Skip zero-sized segments
-
-                // Determine the status of the segment between start and end
-                std::string status = "UNKNOWN";
-                if (!allocator_wrapped) { // Linear allocation
-                    if (start >= 0 && end <= current_reclaim_boundary) status = "FREE (Reclaimable)";
-                    else if (start >= current_reclaim_boundary && end <= next_reclaim_boundary) status = "USED (Prev Iter)";
-                    else if (start >= next_reclaim_boundary && end <= allocator_offset) status = "USED (Curr Iter)";
-                    else if (start >= allocator_offset && end <= allocator_total) status = "FREE (Unallocated)";
-                } else { // Wrapped around
-                    if (start >= 0 && end <= allocator_offset) status = "USED (Curr Iter) -- WRAPPED";
-                    else if (start >= allocator_offset && end <= current_reclaim_boundary) status = "FREE (Reclaimable)";
-                    else if (start >= current_reclaim_boundary && end <= next_reclaim_boundary) status = "USED (Prev Iter)";
-                    else if (start >= next_reclaim_boundary && end <= allocator_total) status = "FREE (Reclaimable)";
-                }
-                
-                unsigned long long start_mb = start / (1024*1024);
-                unsigned long long end_mb = end / (1024*1024);
-                printf("  [%llu -> %llu MB] (%llu MB): %s\n", start_mb, end_mb, end_mb - start_mb, status.c_str());
-            }
-            printf("----------------------\n");
-        }
-
         void init_global_allocator(uint64_t total_memory, bool managed)
         {
             allocator_total = total_memory;
