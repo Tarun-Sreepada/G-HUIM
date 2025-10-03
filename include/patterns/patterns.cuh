@@ -48,4 +48,28 @@ struct patterns
             __syncthreads();
         }
     }
+
+    __device__ void add_pattern_st(Task &task, uint32_t min_util)
+    {
+        if (task.utility >= min_util)
+        {
+            atomicAdd(&pattern_count, 1); // Increment the pattern count
+
+            // // Store the utility
+            // uint32_t pattern_offset;
+            // // if (threadIdx.x == 0)
+            // {
+            //     pattern_offset = atomicAdd(&offset, (task.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
+            //     data[pattern_offset + task.pattern_length] = task.utility;      // Store the utility
+            // }
+            // // __syncthreads();
+
+            // // Copy the pattern to the global memory
+            // for (int i = 0; i < task.pattern_length; i++)
+            // {
+            //     data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
+            // }
+            // // __syncthreads();
+        }
+    }
 };

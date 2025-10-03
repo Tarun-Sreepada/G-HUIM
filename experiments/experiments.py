@@ -83,6 +83,7 @@ def parse_metrics_cu(output):
 
     for line in output.splitlines():
         print([x for x in line.split() if x != ""])  # Debug: Print each line split into parts
+        print("Iteration total so far:", iteration_total)  # Debug: Print current iteration total
 
         # IMPROVEMENT: More robust parsing that isn't strictly dependent on split index.
         if "Read" in line:
@@ -97,6 +98,7 @@ def parse_metrics_cu(output):
             metrics["mining"] = int(line.split()[2])
         elif line.startswith("Iteration"):
             try:
+                print("Parsing iteration line has time:", line.split()[2], iteration_total)  # Debug
                 iteration_total += int(line.split()[2])
             except (IndexError, ValueError):
                 pass
@@ -105,6 +107,7 @@ def parse_metrics_cu(output):
 
     parse_time = metrics["read"] + metrics["parse_temp"]
     build_time = metrics["build"]
+    print("Iteration total time:", iteration_total, "Mining time:", metrics["mining"])
     search_time = iteration_total + metrics["mining"]
     twu_time = metrics["twu"]
 
@@ -167,6 +170,7 @@ def run_cuDPEFIM(
                 try:
                     proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
                     p, t, b, s, patterns = parse_metrics_cu(proc.stdout)
+                    print(f"Parsed times - P: {p}, T: {t}, B: {b}, S: {s}, Patterns: {patterns}")
                     total = p + t + b + s
                     if best_run is None or total < best_run["total"]:
                         best_run = {"total": total, "p": p, "t": t, "b": b, "s": s, "patterns": patterns}
@@ -468,32 +472,32 @@ def plot_total(csv_path="combined_results.csv"):
 if __name__ == '__main__':
         
     process_data = [
-            [
-                "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-                [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000]
-            ],
+            # [
+            #     "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+            #     [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000]
+            # ],
             [
                 "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
                 [7800000, 7900000, 8000000, 8100000, 8200000, 8300000, 8400000]
             ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-                # 9150000, 9250000, 9350000, 
-                [9450000],
-            ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
-                # , 2002000,2004000,2006000
-                [2000000],
-            ],
+            # [
+            #     "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+            #     # 9150000, 9250000, 9350000, 
+            #     [9450000],
+            # ],
+            # [
+            #     "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+            #     # , 2002000,2004000,2006000
+            #     [2000000],
+            # ],
             [
                 "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
                 [190000, 200000, 210000, 220000, 230000, 240000, 250000]
             ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-                [770000, 780000, 790000, 800000, 810000, 820000, 830000]
-            ],
+            # [
+            #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            #     [770000, 780000, 790000, 800000, 810000, 820000, 830000]
+            # ],
             [
                 "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
                 [1430, 1435, 1440, 1445, 1450, 1455, 1460]
@@ -501,30 +505,14 @@ if __name__ == '__main__':
             [
                 "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
                 [9000, 10000, 11000, 12000, 13000, 14000, 15000]
-            ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg5.txt",
-                [5, 10, 15, 20, 25, 30, 35]
-            ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg10.txt",
-                [90000, 100000, 110000, 120000, 130000, 140000, 150000]
-            ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni50_avg10.txt",
-                [75000, 80000, 85000, 90000, 95000, 100000, 105000]
-            ],
-            [
-                "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni25_avg10.txt",
-                [10, 20, 30, 40, 50, 60, 70]
             ]
         ]
 
     results_df = load_results()
     # block_sizes = [32, 64, 128, 256, 512, 1024]
-    block_sizes = [32, 64, 128, 256, 512, 1024]
-    for bs in block_sizes:
-        run_cuDPEFIM(process_data, "SP", adaptive=False, block_size=bs, repeats=1)
+    # block_sizes = [32, 64, 128, 256, 512, 1024]
+    # for bs in block_sizes:
+    #     run_cuDPEFIM(process_data, "SP", adaptive=False, block_size=bs, repeats=1)
     run_cuDPEFIM(process_data, "SP", adaptive=True, repeats=1)
     run_dphim(process_data, methods=["dphim"], cores=48, repeats=1)
     plot_total()

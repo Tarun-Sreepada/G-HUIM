@@ -20,3 +20,5 @@ Thumbs.db
 
 # Other
 run.sh
+
+datasets/*.txt
