@@ -99,6 +99,15 @@ int main(int argc, char *argv[])
     timer.recordPoint("CUDA Warmup");
 
     // Parse File
+    // check if file exists and is a file and not a directory
+    std::ifstream infile(parser.get("--input"));
+    if (!infile.good())
+    {
+        std::cerr << "Error: Input file does not exist or is not a file: " << parser.get("--input") << "\n";
+        return 1;
+    }
+    infile.close();
+
     // Parsed pf = gpuParse(parser.get("--input"), parser.get_uint32("--threads"), parser.get_separator("--separator"));
     Parsed pf = gpuParse(parser.get("--input"), parser.get_separator("--separator"));
     timer.recordPoint("Parse");

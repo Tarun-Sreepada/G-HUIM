@@ -37,15 +37,6 @@ Below is a snapshot of the project structure (excluding `build/` and `docs/` dir
 
 ## Build Instructions
 
-### Debug Build
-
-To build the project in Debug mode, run the following commands:
-
-```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
-cmake --build build -- -j$(nproc)
-```
-
 ### Release Build
 
 To build the project in Release mode, run the following commands:

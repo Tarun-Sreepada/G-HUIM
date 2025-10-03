@@ -1,0 +1,73 @@
+Input File: /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt
+Minimum utility: 8000000
+Separator: ' '
+Output File: /dev/null
+Managed Memory: false
+Adaptive: true
+File size: 16928741 bytes
+Buffer allocated: 16928741 bytes
+Lines: 67557, Est. Items: 5674788
+Max line length: 262 bytes
+Max item: 129
+Total items parsed: 2904951
+Top and smallest: 59 0
+Iteration  1:     59 tasks, adaptive block size 1024
+  Dist[0] =    165
+  Dist[32] =   1340
+Top and smallest: 674 165
+Iteration  2:    674 tasks, adaptive block size   32
+  Dist[0] =   4877
+  Dist[32] =   6288
+Top and smallest: 4805 4877
+Iteration  3:   4805 tasks, adaptive block size   32
+  Dist[0] =  44938
+  Dist[32] =  17684
+Top and smallest: 25054 44938
+Iteration  4:  25054 tasks, adaptive block size   32
+  Dist[0] = 244878
+  Dist[32] =  20173
+Top and smallest: 100731 244878
+Iteration  5: 100731 tasks, adaptive block size   32
+  Dist[0] = 861547
+  Dist[32] =   9694
+Top and smallest: 334401 861547
+Iteration  6: 334401 tasks, adaptive block size   32
+  Dist[0] = 2353190
+  Dist[32] =   1662
+Top and smallest: 951457 2353190
+Iteration  7: 951457 tasks, adaptive block size   32
+  Dist[0] = 5420270
+  Dist[32] =     57
+Top and smallest: 2365898 5420270
+Iteration  8: 2365898 tasks, adaptive block size   32
+  Dist[0] = 10890920
+Top and smallest: 5158043 10890920
+Iteration  9: 5158043 tasks, all tasks require 1 thread each
+Output is directed to /dev/null, no file will be created.
+Memory Usage Summary:
+  Total: 49152 MB
+Label                       Time (ms)         Before (MB)          After (MB)           Diff (MB)
+-------------------------------------------------------------------------------------------------
+Start                                  0              0              0              0
+CUDA Warmup                          754              0              0              0
+Parse                                 24              0              0              0
+CalcTWU                                1              0              0              0
+Build                                  3              0              0              0
+Allocator Initialized                  6              0              0              0
+Patterns Allocated                     0              0              0              0
+Iteration 1                           45             23            552            529
+Iteration 2                           58            552            609             57
+Iteration 3                           34            609            645             35
+Iteration 4                           31            645            702             57
+Iteration 5                           39            702            825            123
+Iteration 6                           62            825           1096            270
+Iteration 7                          112           1096           1661            565
+Iteration 8                          205           1661           2736           1075
+Iteration 9                           24           2736           2736              0
+Mining Completed                      30              0              0              0
+Save                                   0              0              0              0
+End                                   31              0              0              0
+-------------------------------------------------------------------------------------------------
+Total time                       1465 ms
+Total GPU Memory Allocated        2713 MB
+Number of patterns: 485555

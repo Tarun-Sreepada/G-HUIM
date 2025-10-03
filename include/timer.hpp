@@ -117,10 +117,10 @@
             total_gpu_mem_allocated += diff_bytes;
 
             std::cout << std::left << std::setw(static_cast<int>(max_label_len) + 4) << records[i].label
-                      << std::right << std::setw(12) << time_diff
-                      << std::right << std::setw(20) << before_mb
-                      << std::right << std::setw(20) << after_mb
-                      << std::right << std::setw(20) << diff_mb
+                      << std::right << std::setw(15) << time_diff
+                      << std::right << std::setw(15) << before_mb
+                      << std::right << std::setw(15) << after_mb
+                      << std::right << std::setw(15) << diff_mb
                       << std::endl;
         }
 
