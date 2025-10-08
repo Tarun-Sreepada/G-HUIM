@@ -4,6 +4,8 @@
 #include <stdint.h>
 #include <string.h>
 #include <iostream>
+#include <cstdint>
+#include <vector>
 
 #define gpuErrchk(ans) { gpuAssert((ans), __FILE__, __LINE__); }
 inline void gpuAssert(cudaError_t code, const char *file, int line, bool abort=true)
@@ -22,14 +24,15 @@ namespace allocators {
         extern __managed__ char *allocator_base;
         extern __managed__ unsigned long long allocator_offset;
         extern __managed__ unsigned long long allocator_total;
-        extern __managed__ unsigned long long reclaim_boundary;
-        extern __managed__ unsigned long long current_reclaim_boundary;
-        extern __managed__ bool allocator_wrapped;
 
-        void init_global_allocator(uint64_t total_memory, bool managed = false);
+
+        void init_global_allocator(unsigned long long int total_memory, bool managed = false);
         void free_global_allocator();
+
+
         void reclaim_memory();
-        void reset_allocator_wrapped_flag();
+        void record_memory_usage();
+
         __device__ void *gmalloc(unsigned long long size);
         __host__ void *gmalloc_host(unsigned long long size);
         __device__ void gfree(void *ptr);

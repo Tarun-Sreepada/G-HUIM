@@ -41,7 +41,7 @@ struct Task
     __host__ __device__
     bool is_empty() const
     {
-        return pattern == nullptr && db == nullptr && pattern_length == 0;
+        return pattern == 0 && db == 0 && pattern_length == 0;
     }
 
     __host__ __device__

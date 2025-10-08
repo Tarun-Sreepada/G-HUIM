@@ -12,9 +12,9 @@ JAVA_XMX = "64G"                         # bump if you like
 SEED     = 12345
 
 # scale grids (tweak as needed)
-NUM_TRANSACTIONS = [10**7]        # be realistic; 1e9+ will blow disk/IO
+NUM_TRANSACTIONS = [10**6]        # be realistic; 1e9+ will blow disk/IO
 NUM_ITEMS        = [10,25,50]
-TX_LENGTHS       = [5, 10]              # “items per transaction” in SPMF generator
+TX_LENGTHS       = [5, 10, 25]              # “items per transaction” in SPMF generator
 
 # ---------- SPMF bootstrap ----------
 def ensure_spmf(jar_path: Path = SPMF_JAR):

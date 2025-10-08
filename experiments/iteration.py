@@ -15,7 +15,7 @@ from matplotlib.patches import Patch
 # Persistent cache (CSV) utilities                                            #
 ###############################################################################
 
-CSV_CACHE = Path("iteration_times_cache_v2.csv")
+CSV_CACHE = Path("iterations.csv")
 
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
@@ -245,7 +245,7 @@ from matplotlib.patches import Patch
 # Persistent cache (CSV) utilities                                            #
 ###############################################################################
 
-CSV_CACHE = Path("iteration_times_cache_v2.csv")
+CSV_CACHE = Path("iterations.csv")
 
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
@@ -611,35 +611,35 @@ def plot_for_configs(
 
 
 if __name__ == "__main__":
-    block_sizes = [32, 64, 128, 256, 512, 1024]
+    block_sizes = [32]
 
     process_data = [
-        [
-            "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000],
-        ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+        #     [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000],
+        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
             [7800000, 7900000, 8000000, 8100000, 8200000, 8300000, 8400000],
         ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            # 9150000, 9250000, 9350000,
-            [9450000],
-        ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
-            # , 2002000,2004000,2006000
-            [2000000],
-        ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+        #     # 9150000, 9250000, 9350000,
+        #     [9450000],
+        # ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+        #     # , 2002000,2004000,2006000
+        #     [2000000],
+        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
             [190000, 200000, 210000, 220000, 230000, 240000, 250000],
         ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-            [770000, 780000, 790000, 800000, 810000, 820000, 830000],
-        ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+        #     [770000, 780000, 790000, 800000, 810000, 820000, 830000],
+        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
             [1430, 1435, 1440, 1445, 1450, 1455, 1460],

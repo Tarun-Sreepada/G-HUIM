@@ -50,12 +50,6 @@ cmake --build build -- -j$(nproc)
 
 ## Dependencies
 
-Make sure the following dependency is installed before building:
-
-```bash
-sudo apt install liburing-dev
-```
-
 ---
 
 ## Running the Application

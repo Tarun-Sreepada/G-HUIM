@@ -5,10 +5,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 from matplotlib.ticker import FuncFormatter, LogLocator
+import re
+
+# --- Plotting ---
+import os
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.patches import Patch
 
 # --- Data Loading and Saving ---
 
-def load_results(csv_path="combined_results.csv"):
+def load_results(csv_path="results.csv"):
     """Load results from CSV or create a new DataFrame if it doesn't exist."""
     if os.path.exists(csv_path):
         return pd.read_csv(csv_path)
@@ -20,7 +28,7 @@ def load_results(csv_path="combined_results.csv"):
     ]
     return pd.DataFrame(columns=cols)
 
-def save_results(df, csv_path="combined_results.csv"):
+def save_results(df, csv_path="results.csv"):
     """Save results DataFrame to CSV."""
     # Ensure columns are in a consistent order before saving
     ordered_cols = [
@@ -139,7 +147,7 @@ def parse_metrics_dphim(output):
 
 def run_cuDPEFIM(
     process_data, method, managed=False, adaptive=False,
-    total_memory="78G", block_size=1024, repeats=10, csv_path="combined_results.csv"
+    total_memory="78G", block_size=1024, repeats=10, csv_path="results.csv"
 ):
     if method not in ("DP", "SP"):
         raise ValueError("Invalid method: choose 'DP' or 'SP'")
@@ -188,7 +196,7 @@ def run_cuDPEFIM(
                 df = append_if_best(df, entry, csv_path)
 
 def run_dphim(
-    process_data, methods, cores, repeats=10, csv_path="combined_results.csv"
+    process_data, methods, cores, repeats=10, csv_path="results.csv"
 ):
     df = load_results(csv_path)
 
@@ -224,14 +232,110 @@ def run_dphim(
                     }
                     df = append_if_best(df, entry, csv_path)
 
-# --- Plotting ---
-import os
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.patches import Patch
 
-def plot_total(csv_path="combined_results.csv"):
+def parse_metrics_pha(output):
+    """
+    Parse pha stdout like:
+    ========================================
+    Total High-Utility Itemsets Found: 26
+    Total Time on GPU: 28.3768 ms
+    Total Time on CPU: 49.643 ms
+    Total time: 78.0198 ms
+    ========================================
+    Returns: parse_time_ms, twu_time_ms, build_time_ms, search_time_ms, patterns_count
+    (We map CPU -> Build_Time (ms) and GPU -> Search_Time (ms). Parse/TWU set to 0.)
+    """
+    gpu_ms = None
+    cpu_ms = None
+    total_ms = None
+    patterns = None
+
+    for line in output.splitlines():
+        line = line.strip()
+        # itemsets
+        if line.lower().startswith("total high-utility itemsets found"):
+            m = re.search(r":\s*([0-9]+)", line)
+            if m:
+                patterns = int(m.group(1))
+        # GPU time (ms)
+        elif "Total Time on GPU" in line or "Total time on GPU" in line:
+            m = re.search(r"([\d\.]+)\s*ms", line)
+            if m:
+                gpu_ms = float(m.group(1))
+        # CPU time (ms)
+        elif "Total Time on CPU" in line or "Total time on CPU" in line:
+            m = re.search(r"([\d\.]+)\s*ms", line)
+            if m:
+                cpu_ms = float(m.group(1))
+        # overall total time (ms)
+        elif line.lower().startswith("total time:") or line.lower().startswith("total time"):
+            m = re.search(r"([\d\.]+)\s*ms", line)
+            if m:
+                total_ms = float(m.group(1))
+
+    # Fallbacks if some fields missing
+    if gpu_ms is None:
+        gpu_ms = 0.0
+    if cpu_ms is None:
+        # if total_ms exists but cpu missing and gpu present, try to infer:
+        if total_ms is not None and gpu_ms is not None:
+            cpu_ms = max(0.0, total_ms - gpu_ms)
+        else:
+            cpu_ms = 0.0
+    if patterns is None:
+        patterns = 0
+
+    # Map to your DataFrame columns (all in milliseconds)
+    parse_time = 0.0            # not split out by pha
+    twu_time = 0.0             # not reported by pha
+    build_time = cpu_ms        # CPU = build + parse (lumped into build)
+    search_time = gpu_ms       # GPU = search
+    return parse_time, twu_time, build_time, search_time, patterns
+
+
+def run_pha(process_data, repeats=3, pha_bin="./pha", csv_path="results.csv"):
+    """
+    Run pha on the datasets. pha invocation style:
+      ./pha <input-file> <minutil>
+    Stores results into the same CSV via append_if_best.
+    """
+    df = load_results(csv_path)
+
+    for file_path, min_utils in process_data:
+        base = os.path.splitext(os.path.basename(file_path))[0]
+        for min_util in min_utils:
+            if has_run_before(df, "PHA", "PHA", base, min_util):
+                print(f"Skipping PHA {base} min_util={min_util}")
+                continue
+
+            best_run = None
+            for i in range(repeats):
+                cmd = [pha_bin, file_path, str(min_util)]
+                print(f"PHA Run {i+1}/{repeats}: {' '.join(cmd)}")
+                try:
+                    proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    p, t, b, s, patterns = parse_metrics_pha(proc.stdout)
+                    total = p + t + b + s
+                    print(f"PHA parsed (ms): Parse={p}, TWU={t}, Build={b}, Search={s}, Patterns={patterns}, Total={total}")
+                    if best_run is None or total < best_run["total"]:
+                        best_run = {"total": total, "p": p, "t": t, "b": b, "s": s, "patterns": patterns}
+                except subprocess.CalledProcessError as e:
+                    print(f"PHA run failed: {e.stderr}")
+                    break
+
+            if best_run:
+                entry = {
+                    "Algorithm": "PHA", "Method": "PHA", "File": base,
+                    "Minimum_Utility": int(min_util), "Parse_Time": best_run["p"],
+                    "TWU_Time": best_run["t"], "Build_Time": best_run["b"],
+                    "Search_Time": best_run["s"], "Frequent_Patterns": best_run["patterns"]
+                }
+                df = append_if_best(df, entry, csv_path)
+
+    return df
+
+
+def plot_total(csv_path="results.csv"):
     """
     Generates bar and line plots to visualize algorithm performance results from a CSV file.
     
@@ -469,13 +573,15 @@ def plot_total(csv_path="combined_results.csv"):
 
     print("Finished generating all plots and legends.")
 
+
+
 if __name__ == '__main__':
         
     process_data = [
-            # [
-            #     "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            #     [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000]
-            # ],
+            [
+                "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+                [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000]
+            ],
             [
                 "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
                 [7800000, 7900000, 8000000, 8100000, 8200000, 8300000, 8400000]
@@ -507,14 +613,15 @@ if __name__ == '__main__':
                 [9000, 10000, 11000, 12000, 13000, 14000, 15000]
             ]
         ]
+                
+
 
     results_df = load_results()
-    # block_sizes = [32, 64, 128, 256, 512, 1024]
     # block_sizes = [32, 64, 128, 256, 512, 1024]
     # for bs in block_sizes:
     #     run_cuDPEFIM(process_data, "SP", adaptive=False, block_size=bs, repeats=1)
     run_cuDPEFIM(process_data, "SP", adaptive=True, repeats=1)
-    run_dphim(process_data, methods=["dphim"], cores=48, repeats=1)
+    run_dphim(process_data, methods=["dphim"], cores=48, repeats=3)
+    run_pha(process_data, repeats=1, pha_bin="/export/home1/ltarun/cuDPEFIM/datasets/pha")
     plot_total()
-# plot_cuDPEFIM_speedup_by_file()
 

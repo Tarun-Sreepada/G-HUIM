@@ -269,8 +269,9 @@ Parsed gpuParse(const std::string &filename, const char separator)
     std::cout << "Buffer allocated: " << file_size << " bytes\n";
 
     int fd = open(filename.c_str(), O_RDONLY);
-    if (fd < 0) { /* ... error handling ... */ cudaFree(buf); return pf; }
-    read(fd, buf, file_size);
+    if (fd < 0) { cudaFree(buf); return pf; }
+    int ret = read(fd, buf, file_size);
+    if (ret < 0 || static_cast<uint64_t>(ret) != file_size) { cudaFree(buf); close(fd); return pf; }
     close(fd);
 
     cudaMemAdvise(buf, file_size, cudaMemAdviseSetReadMostly, 0);
@@ -328,8 +329,10 @@ Parsed gpuParse(const std::string &filename, const char separator)
 
     // The final boundary is the end of the file. This acts as a sentinel for the last line,
     // making the logic in the parsing kernel identical for all lines.
+
     line_positions[*line_count] = static_cast<uint32_t>(file_size);
     CUDA_CHECK(cudaDeviceSynchronize());
+
 
 
     // ... The rest of the function continues ...
@@ -344,8 +347,6 @@ Parsed gpuParse(const std::string &filename, const char separator)
 
     gridSize = (*line_count);
 
-    // FIX: This kernel does not use dynamic shared memory. The third launch
-    // parameter should be 0 or omitted.
     get_items_per_line<<<gridSize, blockSize>>>(buf, line_positions,
                                                items_per_line,
                                                separator, max_diff);
