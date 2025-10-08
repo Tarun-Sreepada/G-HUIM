@@ -1,6 +1,4 @@
-#include <cstdio>
-#include <cstdlib>
-#include <iostream>
+#include "memory/memory.cuh"
 
 namespace allocators {
     namespace atomic {
@@ -9,15 +7,11 @@ namespace allocators {
         __managed__ char *allocator_base = nullptr;
         __managed__ unsigned long long int allocator_offset = 0;
         __managed__ unsigned long long int allocator_total = 0;
-        
-        // This marks the end of the memory used by the previous iteration.
-        __managed__ unsigned long long int current_reclaim_boundary = 0;
-        // This will mark the end of the memory for the current iteration.
-        __managed__ unsigned long long int next_reclaim_boundary = 0;
 
-        __managed__ bool allocator_wrapped = false;
+        std::vector<unsigned long long> allocation_sizes;
 
-        void init_global_allocator(uint64_t total_memory, bool managed)
+
+        void init_global_allocator(unsigned long long int total_memory, bool managed)
         {
             allocator_total = total_memory;
 
@@ -46,57 +40,39 @@ namespace allocators {
                 }
             }
             allocator_offset = 0;
-            current_reclaim_boundary = 0;
-            next_reclaim_boundary = 0;
-            allocator_wrapped = false;
+        }
+
+
+        void record_memory_usage()
+        {
+            allocation_sizes.push_back(allocator_offset);
         }
 
         void reclaim_memory()
         {
-            // 1. Calculate state from the iteration that just finished
-            unsigned long long int used_in_last_iteration;
-            if (allocator_offset >= next_reclaim_boundary) {
-                used_in_last_iteration = allocator_offset - next_reclaim_boundary;
-            } else {
-                used_in_last_iteration = (allocator_total - next_reclaim_boundary) + allocator_offset;
+            if (allocation_sizes.size() < 3)
+            {
+                // Not enough data to reclaim memory
+                return;
             }
 
-            // 2. Advance the boundaries
-            current_reclaim_boundary = next_reclaim_boundary;
-            next_reclaim_boundary = allocator_offset;
+            // get the boundary
+            uint64_t boundary = allocation_sizes[allocation_sizes.size() - 3];
+            uint64_t front = allocator_total - allocator_offset;
+            uint64_t back = boundary;
 
-            // 3. Define free-space regions
-            unsigned long long int space_at_end = allocator_total - allocator_offset;
-            unsigned long long int space_at_start = current_reclaim_boundary;
-
-            // 4. Safer decision logic
-            bool should_wrap = (space_at_start > space_at_end) && (space_at_start >= used_in_last_iteration);
-
-            // 5. Execute decision and memset
-            if (should_wrap)
-            {
-                if (space_at_start > 0) {
-                    // FIX: Use the asynchronous version to avoid stalling the CPU.
-                    cudaMemset(allocator_base, 0, space_at_start);
-                }
+            if (front < back){
                 allocator_offset = 0;
-                allocator_wrapped = true;
-            }
-            else
-            {
-                if (space_at_end > 0) {
-                    cudaMemset(allocator_base + allocator_offset, 0, space_at_end);
-                }
+                printf("Reclaiming memory. New offset: %llu\n", allocator_offset);
+                for (size_t i = 0; i < allocation_sizes.size(); ++i)
+                    std::cout << "Allocation " << i << ": " << allocation_sizes[i] << " bytes\n";
+                allocation_sizes.clear();
+                cudaMemset(allocator_base, 0, boundary);
+                printf("Memory reclaimed up to boundary: %llu bytes\n", boundary);
             }
 
-            #ifdef DEBUG
-                // This debug output can remain as is.
-            #endif
-        }
+            // debug 
 
-        void reset_allocator_wrapped_flag()
-        {
-            allocator_wrapped = false;
         }
 
         void free_global_allocator()
@@ -117,9 +93,7 @@ namespace allocators {
         {
             size = (size + 7) & ~7ULL;  // align to 8 bytes
             unsigned long long int ret = atomicAdd(&allocator_offset, size);
-            // TODO: Add a check to ensure ret + size <= allocator_total if not wrapping,
-            // or ret + size <= current_reclaim_boundary if it is wrapping.
-            // This would require kernel-side knowledge of the boundaries.
+        
             return allocator_base + ret;
         }
 

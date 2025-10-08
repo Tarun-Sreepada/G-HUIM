@@ -1,9 +1,9 @@
 #pragma once
 
-#include "file/parse.hpp"   
 #include "data_types/data_types.cuh"
 #include "args.hpp"
 #include "file/parse.cuh"
+#include "file/parse.hpp"
 
 
 struct Item_mapping

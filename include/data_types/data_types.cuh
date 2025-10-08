@@ -2,6 +2,7 @@
 #include <cstdint>
 #include "data_types.hpp"
 
+
 struct Transaction
 {
     Item *data = nullptr; ///< Pointer to array of items.
@@ -12,10 +13,12 @@ struct Transaction
 
     __device__ __host__ Item &operator[](unsigned int index) { return data[index]; }
     __device__ __host__ const Item &operator[](unsigned int index) const { return data[index]; }
+
     __device__ __host__ Item *begin() { return data; }
     __device__ __host__ Item *end() { return data + length; }
     __device__ __host__ const Item *begin() const { return data; }
     __device__ __host__ const Item *end() const { return data + length; }
+
     __device__ __host__ bool is_empty() const { return length == 0; }
     __device__ __host__ void clear()
     {
@@ -24,23 +27,7 @@ struct Transaction
         utility = 0;
     }
 
-    __device__ __host__ int linear_search(uint32_t item)
-    {
-        if (is_empty() || length == 0)
-        {
-            return -1; // Not found
-        }
-        for (int i = 0; i < length; ++i)
-        {
-            if (data[i].key == item)
-            {
-                return i;
-            }
-        }
-        return -1; // Not found
-    }
-
-    __device__ __host__ int binary_search(uint32_t item)
+    __device__ __host__ int binary_search(uint32_t item) const
     {
         int lr[2] = {0, (int)length - 1};
         int arr[2] = {1, -1};
@@ -60,10 +47,10 @@ struct Transaction
         return -1;
     }
 
-    __device__ __host__ int binary_search_old(uint32_t item)
+    __device__ __host__ int binary_search_old(uint32_t item) const
     {
         int left = 0;
-        int right = length - 1;
+        int right = (int)length - 1;
 
         while (left <= right)
         {
@@ -83,10 +70,11 @@ struct Transaction
         return -1;
     }
 
-    __device__ __host__ uint32_t util_sum(uint32_t start = 0)
+    // util_sum doesn't modify the Transaction, so make it const
+    __device__ __host__ uint32_t util_sum(uint32_t start = 0) const
     {
         uint32_t total = 0;
-        for (int i = start; i < length; ++i)
+        for (uint32_t i = start; i < length; ++i)
         {
             total += data[i].util;
         }
@@ -120,7 +108,7 @@ struct Database
         if (trans1.length != trans2.length)
             return false;
 
-        for (int i = 0; i < trans1.length; i++)
+        for (uint32_t i = 0; i < trans1.length; i++)
         {
             if (trans1.data[i].key != trans2.data[i].key)
                 return false;
