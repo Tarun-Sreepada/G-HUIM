@@ -67,7 +67,7 @@ int main(int argc, char *argv[])
         parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
         parser.add_argument("--num_blocks", "int", "Number of GPU blocks", false, "0");
         parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
-        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
+        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "1G");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
         parser.add_argument("--method", "string", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
         parser.parse(argc, argv);
@@ -78,6 +78,7 @@ int main(int argc, char *argv[])
         std::cout << "Output File: " << parser.get("--output") << "\n";
         std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
         std::cout << "Adaptive: " << (parser.get_bool("--adaptive") ? "true" : "false") << "\n";
+        std::cout << "Pattern Memory: " << parser.get_memory("--pattern_memory") / (1024 * 1024) << " MB\n";
         
     }
     catch (const std::exception &e)
@@ -137,25 +138,20 @@ int main(int argc, char *argv[])
 
     // Initialize memory for GPU mining
     init_global_allocator(parser.get_memory("--total_memory"), parser.get_bool("--managed"));
-    timer.recordPoint("Allocator Initialized");
+    timer.recordPoint("Allocator Init");
 
     // Allocate memory for patterns
     patterns *p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
+    std::cout << "Pattern memory: " << parser.get_memory("--pattern_memory") / (1024 * 1024) << " MB\n";
     p->init(parser.get_memory("--pattern_memory"));
-    timer.recordPoint("Patterns Allocated");
+    // timer.recordPoint("Patterns Allocated");
 
     size_t shared_memory = get_shared_memory_per_block();
 
-    // if (parser.get("--method") == "SP")
-    // {
-        static_parallel_mining(bf, p, parser, timer, shared_memory);
-    // }
-    // else
-    // {
-    //     std::cerr << "Invalid method: " << parser.get("--method") << "\n";
-    //     return 1;
-    // }
+    std::vector<uint32_t> all_pat;
+
+    static_parallel_mining(bf, p, parser, timer, shared_memory, all_pat);
 
     timer.recordPoint("Mining Completed");
 
@@ -163,7 +159,7 @@ int main(int argc, char *argv[])
         std::cout << "Saving to file: " << parser.get("--output") << "\n";
     #endif
 
-    save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
+    save_patterns(parser.get("--output"), all_pat.data(), all_pat.size(), item_map, pf.max_item);
     timer.recordPoint("Save");
 
     // free allocator
