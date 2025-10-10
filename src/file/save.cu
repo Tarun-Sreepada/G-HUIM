@@ -1,15 +1,15 @@
 #include "file/save.cuh"
 
-
-void save_patterns(const std::string& output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item)
+void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item)
 {
 
-    // if /dev/null is used, do not write to file
+    // if /dev/null is used, do not write to files
     if (output_path == "/dev/null")
     {
         std::cout << "Output is directed to /dev/null, no file will be created.\n";
         return;
     }
+
 
     std::unordered_map<uint32_t, std::string> item_map_copy;
     for (uint32_t i = 0; i < max_item; ++i)
@@ -25,40 +25,66 @@ void save_patterns(const std::string& output_path, const uint32_t *data, const u
         return;
     }
 
-    // create a set to store unique patterns
-    std::set<std::string> unique_patterns;
-    std::vector<uint32_t> pattern_data; 
-    std::string pattern;
 
-    int32_t pattern_count = 0;
+
+
+    // // create a set to store unique patterns
+    // std::set<std::string> unique_patterns;
+    // std::vector<uint32_t> pattern_data;
+    // std::string pattern;
+
     for (uint32_t i = 0; i < offset; ++i)
     {
-        if (data[i] != 0)
+        if (data[i] == 0)
         {
-            // output_file << data[i] << " ";
-            // pattern += 
-            pattern_data.push_back(data[i]);    
-            // pattern += std::to_string(item_map_copy[data[i]]) + " ";
-            // output_file << item_map_copy[data[i]] << " ";
+            output_file << "\n";
         }
         else
         {
-            // output
-            // except last one convert all
-            for (uint32_t j = 0; j < pattern_data.size() - 1; ++j)
-            {
-                pattern += item_map_copy[pattern_data[j]] + " ";
-            }
-            pattern +=  ":" + std::to_string(pattern_data.back()) + "\n";
-
-            output_file << pattern;
-            pattern.clear();
-            pattern_data.clear();
-            pattern_count++;
+            output_file << item_map_copy[data[i]] << " ";
         }
     }
+    //     if (data[i] != 0)
+    //     {
+    //         // pattern +=
+    //         pattern_data.push_back(data[i]);
+    //         // pattern += std::to_string(item_map_copy[data[i]]) + " ";
+    //         // output_file << item_map_copy[data[i]] << " ";
+    //     }
+    //     else
+    //     {
+    //         if (!pattern_data.empty())
+    //         {
+    //             // output all items except the last entry, which encodes the utility
+    //             const size_t last_index = pattern_data.size() - 1;
+    //             for (size_t j = 0; j < last_index; ++j)
+    //             {
+    //                 // pattern += item_map_copy[pattern_data[j]] + " ";
+    //                 pattern += std::to_string(pattern_data[j]) + " ";
+    //             }
+    //             pattern += ":" + std::to_string(pattern_data.back()) + "\n";
 
-    std::cout << "Number of patterns: " << pattern_count << "\n";
+    //             output_file << pattern;
+    //             pattern_count++;
+    //         }
+    //         pattern.clear();
+    //         pattern_data.clear();
+    //     }
+    // }
+
+    // // Handle case where buffer doesn't end with sentinel but contains data
+    // if (!pattern_data.empty())
+    // {
+    //     const size_t last_index = pattern_data.size() - 1;
+    //     for (size_t j = 0; j < last_index; ++j)
+    //     {
+    //         pattern += item_map_copy[pattern_data[j]] + " ";
+    //     }
+    //     pattern += ":" + std::to_string(pattern_data.back()) + "\n";
+    //     output_file << pattern;
+    //     pattern_count++;
+    // }
+
 
     output_file.close();
 }

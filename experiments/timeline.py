@@ -215,7 +215,7 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
                     width=row["time_ms"] if row["time_ms"] > 0 else 0.1,
                     bottom=bottom if bottom > 0 else 1,
                     color=colors[i], align="edge", linewidth=0,
-                    alpha=0.8
+                    alpha=0.5
                 )
             bottom += task_count
     

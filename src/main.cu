@@ -42,6 +42,16 @@ __global__ void calcTWU(Database *db, Item_mapping *item_map)
     }
 }
 
+__global__ void print_pattern(patterns *p)
+{
+    // print first 100 entries of data
+    for (uint32_t i = 0; i < 100; ++i)
+    {
+        printf("%u ", p->data[i]);
+    }
+    printf("\n");
+}
+
 int main(int argc, char *argv[])
 {
 #ifdef DEBUG
@@ -133,6 +143,7 @@ int main(int argc, char *argv[])
     // Allocate memory for patterns
     patterns *p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
+    std::cout << "Allocating memory for patterns: " << parser.get_memory("--pattern_memory") << " B\n";
     p->init(parser.get_memory("--pattern_memory"));
     timer.recordPoint("Patterns Allocated");
 
@@ -140,21 +151,23 @@ int main(int argc, char *argv[])
 
     static_parallel_mining(bf, p, parser, timer, shared_memory);
 
-    timer.recordPoint("Mining Completed");
+    timer.recordPoint("End");
+
+    // free allocator
+    free_global_allocator();
+
+    timer.printRecords();
 
 #ifdef DEBUG
     std::cout << "Saving to file: " << parser.get("--output") << "\n";
 #endif
 
+
     save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
-    timer.recordPoint("Save");
 
-    // free allocator
-    free_global_allocator();
+    std::cout << "Pattern last offset: " << p->offset << "\n";
+
     p->free();
-
-    timer.recordPoint("End");
-    timer.printRecords();
 
     std::cout << "Number of patterns: " << p->pattern_count << "\n";
 
