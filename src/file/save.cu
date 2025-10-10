@@ -49,7 +49,7 @@ void save_patterns(const std::string& output_path, const uint32_t *data, const u
             {
                 pattern += item_map_copy[pattern_data[j]] + " ";
             }
-            pattern += std::to_string(pattern_data.back()) + "\n";
+            pattern +=  ":" + std::to_string(pattern_data.back()) + "\n";
 
             output_file << pattern;
             pattern.clear();

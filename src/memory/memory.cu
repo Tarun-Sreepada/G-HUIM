@@ -46,10 +46,10 @@ namespace allocators {
         {
             if (allocator_base)
             {
-                std::cout << "Memory Usage Summary:\n";
+                // std::cout << "Memory Usage Summary:\n";
                 // Note: Calculating used memory is more complex with wrapping.
                 // This is a simplified view.
-                std::cout << "  Total: " << (allocator_total / (1024 * 1024)) << " MB\n";
+                // std::cout << "  Total: " << (allocator_total / (1024 * 1024)) << " MB\n";
 
                 cudaFree(allocator_base);
                 allocator_base = nullptr;

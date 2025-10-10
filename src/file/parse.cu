@@ -266,7 +266,7 @@ Parsed gpuParse(const std::string &filename, const char separator)
 
     char *buf;
     cudaMallocManaged(&buf, file_size);
-    std::cout << "Buffer allocated: " << file_size << " bytes\n";
+    // std::cout << "Buffer allocated: " << file_size << " bytes\n";
 
     int fd = open(filename.c_str(), O_RDONLY);
     if (fd < 0) { cudaFree(buf); return pf; }
@@ -302,7 +302,7 @@ Parsed gpuParse(const std::string &filename, const char separator)
         (*line_count)++;
     }
 
-    std::cout << "Lines: " << *line_count << ", Est. Items: " << *item_count << "\n";
+    // std::cout << "Lines: " << *line_count << ", Est. Items: " << *item_count << "\n";
     if (*line_count == 0) { /* ... handle empty file, cleanup and return ... */ }
 
     // --- DETECTION STEP 2: Find the exact position of every newline ---
@@ -353,7 +353,7 @@ Parsed gpuParse(const std::string &filename, const char separator)
     CUDA_CHECK(cudaDeviceSynchronize());
     *max_diff += 1; // For buffer allocation, needs to be size, not max index.
 
-    std::cout << "Max line length: " << *max_diff << " bytes\n";
+    // std::cout << "Max line length: " << *max_diff << " bytes\n";
 
     Database *db;
     cudaMallocManaged(&db, sizeof(Database));
@@ -374,8 +374,8 @@ Parsed gpuParse(const std::string &filename, const char separator)
                                             max_item, separator);
     CUDA_CHECK(cudaDeviceSynchronize());
 
-    std::cout << "Max item: " << *max_item << "\n";
-    std::cout << "Total items parsed: " << db->num_items << "\n";
+    // std::cout << "Max item: " << *max_item << "\n";
+    // std::cout << "Total items parsed: " << db->num_items << "\n";
     
     // --- Cleanup ---
     cudaFree(buf);

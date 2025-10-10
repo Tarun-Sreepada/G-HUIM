@@ -15,6 +15,6 @@
 #define CAPACITY (1024 * 1024 * 1024)
 
 
-void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser, Timer &timer, size_t shared_memory);
+void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser, Timer &timer, size_t shared_memory, std::vector<uint32_t>& all_pat);
 
 __host__ __device__ uint32_t next_pow2(uint32_t n);

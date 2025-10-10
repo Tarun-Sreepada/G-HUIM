@@ -66,10 +66,14 @@ def update_results(df: pd.DataFrame, entry: Dict, csv_path: str) -> pd.DataFrame
     # Combine old and new data, then find the best run for each key
     new_row = pd.DataFrame([entry])
     combined_df = pd.concat([df, new_row], ignore_index=True)
-    combined_df.sort_values("Total_Time", ascending=True, inplace=True)
+    # combined_df.sort_values("Total_Time", ascending=True, inplace=True)
+    # first sort by file and min_util and algorithm and method and then by time
+    combined_df.sort_values(by=key_cols + ["Total_Time"], ascending=True, inplace=True)
     
     # Keep the first occurrence (the one with the lowest time) for each unique key
     updated_df = combined_df.drop_duplicates(subset=key_cols, keep="first")
+
+
     
     save_results(updated_df, csv_path)
     return updated_df
@@ -197,14 +201,14 @@ def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: s
                     entry = {"Algorithm": "DPHIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
                     df = update_results(df, entry, csv_path)
             
-            # # --- Run PHA ---
-            # method_label = "PHA"
-            # if not has_run_before(df, "PHA", method_label, base_name, min_util):
-            #     cmd = [PHA_BIN, file_path, str(min_util)]
-            #     best_run = run_experiment(cmd, parse_metrics_pha, repeats)
-            #     if best_run:
-            #         entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
-            #         df = update_results(df, entry, csv_path)
+            # --- Run PHA ---
+            method_label = "PHA"
+            if not has_run_before(df, "PHA", method_label, base_name, min_util):
+                cmd = [PHA_BIN, file_path, str(min_util)]
+                best_run = run_experiment(cmd, parse_metrics_pha, repeats)
+                if best_run:
+                    entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+                    df = update_results(df, entry, csv_path)
 
 def main():
     parser = argparse.ArgumentParser(description="Run High-Utility Itemset Mining benchmarks.")

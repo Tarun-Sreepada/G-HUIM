@@ -458,16 +458,29 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
             }
             if (copy.db->num_transactions <= 16)
             {
-                uint32_t index = 0;
-                atomicAdd(&transaction_distribution[index], 1);
+                // uint32_t index = 0;
+                // atomicAdd(&transaction_distribution[index], 1);
                 one_stack->push(copy);
             }
             else
             {
-                uint32_t index = (copy.db->num_transactions + 31) / 32;
-                if (index > 33)
-                    index = 33;
+                uint32_t index = next_pow2(copy.db->num_transactions);
+                if (index >= 2048) index = 7;
+                else if (index >= 1024) index = 6;
+                else if (index >= 512) index = 5;
+                else if (index >= 256) index = 4;
+                else if (index >= 128) index = 3;
+                else if (index >= 64) index = 2;
+                else index = 1;
                 atomicAdd(&transaction_distribution[index], 1);
+
+                
+                
+
+                // uint32_t index = (copy.db->num_transactions + 31) / 32;
+                // if (index > 33)
+                //     index = 33;
+                // atomicAdd(&transaction_distribution[index], 1);
                 work_stack->push(copy);
             }
         }
@@ -795,84 +808,6 @@ __global__ void mine_st(Stack<Task, CAPACITY> *curr_stack,
     mine_recursive(curr_task, p, min_util, new_stack);
 }
 
-// templated sm mine
-template <int T>
-__global__ void mine_sm(Stack<Task, CAPACITY> *curr_stack,
-                        Stack<Task, CAPACITY> *new_stack,
-                        patterns *p,
-                        uint32_t min_util,
-                        uint32_t *transaction_distribution, uint32_t offset = 0)
-{
-    Transaction temporary_transactions[T];
-    int32_t transaction_hashes[T * scale];
-
-    __shared__ Task curr_task;
-
-    __shared__ uint32_t temp_transaction_count;
-    __shared__ uint32_t temp_item_count;
-    __shared__ Utilities *local_subtree_utilities;
-    __shared__ Task new_task;
-
-    fetch_task(curr_stack, curr_task, 0);
-
-    if (threadIdx.x == 0)
-    {
-
-        local_subtree_utilities =
-            (Utilities *)gmalloc(sizeof(Utilities) * curr_task.unique_items * scale);
-        temp_transaction_count = 0;
-        temp_item_count = 0;
-        new_task.clear();
-        new_task.pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_task.pattern_length + 1));
-        new_task.pattern_length = curr_task.pattern_length + 1;
-        new_task.pattern[curr_task.pattern_length] = curr_task.primary;
-    }
-    __syncthreads();
-
-    // Copy parent pattern
-    for (int i = threadIdx.x; i < curr_task.pattern_length; i += blockDim.x)
-        new_task.pattern[i] = curr_task.pattern[i];
-
-    for (int i = threadIdx.x; i < curr_task.unique_items * scale; i += blockDim.x)
-    {
-        local_subtree_utilities[i].key = 0;
-        local_subtree_utilities[i].local_utility = 0;
-        local_subtree_utilities[i].subtree_utility = 0;
-    }
-    __syncthreads();
-
-    for (int i = threadIdx.x; i < T; i += blockDim.x)
-    {
-        temporary_transactions[i].length = 0;
-        temporary_transactions[i].utility = 0;
-        temporary_transactions[i].data = nullptr;
-        transaction_hashes[i * 2] = -1;
-        transaction_hashes[i * 2 + 1] = -1;
-    }
-
-    // scan(curr_task,
-    //      new_task,
-    //      local_subtree_utilities,
-    //      temporary_transactions,
-    //      &temp_transaction_count,
-    //      &temp_item_count);
-
-    // p->add_pattern(new_task, min_util);
-
-    // allocate(new_task, temp_item_count, temp_transaction_count);
-
-    // write_merge(temporary_transactions, temp_transaction_count,
-    //             transaction_hashes, local_subtree_utilities,
-    //             new_task, min_util,
-    //             curr_task.db->num_transactions,
-    //             curr_task.unique_items);
-
-    // trim(new_task);
-
-    // push_work_item(local_subtree_utilities, new_task, new_stack,
-    //                min_util, curr_task.unique_items, transaction_distribution);
-}
-
 //------------------------------------------------------------------------------
 // Utility
 //------------------------------------------------------------------------------
@@ -881,7 +816,7 @@ void run_static_mining(built_file &bf,
                        uint32_t *primary,
                        patterns *p,
                        ArgParser &parser,
-                       Timer &timer)
+                       Timer &timer, std::vector<uint32_t> &all_pat)
 {
     // --- Setup for Static Mining ---
     Stack<Task, CAPACITY> *curr_stack, *new_stack;
@@ -934,13 +869,18 @@ void run_static_mining(built_file &bf,
 
         uint64_t head = total_boundary - current_boundary;
         uint64_t tail = safety_boundary - initial_offset;
-        std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
+        // std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
         if (head < tail)
         {
-            std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
+            // std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
             allocators::atomic::allocator_offset = initial_offset;
             cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
         }
+
+        // copy the patterns from pattern to all_pat from 0 to p->offset
+        all_pat.insert(all_pat.end(), p->data, p->data + p->offset);
+        cudaMemset(p->data, 0, sizeof(uint32_t) * p->offset);
+        p->offset = 0; // reset the pattern offset for next iteration
 
         iter++;
     }
@@ -961,7 +901,7 @@ void run_adaptive_mining(built_file &bf,
                          uint32_t *primary,
                          patterns *p,
                          ArgParser &parser,
-                         Timer &timer)
+                         Timer &timer, std::vector<uint32_t> &all_pat)
 {
     // --- Setup for Adaptive Mining ---
     Stack<Task, CAPACITY> *curr_stack, *new_stack, *one_stack, *one_stack_next;
@@ -981,11 +921,11 @@ void run_adaptive_mining(built_file &bf,
 
     // Histogram for adaptive scheduling
     uint32_t *transaction_distribution;
-    const int dist_size = 34; // 33 buckets + 1 for overflow
+    const int dist_size = 8; // 1,32,64,128,256,512,1024,1024+
     gpuErrchk(cudaMallocManaged(&transaction_distribution, sizeof(uint32_t) * dist_size));
     memset(transaction_distribution, 0, sizeof(uint32_t) * dist_size);
 
-    transaction_distribution[33] = bf.primary.size(); // Seed with initial patterns to avoid zero-thread launch
+    transaction_distribution[7] = bf.primary.size(); // Seed with initial patterns to avoid zero-thread launch
 
     // --- Main Mining Loop for Multi-Threaded Tasks ---
     int iter = 1;
@@ -1001,6 +941,9 @@ void run_adaptive_mining(built_file &bf,
         safety_boundary = allocators::atomic::allocator_offset;
 
         // mine blah blah blah
+        std::vector<uint32_t> dist_vec(transaction_distribution, transaction_distribution + dist_size);
+
+
         if (curr_stack->top != 0)
         {
             
@@ -1013,13 +956,16 @@ void run_adaptive_mining(built_file &bf,
                 const uint32_t num_tasks = transaction_distribution[i];
                 if (num_tasks > 0)
                 {
-                    std::cout << i * 32 << ":" << num_tasks << " ";
-                    const uint32_t rep = i * 32;
+                    // 2 ^ i * 32 = (1 << i) * 32
+                    const uint32_t rep = (1 << (i-1)) * 32;
                     weighted_sum += (unsigned long long)rep * num_tasks;
+                    // std::cout << i * 32 << ":" << num_tasks << " ";
+                    // const uint32_t rep = i * 32;
+                    // weighted_sum += (unsigned long long)rep * num_tasks;
                     tasks_in_dist += num_tasks;
                 }
             }
-            std::cout << "\tTasks in Dist: " << tasks_in_dist << " Total Tasks: " << curr_stack->top << std::endl;
+            // std::cout << "\tTasks in Dist: " << tasks_in_dist << " Total Tasks: " << curr_stack->top << std::endl;
 
             if (tasks_in_dist > 0)
             {
@@ -1047,6 +993,9 @@ void run_adaptive_mining(built_file &bf,
             gpuErrchk(cudaDeviceSynchronize());
         }
 
+        transaction_distribution[0] = one_stack->top; // Start with single-thread tasks
+
+
         if (one_stack->top != 0)
         {
             mine_st<<<(one_stack->top + 255) / 256, 256>>>(
@@ -1057,25 +1006,34 @@ void run_adaptive_mining(built_file &bf,
 
         }
 
+
+
         // Prepare for the next iteration
         std::swap(curr_stack, new_stack);
         std::swap(one_stack, one_stack_next);
         new_stack->init();
         one_stack_next->init();
 
+        // copy the patterns from pattern to all_pat from 0 to p->offset
+        all_pat.insert(all_pat.end(), p->data, p->data + p->offset);
+        std::cout << "Size of patterns: " << p->offset << "\tAllocated Memory: " << p->size << std::endl;
+        std::cout << "Num patterns found: " << p->pattern_count << std::endl;
+        cudaMemset(p->data, 0, sizeof(uint32_t) * p->offset);
+        p->offset = 0; // reset the pattern offset for next iteration
+
 
         current_boundary = allocators::atomic::allocator_offset;
-        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary);
+        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary, dist_vec);
 
         // so from safety to current we will need it. but initial to safety we can clear it but we only set it if the head is less than tail
         // head being the current boundary to the total
         // tail being previous to safety
         uint64_t head = total_boundary - current_boundary;
         uint64_t tail = safety_boundary - initial_offset;
-        std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
+        // std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
         if (head < tail)
         {
-            std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
+            // std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
             allocators::atomic::allocator_offset = initial_offset;
             cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
         }
@@ -1099,7 +1057,8 @@ void static_parallel_mining(built_file &bf,
                             patterns *p,
                             ArgParser &parser,
                             Timer &timer,
-                            size_t available_shared_memory)
+                            size_t available_shared_memory, 
+                            std::vector<uint32_t> &allpat)
 {
     // --- Common Setup ---
     // Allocate and copy primary patterns to the device
@@ -1111,12 +1070,12 @@ void static_parallel_mining(built_file &bf,
     if (parser.get_bool("--adaptive"))
     {
         printf("Running Adaptive Mining...\n");
-        run_adaptive_mining(bf, primary, p, parser, timer);
+        run_adaptive_mining(bf, primary, p, parser, timer, allpat);
     }
     else
     {
         printf("Running Static Mining...\n");
-        run_static_mining(bf, primary, p, parser, timer);
+        run_static_mining(bf, primary, p, parser, timer, allpat);
     }
 
     // --- Common Cleanup ---
