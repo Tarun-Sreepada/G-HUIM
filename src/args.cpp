@@ -74,9 +74,32 @@ void ArgParser::parse(int argc, char* argv[])
                 }
                 else
                 {
-                    if (i + 1 >= argc)
-                        throw std::runtime_error("Missing value for argument: " + token);
-                    a.value = argv[++i];
+                    bool treat_as_flag_like_bool = false;
+                    if (a.type == "bool")
+                    {
+                        // Allow boolean options to be specified without an explicit value.
+                        if (i + 1 >= argc)
+                        {
+                            treat_as_flag_like_bool = true;
+                        }
+                        else
+                        {
+                            const std::string next_token = argv[i + 1];
+                            if (next_token.rfind("--", 0) == 0)
+                                treat_as_flag_like_bool = true;
+                        }
+                    }
+
+                    if (treat_as_flag_like_bool)
+                    {
+                        a.value = "true";
+                    }
+                    else
+                    {
+                        if (i + 1 >= argc)
+                            throw std::runtime_error("Missing value for argument: " + token);
+                        a.value = argv[++i];
+                    }
                 }
             }
             else if (token == "--help" || token == "-h")

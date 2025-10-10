@@ -2,7 +2,6 @@
 #include <cstdint>
 #include "data_types/data_types.cuh"
 #include "task.cuh"
-// #define CAPACITY (1024 * 1024 * 1024)
 
 
 template<typename T, int CAPACITY>

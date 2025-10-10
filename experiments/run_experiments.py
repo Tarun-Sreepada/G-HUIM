@@ -224,17 +224,17 @@ def main():
     datasets_to_process = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9450000],
+            [9500000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
             # , 2002000,2004000,2006000
             [1999000]
         ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-            [700000],
-        ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+        #     [700000],
+        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
             [3600000, 3650000, 3700000, 3750000, 3800000, 3850000, 3900000],
