@@ -1,0 +1,68 @@
+2025-10-10 17:42:48 [INFO] Loading existing results from results/benchmarks.csv
+2025-10-10 17:42:48 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3600000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:42:52 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:42:52 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3650000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:42:56 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:42:56 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3700000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:42:59 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:42:59 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3750000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:03 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:03 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3800000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:06 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:06 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3850000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:10 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:10 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt --minutil 3900000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:13 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:13 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6100000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:32 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:32 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6200000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:43:49 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:43:49 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6300000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:01 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:01 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6400000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:13 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:13 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6500000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:24 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:24 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt --minutil 6600000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:34 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:34 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 170000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:40 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:40 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 175000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:45 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:45 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 180000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:49 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:49 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 185000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:53 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:53 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 190000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:44:57 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:44:57 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 195000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:00 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:00 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt --minutil 200000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:03 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:03 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1425 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:10 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:10 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1430 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:15 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:15 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1435 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:17 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:17 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1440 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:19 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:19 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1445 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:21 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:21 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt --minutil 1450 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:23 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:23 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 5000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:34 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:34 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 5500 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:45 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:45 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 6000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:45:55 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:45:55 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 6500 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:46:03 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:46:03 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 7000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:46:11 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:46:11 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 7500 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:46:19 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:46:19 [INFO] Run 1/1: /export/home1/ltarun/cuDPEFIM/build/cuDPEFIM --input /export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt --minutil 8000 --method SP --adaptive true --total_memory 64G --output /dev/null
+2025-10-10 17:46:25 [INFO] Results saved to results/benchmarks.csv
+2025-10-10 17:46:25 [INFO] All experiments completed.

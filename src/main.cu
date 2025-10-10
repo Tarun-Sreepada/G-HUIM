@@ -7,9 +7,7 @@
 #include "memory/memory.cuh"
 #include "mine/static_parallelism.cuh"
 
-
-
-__global__ void __warmup() { }
+__global__ void __warmup() {}
 
 size_t get_shared_memory_per_block()
 {
@@ -37,15 +35,12 @@ __global__ void calcTWU(Database *db, Item_mapping *item_map)
     }
     __syncthreads();
 
-
     for (int i = thread_id; i < trans.length; i += blockDim.x)
     {
         Item item = trans.data[i];
         atomicAdd(&item_map[item.key].local_utility, sum);
     }
 }
-
-
 
 int main(int argc, char *argv[])
 {
@@ -67,9 +62,8 @@ int main(int argc, char *argv[])
         parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
         parser.add_argument("--num_blocks", "int", "Number of GPU blocks", false, "0");
         parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
-        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "1G");
+        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
-        parser.add_argument("--method", "string", "Method to use for mining ({DP}: Dynamic Pattern, {SP}: Static Parallelization)", false, "SP");
         parser.parse(argc, argv);
 
         std::cout << "Input File: " << parser.get("--input") << "\n";
@@ -78,8 +72,8 @@ int main(int argc, char *argv[])
         std::cout << "Output File: " << parser.get("--output") << "\n";
         std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
         std::cout << "Adaptive: " << (parser.get_bool("--adaptive") ? "true" : "false") << "\n";
-        std::cout << "Pattern Memory: " << parser.get_memory("--pattern_memory") / (1024 * 1024) << " MB\n";
-        
+        std::cout << "Pattern Memory: " << parser.get("--pattern_memory") << "\n";
+        std::cout << "Total Memory: " << parser.get("--total_memory") << "\n";
     }
     catch (const std::exception &e)
     {
@@ -109,7 +103,6 @@ int main(int argc, char *argv[])
     Parsed pf = gpuParse(parser.get("--input"), parser.get_separator("--separator"));
     timer.recordPoint("Parse");
 
-
     // calculate TWU
     Item_mapping *item_map;
     cudaMallocManaged(&item_map, pf.max_item * sizeof(Item_mapping));
@@ -120,17 +113,14 @@ int main(int argc, char *argv[])
         item_map[i].item = i;
     }
 
-
     uint32_t block_size = pf.db->num_items / pf.db->num_transactions;
-    // max is 1024 else nextpow2    
+    // max is 1024 else nextpow2
     block_size = std::min(block_size, 1024u);
     block_size = next_pow2(block_size);
-
 
     calcTWU<<<pf.db->num_transactions, block_size>>>(pf.db, item_map);
     cudaDeviceSynchronize();
     timer.recordPoint("CalcTWU");
-
 
     // Build file
     built_file bf = build(pf, parser.get_uint64("--minutil"), parser, item_map);
@@ -138,28 +128,25 @@ int main(int argc, char *argv[])
 
     // Initialize memory for GPU mining
     init_global_allocator(parser.get_memory("--total_memory"), parser.get_bool("--managed"));
-    timer.recordPoint("Allocator Init");
+    timer.recordPoint("Allocator Initialized");
 
     // Allocate memory for patterns
     patterns *p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
-    std::cout << "Pattern memory: " << parser.get_memory("--pattern_memory") / (1024 * 1024) << " MB\n";
     p->init(parser.get_memory("--pattern_memory"));
-    // timer.recordPoint("Patterns Allocated");
+    timer.recordPoint("Patterns Allocated");
 
     size_t shared_memory = get_shared_memory_per_block();
 
-    std::vector<uint32_t> all_pat;
-
-    static_parallel_mining(bf, p, parser, timer, shared_memory, all_pat);
+    static_parallel_mining(bf, p, parser, timer, shared_memory);
 
     timer.recordPoint("Mining Completed");
 
-    #ifdef DEBUG
-        std::cout << "Saving to file: " << parser.get("--output") << "\n";
-    #endif
+#ifdef DEBUG
+    std::cout << "Saving to file: " << parser.get("--output") << "\n";
+#endif
 
-    save_patterns(parser.get("--output"), all_pat.data(), all_pat.size(), item_map, pf.max_item);
+    save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
     timer.recordPoint("Save");
 
     // free allocator
