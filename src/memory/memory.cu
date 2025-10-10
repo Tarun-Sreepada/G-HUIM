@@ -42,39 +42,6 @@ namespace allocators {
             allocator_offset = 0;
         }
 
-
-        void record_memory_usage()
-        {
-            allocation_sizes.push_back(allocator_offset);
-        }
-
-        void reclaim_memory()
-        {
-            if (allocation_sizes.size() < 3)
-            {
-                // Not enough data to reclaim memory
-                return;
-            }
-
-            // get the boundary
-            uint64_t boundary = allocation_sizes[allocation_sizes.size() - 3];
-            uint64_t front = allocator_total - allocator_offset;
-            uint64_t back = boundary;
-
-            if (front < back){
-                allocator_offset = 0;
-                printf("Reclaiming memory. New offset: %llu\n", allocator_offset);
-                for (size_t i = 0; i < allocation_sizes.size(); ++i)
-                    std::cout << "Allocation " << i << ": " << allocation_sizes[i] << " bytes\n";
-                allocation_sizes.clear();
-                cudaMemset(allocator_base, 0, boundary);
-                printf("Memory reclaimed up to boundary: %llu bytes\n", boundary);
-            }
-
-            // debug 
-
-        }
-
         void free_global_allocator()
         {
             if (allocator_base)

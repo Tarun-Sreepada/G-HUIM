@@ -101,7 +101,7 @@ def parse_metrics_cu(output: str) -> Tuple[float, float, float, float, int]:
             elif "Parse" in line: metrics["parse_temp"] = int(parts[1])
             elif "Build" in line: metrics["build"] = int(parts[1])
             elif "Mining Completed" in line: metrics["mining"] = int(parts[2])
-            elif line.startswith("Iteration"): iteration_total_ms += int(parts[2])
+            elif "Iteration" in line: iteration_total_ms += int(parts[2])
             elif "Number of patterns:" in line: metrics["patterns"] = int(parts[-1])
         except (IndexError, ValueError) as e:
             logging.warning(f"Could not parse line '{line}': {e}")
@@ -165,7 +165,7 @@ def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
             return None # Stop this set of repeats if there's a persistent error
     return best_run
 
-def run_all_experiments(process_data, repeats: int, csv_path: str):
+def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: str = "75G"):
     """Main function to orchestrate all algorithm benchmarks."""
     df = load_results(csv_path)
 
@@ -178,7 +178,7 @@ def run_all_experiments(process_data, repeats: int, csv_path: str):
             if not has_run_before(df, "cuDPEFIM", method_label, base_name, min_util):
                 cmd = [
                     CUDPEFIM_BIN, "--input", file_path, "--minutil", str(min_util),
-                    "--method", "SP", "--adaptive", "true"
+                    "--method", "SP", "--adaptive", "true", "--total_memory", gpu_memory, "--output", "/dev/null"
                 ]
                 best_run = run_experiment(cmd, parse_metrics_cu, repeats)
                 if best_run:
@@ -197,19 +197,19 @@ def run_all_experiments(process_data, repeats: int, csv_path: str):
                     entry = {"Algorithm": "DPHIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
                     df = update_results(df, entry, csv_path)
             
-            # --- Run PHA ---
-            method_label = "PHA"
-            if not has_run_before(df, "PHA", method_label, base_name, min_util):
-                cmd = [PHA_BIN, file_path, str(min_util)]
-                best_run = run_experiment(cmd, parse_metrics_pha, repeats)
-                if best_run:
-                    entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
-                    df = update_results(df, entry, csv_path)
+            # # --- Run PHA ---
+            # method_label = "PHA"
+            # if not has_run_before(df, "PHA", method_label, base_name, min_util):
+            #     cmd = [PHA_BIN, file_path, str(min_util)]
+            #     best_run = run_experiment(cmd, parse_metrics_pha, repeats)
+            #     if best_run:
+            #         entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+            #         df = update_results(df, entry, csv_path)
 
 def main():
     parser = argparse.ArgumentParser(description="Run High-Utility Itemset Mining benchmarks.")
     parser.add_argument(
-        "--repeats", type=int, default=3, help="Number of times to repeat each experiment."
+        "--repeats", type=int, default=1, help="Number of times to repeat each experiment."
     )
     parser.add_argument(
         "--output-csv", type=str, default="results/benchmarks.csv", help="Path to save the results CSV file."
@@ -218,14 +218,43 @@ def main():
 
     # Define the datasets and their corresponding minimum utility thresholds
     datasets_to_process = [
-        ["/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt", [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt", [7800000, 7900000, 8000000, 8100000, 8200000, 8300000, 8400000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt", [190000, 200000, 210000, 220000, 230000, 240000, 250000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt", [1430, 1435, 1440, 1445, 1450, 1455, 1460]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt", [9000, 10000, 11000, 12000, 13000, 14000, 15000]],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+            [9450000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+            # , 2002000,2004000,2006000
+            [1999000]
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            [700000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+            [3600000, 3650000, 3700000, 3750000, 3800000, 3850000, 3900000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
+            [6100000, 6200000, 6300000, 6400000, 6500000, 6600000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
+            [170000, 175000, 180000, 185000, 190000, 195000, 200000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
+            [1425, 1430, 1435, 1440, 1445, 1450],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
+            [5000, 5500, 6000, 6500, 7000, 7500, 8000],
+        ],
     ]
+
     
-    run_all_experiments(datasets_to_process, args.repeats, args.output_csv)
+    run_all_experiments(datasets_to_process, args.repeats, args.output_csv, gpu_memory="64G")
     logging.info("All experiments completed.")
 
 if __name__ == '__main__':

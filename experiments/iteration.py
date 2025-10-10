@@ -11,11 +11,18 @@ from matplotlib.lines import Line2D
 import itertools
 from matplotlib.patches import Patch
 
+
+OUT_DIR = Path("plots")
+OUT_DIR.mkdir(exist_ok=True)
+
+RES_DIR = Path("results")
+RES_DIR.mkdir(exist_ok=True)
+
 ###############################################################################
 # Persistent cache (CSV) utilities                                            #
 ###############################################################################
 
-CSV_CACHE = Path("iterations.csv")
+CSV_CACHE = RES_DIR / "iterations.csv"
 
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
@@ -245,7 +252,6 @@ from matplotlib.patches import Patch
 # Persistent cache (CSV) utilities                                            #
 ###############################################################################
 
-CSV_CACHE = Path("iterations.csv")
 
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
@@ -466,7 +472,7 @@ def plot_for_configs(
     input_file: str,
     minutil: int,
     block_sizes: List[int],
-    total_memory: str = "78G",
+    total_memory: str = "64G",
     method: str = "SP",
     include_legend: bool = False,
 ) -> None:
@@ -585,7 +591,8 @@ def plot_for_configs(
     plt.title(f"Iteration-wise Execution Time and Memory on {title}", fontsize=16)
 
     # plt.tight_layout()
-    plt.savefig(file_name, dpi=500)
+    # plt.savefig(file_name, dpi=500)
+    fig.savefig(OUT_DIR / file_name, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
     # --- Generate and Save Separate Legend Image ---
@@ -606,63 +613,47 @@ def plot_for_configs(
         )
 
         legend_filename = "iteration_times_legend.png"
-        plt.savefig(legend_filename, dpi=500, bbox_inches="tight", pad_inches=0.1)
+        # plt.savefig(legend_filename, dpi=500, bbox_inches="tight", pad_inches=0.1)
+        fig_legend.savefig(OUT_DIR / legend_filename, dpi=500, bbox_inches="tight")
         plt.close(fig_legend)
 
 
 if __name__ == "__main__":
-    block_sizes = [32]
+    block_sizes = []
 
     process_data = [
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-        #     [3330000, 3340000, 3350000, 3360000, 3370000, 3380000, 3390000],
-        # ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+            [9450000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+            # , 2002000,2004000,2006000
+            [1999000]
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            [700000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+            [3600000, 3650000, 3700000, 3750000, 3800000, 3850000, 3900000],
+        ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [7800000, 7900000, 8000000, 8100000, 8200000, 8300000, 8400000],
+            [6100000, 6200000, 6300000, 6400000, 6500000, 6600000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-        #     # 9150000, 9250000, 9350000,
-        #     [9450000],
-        # ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
-        #     # , 2002000,2004000,2006000
-        #     [2000000],
-        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
-            [190000, 200000, 210000, 220000, 230000, 240000, 250000],
+            [170000, 175000, 180000, 185000, 190000, 195000, 200000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-        #     [770000, 780000, 790000, 800000, 810000, 820000, 830000],
-        # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1430, 1435, 1440, 1445, 1450, 1455, 1460],
+            [1425, 1430, 1435, 1440, 1445, 1450],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [9000, 10000, 11000, 12000, 13000, 14000, 15000],
-        ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg5.txt",
-            [5, 10, 15, 20, 25, 30, 35],
-        ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni100_avg10.txt",
-            [90000, 100000, 110000, 120000, 130000, 140000, 150000],
-        ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni50_avg10.txt",
-            [80000, 90000, 100000, 110000, 120000, 130000, 140000],
-        ],
-        [
-            "/export/home1/ltarun/cuDPEFIM/experiments/synthetic_hu/huT10M_ni25_avg10.txt",
-            [50000, 60000, 70000, 80000, 90000, 100000, 110000],
+            [5000, 5500, 6000, 6500, 7000, 7500, 8000],
         ],
     ]
 

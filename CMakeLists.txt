@@ -1,116 +1,90 @@
 cmake_minimum_required(VERSION 3.20)
 project(cuDPEFIM LANGUAGES CUDA CXX)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 1) C++ / CUDA standards
-# ─────────────────────────────────────────────────────────────────────────────
-set(CMAKE_CXX_STANDARD      20)
+# 1. Standards
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CUDA_STANDARD     20)
+set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 2) Default build type
-# ─────────────────────────────────────────────────────────────────────────────
+# 2. Build Type Configuration (Default to max-optimized Release)
 if(NOT CMAKE_BUILD_TYPE)
-  # Default to Release, as is common for optimized code
   set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 3) CUDA settings
-# ─────────────────────────────────────────────────────────────────────────────
-# Enable separable compilation (required for linking kernels across files)
+# 3. CUDA Architecture & Compilation Settings
 set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
-set(CMAKE_CUDA_ARCHITECTURES native)
+# --- LTO DISABLED ---
+# Device Link-Time Optimization is disabled to prevent toolchain conflicts.
+# set(CMAKE_CUDA_DEVICE_LINK_TIME_OPTIMIZATION ON) # <--- REMOVED
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 4) Includes & source files
-# ─────────────────────────────────────────────────────────────────────────────
-include_directories(
-  ${CMAKE_CUDA_TOOLKIT_INCLUDE_DIRECTORIES}
-  ${CMAKE_SOURCE_DIR}/include
+# IMPORTANT: Target your specific GPU architecture.
+# Find your architecture: https://developer.nvidia.com/cuda-gpus
+# Examples: 86 (Ampere), 89 (Ada Lovelace), 90 (Hopper)
+set(CMAKE_CUDA_ARCHITECTURES 86) # <--- CHANGE THIS to your GPU's compute capability
+
+# 4. Find Source Files & Create Executable
+include_directories(${CMAKE_SOURCE_DIR}/include)
+file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
+add_executable(cuDPEFIM ${SRC_FILES})
+
+# 5. Global Compiler & Linker Optimizations
+# set(HOST_WARNING_FLAGS "-Wall -Wextra -Wpedantic")
+set(CUDA_WARNING_FLAGS "-Xcompiler=${HOST_WARNING_FLAGS}")
+target_compile_options(cuDPEFIM PRIVATE
+  $<$<COMPILE_LANGUAGE:CXX>:${HOST_WARNING_FLAGS}>
+  $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_WARNING_FLAGS}>
 )
 
-# find liburing
-find_library(LIBURING_LIB NAMES uring REQUIRED)
-find_path  (LIBURING_INCLUDE_DIR NAMES liburing.h REQUIRED)
-include_directories(${LIBURING_INCLUDE_DIR})
+# 6. Build-Type Specific Flags for MAXIMUM PERFORMANCE
+if(CMAKE_BUILD_TYPE MATCHES Release)
+  message(STATUS "Configuring for Release")
 
-find_program(CCACHE_PROGRAM ccache)
-if(CCACHE_PROGRAM)
-  message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
-  set_property(GLOBAL PROPERTY RULE_LAUNCH_COMPILE "${CCACHE_PROGRAM}")
-endif()
+  # --- Host (CPU) Compiler Optimizations ---
+  set(HOST_OPTIMIZATION_FLAGS
+    "-O3"                            # Highest level of optimization
+    "-DNDEBUG"                       # Disable assertions and debug code
+    "-march=native"                  # Generate instructions for the current CPU
+    # "-flto"                          # <--- REMOVED to fix build error
+    "-fno-strict-aliasing"           # Less strict aliasing rules, can improve performance
+    "-ffast-math"                    # Aggressive floating-point optimizations
+  )
 
-# find OpenMP
-find_package(OpenMP REQUIRED)
-if(OpenMP_CXX_FOUND)
-  message(STATUS "OpenMP enabled")
-endif()
+  # --- Device (GPU) Compiler Optimizations ---
+  set(CUDA_OPTIMIZATION_FLAGS
+    "-O3"                            # Highest optimization level for NVCC
+    "--use_fast_math"
+    "--extra-device-vectorization"
+    "--expt-extended-lambda"
+    "--expt-relaxed-constexpr"
+    "-lineinfo"                      # Add line info for profilers (e.g., Nsight)
+    "-Xptxas=-O3,-v,-dlcm=ca"         # Max PTXAS optimization, verbose, L1 cache
+    # Host compiler flags passed through NVCC (removed -flto)
+    "-Xcompiler=-O3,-march=native,-fno-rtti"
+  )
 
-file(GLOB_RECURSE SRC_CPP_FILES src/*.cpp)
-file(GLOB_RECURSE SRC_CU_FILES  src/*.cu)
+  target_compile_options(cuDPEFIM PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:${HOST_OPTIMIZATION_FLAGS}>
+    $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_OPTIMIZATION_FLAGS}>
+  )
 
-add_executable(cuDPEFIM
-  ${SRC_CPP_FILES}
-  ${SRC_CU_FILES}
-)
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 5) Common warning flags
-# ─────────────────────────────────────────────────────────────────────────────
-set(BASE_CXX_WARN_FLAGS    "-Wall")
-set(BASE_CUDA_WARN_FLAGS   "-Xcompiler=-Wall")
-
-# ─────────────────────────────────────────────────────────────────────────────
-# 6) Build‐type–specific flags (Optimized for Build Speed)
-# ─────────────────────────────────────────────────────────────────────────────
-if(CMAKE_BUILD_TYPE MATCHES Debug)
-  message(STATUS "Configuring Debug flags (Fast Build)")
-
-  # C++
-  set(CMAKE_CXX_FLAGS_DEBUG   "${BASE_CXX_WARN_FLAGS} -O0 -g")
-  
-  # CUDA - Keep debug flags but remove manual arch list
-  set(CMAKE_CUDA_FLAGS_DEBUG  "${BASE_CUDA_WARN_FLAGS} -O0 -g -lineinfo")
+elseif(CMAKE_BUILD_TYPE MATCHES Debug)
+  message(STATUS "Configuring for Debugging")
   target_compile_definitions(cuDPEFIM PRIVATE DEBUG)
-
-else()  # Release or RelWithDebInfo
-  message(STATUS "Configuring Release flags (Optimized for Build Speed)")
-
-  set(CMAKE_CXX_FLAGS_RELEASE "${BASE_CXX_WARN_FLAGS} -O3 -g0 -march=native -DNDEBUG")
-
-  set(CMAKE_CUDA_FLAGS_RELEASE "${BASE_CUDA_WARN_FLAGS} -O3 --use_fast_math --extra-device-vectorization --expt-relaxed-constexpr --expt-extended-lambda --generate-line-info -Xptxas=-O3,-dlcm=ca -Xcompiler=-march=native -Xcompiler=-funroll-loops -Xcompiler=-fno-rtti")
+  target_compile_options(cuDPEFIM PRIVATE
+    $<$<COMPILE_LANGUAGE:CXX>:-O0 -g>
+    $<$<COMPILE_LANGUAGE:CUDA>:-O0 -g -G>
+  )
 endif()
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 7) Link libraries
-# ─────────────────────────────────────────────────────────────────────────────
-target_link_libraries(cuDPEFIM
-  PRIVATE
-    ${LIBURING_LIB}
-    cuda
-    OpenMP::OpenMP_CXX
-)
+# 7. Link Libraries
+target_link_libraries(cuDPEFIM PRIVATE cuda)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# 8) Print out final flags
-# ─────────────────────────────────────────────────────────────────────────────
-message(STATUS "  CXX Flags:   ${CMAKE_CXX_FLAGS}")
-message(STATUS "  CUDA Flags:  ${CMAKE_CUDA_FLAGS}")
-message(STATUS "  Linker Flags:        ${CMAKE_EXE_LINKER_FLAGS_RELEASE}")
-
+# 8. Final Output (Cleaned for clarity)
 message(STATUS "--------------------------------------------------------------------")
-message(STATUS "cuDPEFIM:")
-message(STATUS "--------------------------------------------------------------------")
-message(STATUS "To compile, run:")
-message(STATUS "  cmake --build . -j$(nproc)")
-message(STATUS "--------------------------------------------------------------------")
-message(STATUS "Usage Instructions for cuDPEFIM:")
-message(STATUS "--------------------------------------------------------------------")
-message(STATUS "To display help:")
-message(STATUS "  ./cuDPEFIM -h")
+message(STATUS "Build Configuration for cuDPEFIM:")
+message(STATUS "  - Target GPU Arch: ${CMAKE_CUDA_ARCHITECTURES}")
+message(STATUS "  - Build Type:      ${CMAKE_BUILD_TYPE}")
 message(STATUS "--------------------------------------------------------------------")
