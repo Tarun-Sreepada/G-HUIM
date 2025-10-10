@@ -3,9 +3,8 @@
 #include "file/parse.cuh"
 #include "file/build.cuh"
 #include "file/save.cuh"
-#include "memory/memory.cuh"
 #include "patterns/patterns.cuh"
-#include "mine/dynamic_parallelism.cuh"
+#include "memory/memory.cuh"
 #include "mine/static_parallelism.cuh"
 
 
@@ -148,19 +147,15 @@ int main(int argc, char *argv[])
 
     size_t shared_memory = get_shared_memory_per_block();
 
-    if (parser.get("--method") == "SP")
-    {
+    // if (parser.get("--method") == "SP")
+    // {
         static_parallel_mining(bf, p, parser, timer, shared_memory);
-    }
-    else if (parser.get("--method") == "DP")
-    {
-        dynamic_parallel_mining(bf, p, parser, timer); 
-    }
-    else
-    {
-        std::cerr << "Invalid method: " << parser.get("--method") << "\n";
-        return 1;
-    }
+    // }
+    // else
+    // {
+    //     std::cerr << "Invalid method: " << parser.get("--method") << "\n";
+    //     return 1;
+    // }
 
     timer.recordPoint("Mining Completed");
 

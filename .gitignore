@@ -22,5 +22,6 @@ Thumbs.db
 run.sh
 
 datasets/*.txt
+datasets/synthetic/*
 
 experiments/synthetic_hu/

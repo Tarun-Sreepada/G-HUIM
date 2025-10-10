@@ -1,0 +1,9 @@
+file,transactions,num_items,tx_len,status
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni25_avg10.txt,10000000,25,10,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni25_avg25.txt,10000000,25,25,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni25_avg12.txt,10000000,25,12,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni25_avg12.txt,10000000,25,12,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni50_avg10.txt,10000000,50,10,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni50_avg25.txt,10000000,50,25,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni50_avg35.txt,10000000,50,35,ok
+/export/home1/ltarun/cuDPEFIM/datasets/huT10M_ni50_avg45.txt,10000000,50,45,ok

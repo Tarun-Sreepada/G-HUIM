@@ -7,14 +7,14 @@ import csv
 
 # ---------- Config ----------
 SPMF_JAR = Path("spmf.jar")
-OUT_DIR  = Path("synthetic_hu")         # all outputs here
+OUT_DIR  = Path("/export/home1/ltarun/cuDPEFIM/datasets/synthetic")         # all outputs here
 JAVA_XMX = "64G"                         # bump if you like
 SEED     = 12345
 
 # scale grids (tweak as needed)
-NUM_TRANSACTIONS = [10**6]        # be realistic; 1e9+ will blow disk/IO
-NUM_ITEMS        = [10,25,50]
-TX_LENGTHS       = [5, 10, 25]              # “items per transaction” in SPMF generator
+NUM_TRANSACTIONS = [10**6, 5*10**6, 10**7, 5*10**7]
+NUM_ITEMS        = [50, 100, 250, 500, 1000]  # “num distinct items” in SPMF generator
+TX_LENGTHS       = [10, 20, 45, 90, 200, 450]  # average transaction length
 
 # ---------- SPMF bootstrap ----------
 def ensure_spmf(jar_path: Path = SPMF_JAR):

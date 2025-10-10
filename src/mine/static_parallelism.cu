@@ -1,6 +1,8 @@
 // static_parallelism.cu
 #include "mine/static_parallelism.cuh"
 
+#define TEMP_ITEM_BUFFER_SIZE 256
+
 //------------------------------------------------------------------------------
 // copy_work: seed per-primary tasks onto the stack
 //------------------------------------------------------------------------------
@@ -71,6 +73,11 @@ uint32_t next_pow2(uint32_t n)
         p <<= 1;
     return p;
 }
+static inline uint32_t round_up_to_warp_size(uint32_t n)
+{
+    const uint32_t warp = 32;
+    return ((n + warp - 1) / warp) * warp;
+}
 
 //------------------------------------------------------------------------------
 // Work fetch
@@ -82,74 +89,7 @@ __device__ __forceinline__ void fetch_task(Stack<Task, CAPACITY> *work_stack, Ta
     __syncthreads();
 }
 
-//------------------------------------------------------------------------------
-// Global-memory temp structure init/reset
-//------------------------------------------------------------------------------
-__device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
-                                                  Utilities **pUtilitiesPtr,
-                                                  int32_t **pTransactionHashes,
-                                                  int max_transactions,
-                                                  int max_utilities)
-{
-    if (threadIdx.x == 0)
-    {
-        const uint32_t memory_needed =
-            sizeof(Transaction) * max_transactions +
-            sizeof(Utilities) * max_utilities * scale +
-            sizeof(int32_t) * max_transactions * scale;
 
-        *pTemporaryPtr = (Transaction *)gmalloc(memory_needed);
-        *pUtilitiesPtr = (Utilities *)((char *)(*pTemporaryPtr) + sizeof(Transaction) * max_transactions);
-        *pTransactionHashes = (int32_t *)((char *)(*pUtilitiesPtr) + sizeof(Utilities) * max_utilities * scale);
-    }
-    __syncthreads();
-}
-
-__device__ __forceinline__ void reset_structs(
-    Task *new_work_item,
-    const Task &curr_work_item,
-    Transaction *temporary_transactions,
-    int32_t *transaction_hashes,
-    Utilities *local_subtree_utilities,
-    uint32_t *p_temp_transaction_count,
-    uint32_t *p_temp_item_count,
-    int max_transactions,
-    int max_utilities)
-{
-    if (threadIdx.x == 0)
-    {
-        *p_temp_transaction_count = 0;
-        *p_temp_item_count = 0;
-        new_work_item->clear();
-
-        if (new_work_item->pattern == nullptr)
-            new_work_item->pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_work_item.pattern_length + 1));
-
-        new_work_item->pattern_length = curr_work_item.pattern_length + 1;
-        new_work_item->pattern[curr_work_item.pattern_length] = curr_work_item.primary;
-    }
-    __syncthreads();
-
-    // Copy parent pattern
-    for (int i = threadIdx.x; i < curr_work_item.pattern_length; i += blockDim.x)
-        new_work_item->pattern[i] = curr_work_item.pattern[i];
-
-    // Clear temps
-    for (int i = threadIdx.x; i < max_transactions; i += blockDim.x)
-        temporary_transactions[i].clear();
-
-    for (int i = threadIdx.x; i < max_transactions * scale; i += blockDim.x)
-        transaction_hashes[i] = -1;
-
-    for (int i = threadIdx.x; i < max_utilities * scale; i += blockDim.x)
-        local_subtree_utilities[i].clear();
-
-    __syncthreads();
-}
-
-//------------------------------------------------------------------------------
-// Hash helpers
-//------------------------------------------------------------------------------
 __device__ static inline uint64_t fasthash(uint64_t i)
 {
     i += 1ULL;
@@ -191,6 +131,71 @@ __device__ __forceinline__ void add_bucket_util(Utilities *buckets, uint32_t tab
         }
         idx = (idx + 1) % table_size;
     }
+}
+
+//------------------------------------------------------------------------------
+// Global-memory temp structure init/reset
+//------------------------------------------------------------------------------
+__device__ __forceinline__ void initalize_structs(Transaction **pTemporaryPtr,
+                                                  Utilities **pUtilitiesPtr,
+                                                  int32_t **pTransactionHashes,
+                                                  int max_transactions,
+                                                  int max_utilities)
+{
+    if (threadIdx.x == 0)
+    {
+        const uint32_t memory_needed =
+            sizeof(Transaction) * max_transactions +
+            sizeof(Utilities) * max_utilities * scale;
+            // sizeof(int32_t) * max_transactions * scale;
+
+        *pTemporaryPtr = (Transaction *)gmalloc(memory_needed);
+        *pUtilitiesPtr = (Utilities *)((char *)(*pTemporaryPtr) + sizeof(Transaction) * max_transactions);
+        // *pTransactionHashes = (int32_t *)((char *)(*pUtilitiesPtr) + sizeof(Utilities) * max_utilities * scale);
+    }
+    __syncthreads();
+}
+
+__device__ __forceinline__ void reset_structs(
+    Task *new_work_item,
+    const Task &curr_work_item,
+    Transaction *temporary_transactions,
+    int32_t *transaction_hashes,
+    Utilities *local_subtree_utilities,
+    uint32_t *p_temp_transaction_count,
+    uint32_t *p_temp_item_count,
+    int max_transactions,
+    int max_utilities)
+{
+    if (threadIdx.x == 0)
+    {
+        *p_temp_transaction_count = 0;
+        *p_temp_item_count = 0;
+        new_work_item->clear();
+
+        if (new_work_item->pattern == nullptr)
+            new_work_item->pattern = (uint32_t *)gmalloc(sizeof(uint32_t) * (curr_work_item.pattern_length + 1));
+
+        new_work_item->pattern_length = curr_work_item.pattern_length + 1;
+        new_work_item->pattern[curr_work_item.pattern_length] = curr_work_item.primary;
+    }
+    __syncthreads();
+
+    // Copy parent pattern
+    for (int i = threadIdx.x; i < curr_work_item.pattern_length; i += blockDim.x)
+        new_work_item->pattern[i] = curr_work_item.pattern[i];
+
+    // Clear temps
+    for (int i = threadIdx.x; i < max_transactions; i += blockDim.x)
+        temporary_transactions[i].clear();
+
+    // for (int i = threadIdx.x; i < max_transactions * scale; i += blockDim.x)
+    //     transaction_hashes[i] = -1;
+
+    for (int i = threadIdx.x; i < max_utilities * scale; i += blockDim.x)
+        local_subtree_utilities[i].clear();
+
+    __syncthreads();
 }
 
 //------------------------------------------------------------------------------
@@ -276,7 +281,7 @@ __device__ void write_merge(Transaction *temporary_transactions,
                             uint32_t transaction_count,
                             uint32_t max_item)
 {
-    const int TEMP_ITEM_BUFFER_SIZE = 128;
+    // const int TEMP_ITEM_BUFFER_SIZE = 256;
     Item temp_item_buffer[TEMP_ITEM_BUFFER_SIZE];
 
     for (int i = threadIdx.x; i < temp_transaction_count; i += blockDim.x)
@@ -328,7 +333,7 @@ __device__ void write_merge(Transaction *temporary_transactions,
             temp += it.util;
         }
 
-        uint64_t h = hash % (transaction_count * scale);
+        uint64_t h = hash % (temp_transaction_count * scale);
         while (true)
         {
             int old = atomicCAS(&transaction_hashes[h], -1, t_off);
@@ -345,7 +350,7 @@ __device__ void write_merge(Transaction *temporary_transactions,
                 new_work_item.db->transactions[t_off].data = nullptr;
                 break;
             }
-            h = (h + 1) % (transaction_count * scale);
+            h = (h + 1) % (temp_transaction_count * scale);
         }
     }
     __syncthreads();
@@ -421,7 +426,7 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
                                Task &new_work_item,
                                Stack<Task, CAPACITY> *work_stack,
                                uint32_t min_util, uint32_t unique_item_count,
-                               uint32_t *transaction_distribution)
+                               uint32_t *transaction_distribution, bool adaptive = false, Stack<Task, CAPACITY> *one_stack = nullptr)
 {
     __shared__ uint32_t new_unique_item_count;
     if (threadIdx.x == 0)
@@ -437,15 +442,6 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
         new_work_item.unique_items = new_unique_item_count;
     __syncthreads();
 
-    // if (threadIdx.x == 0 && new_unique_item_count > 0 && new_work_item.db->num_transactions > 0)
-    // {
-    //     uint32_t index = (new_work_item.db->num_transactions <= 16) ? 0 : 1;
-    //     atomicAdd(&transaction_distribution[index], new_unique_item_count);
-    //     // uint32_t index = (new_work_item.db->num_transactions + 31) / 32;
-    //     // if (index > 32)
-    //     //     index = 32;
-    //     // atomicAdd(&transaction_distribution[index], new_unique_item_count);
-    // }
 
     for (int i = threadIdx.x; i < unique_item_count * scale; i += blockDim.x)
     {
@@ -453,12 +449,18 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
         if (local_subtree_utilities[i].subtree_utility >= min_util)
         {
             copy.primary = local_subtree_utilities[i].key;
-            work_stack->push(copy);
+            
 
+            if (!adaptive) 
+            {
+                work_stack->push(copy);
+                continue;
+            }
             if (copy.db->num_transactions <= 16)
             {
                 uint32_t index = 0;
                 atomicAdd(&transaction_distribution[index], 1);
+                one_stack->push(copy);
             }
             else
             {
@@ -466,6 +468,7 @@ __device__ void push_work_item(Utilities *local_subtree_utilities,
                 if (index > 33)
                     index = 33;
                 atomicAdd(&transaction_distribution[index], 1);
+                work_stack->push(copy);
             }
         }
     }
@@ -479,7 +482,7 @@ __global__ void mine(Stack<Task, CAPACITY> *curr_stack,
                      Stack<Task, CAPACITY> *new_stack,
                      patterns *p,
                      uint32_t min_util,
-                     uint32_t *transaction_distribution, uint32_t offset = 0)
+                     uint32_t *transaction_distribution, uint32_t offset = 0, bool adaptive = false, Stack<Task, CAPACITY> *one_stack = nullptr)
 {
     __shared__ Task curr_task;
     __shared__ Transaction *temporary_transactions;
@@ -515,6 +518,23 @@ __global__ void mine(Stack<Task, CAPACITY> *curr_stack,
          &temp_item_count);
 
     p->add_pattern(new_task, min_util);
+    __syncthreads();
+
+    if (temp_transaction_count == 0)
+    {
+        return;
+    }
+
+    if (threadIdx.x == 0)
+    {
+        // allocate hashes
+        transaction_hashes = (int32_t *)gmalloc(sizeof(int32_t) * temp_transaction_count * scale);
+
+    }
+    __syncthreads();
+    for (int i = threadIdx.x; i < temp_transaction_count * scale; i += blockDim.x)
+        transaction_hashes[i] = -1;
+    __syncthreads();
 
     allocate(new_task, temp_item_count, temp_transaction_count);
 
@@ -527,8 +547,11 @@ __global__ void mine(Stack<Task, CAPACITY> *curr_stack,
     trim(new_task);
 
     push_work_item(local_subtree_utilities, new_task, new_stack,
-                   min_util, curr_task.unique_items, transaction_distribution);
+                   min_util, curr_task.unique_items, transaction_distribution, adaptive, one_stack);
 }
+
+
+
 
 // Simplified version for single-thread access, no atomics needed.
 __device__ __forceinline__ void add_bucket_util_st(Utilities *buckets, uint32_t table_size,
@@ -688,7 +711,7 @@ __device__ void mine_recursive(Task &curr_task,
     new_task.memory_usage = memory_needed_db;
 
     // Local small buffer
-    const int TEMP_ITEM_BUFFER_SIZE = 128;
+    // const int TEMP_ITEM_BUFFER_SIZE = 256;
     Item temp_item_buffer[TEMP_ITEM_BUFFER_SIZE];
 
     // 4. Build filtered projected database
@@ -853,228 +876,221 @@ __global__ void mine_sm(Stack<Task, CAPACITY> *curr_stack,
 //------------------------------------------------------------------------------
 // Utility
 //------------------------------------------------------------------------------
-static inline uint32_t round_up_to_warp_size(uint32_t n)
-{
-    const uint32_t warp = 32;
-    return ((n + warp - 1) / warp) * warp;
-}
 
-//------------------------------------------------------------------------------
-// Host driver
-//------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-// Helper Function for Kernel Launching and Timing
-//------------------------------------------------------------------------------
-void launch_and_time_kernels(
-    bool is_adaptive,
-    bool use_st_kernel,
-    Stack<Task, CAPACITY> *curr_stack,
-    Stack<Task, CAPACITY> *new_stack,
-    patterns *p,
-    uint32_t min_util,
-    uint32_t &thread_count, // Pass by reference to update it in adaptive mode
-    uint32_t *transaction_distribution,
-    Timer &timer,
-    int iter, unsigned long long offset = 0)
-{
-    const unsigned long long before_offset = allocators::atomic::allocator_offset;
-
-    if (use_st_kernel)
-    {
-        // The 'st' kernel is designed for many tasks, each handled by a single thread.
-        // We calculate grid size to ensure all tasks are covered.
-        const int threads_per_block = 1024;
-        const int grid_size = (curr_stack->top + threads_per_block - 1) / threads_per_block;
-        mine_st<<<grid_size, threads_per_block>>>(curr_stack, new_stack, p, min_util, offset);
-    }
-    else
-    {
-        // The standard 'mine' kernel uses one block per task.
-        mine<<<curr_stack->top, thread_count>>>(
-            curr_stack, new_stack, p,
-            min_util, transaction_distribution, offset);
-    }
-
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-
-    const unsigned long long after_offset = allocators::atomic::allocator_offset;
-    timer.recordPoint("Iteration " + std::to_string(iter), before_offset, after_offset);
-
-    // record_memory_usage();
-    // reclaim_memory();
-
-    // reclaim_memory();
-}
-
-//------------------------------------------------------------------------------
-// Static Parallel Mining Host Driver
-//------------------------------------------------------------------------------
-void run_static_mining(Stack<Task, CAPACITY> *curr_stack,
-                       Stack<Task, CAPACITY> *new_stack,
+void run_static_mining(built_file &bf,
+                       uint32_t *primary,
                        patterns *p,
                        ArgParser &parser,
                        Timer &timer)
 {
+    // --- Setup for Static Mining ---
+    Stack<Task, CAPACITY> *curr_stack, *new_stack;
+    gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
+    gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
+    curr_stack->init();
+    new_stack->init();
+
+    // Seed initial work from primary patterns
+    copy_work<<<1, 1024>>>(curr_stack, bf.db, primary, bf.primary.size(), bf.max_id + 1);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+
+    
+
+    // --- Main Mining Loop ---
     int iter = 1;
-    uint32_t thread_count = parser.get_uint32("--block_size"); // Fixed block size
+    const uint32_t thread_count = parser.get_uint32("--block_size"); // Fixed block size
+
+    uint64_t initial_offset = allocators::atomic::allocator_offset;
+    uint64_t total_boundary = allocators::atomic::allocator_total;
+    uint64_t safety_boundary = 0;
+    uint64_t current_boundary = 0;
 
     while (curr_stack->top != 0)
     {
-        launch_and_time_kernels(
-            false, // is_adaptive
-            false, // use_st_kernel
-            curr_stack,
-            new_stack,
-            p,
-            (uint32_t)parser.get_uint32("--minutil"),
-            thread_count,
-            nullptr, // No distribution needed for static mining
-            timer,
-            iter++);
 
+        // const unsigned long long before_offset = allocators::atomic::allocator_offset;
+        safety_boundary = allocators::atomic::allocator_offset;
+
+        // Launch the kernel directly using one block per task
+        mine<<<curr_stack->top, thread_count>>>(
+            curr_stack, new_stack, p,
+            (uint32_t)parser.get_uint32("--minutil"),
+            nullptr, // transaction_distribution is not used in static mode
+            0);
+
+        gpuErrchk(cudaPeekAtLastError());
+        gpuErrchk(cudaDeviceSynchronize());
+
+        current_boundary = allocators::atomic::allocator_offset;
+        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary
+                            );
+
+        // Prepare for the next iteration
         std::swap(curr_stack, new_stack);
         new_stack->init();
+
+
+        uint64_t head = total_boundary - current_boundary;
+        uint64_t tail = safety_boundary - initial_offset;
+        std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
+        if (head < tail)
+        {
+            std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
+            allocators::atomic::allocator_offset = initial_offset;
+            cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
+        }
+
+        iter++;
     }
+
+
+    // --- Cleanup for Static Mining ---
+    cudaFree(curr_stack);
+    cudaFree(new_stack);
 }
 
 //------------------------------------------------------------------------------
 // Adaptive Parallel Mining Host Driver
+//
+// This function now manages its own stacks, seeds initial work,
+// and handles its own adaptive logic, kernel launching, and timing.
 //------------------------------------------------------------------------------
-
-
-void run_adaptive_mining(Stack<Task, CAPACITY> *curr_stack,
-                         Stack<Task, CAPACITY> *new_stack,
+void run_adaptive_mining(built_file &bf,
+                         uint32_t *primary,
                          patterns *p,
                          ArgParser &parser,
                          Timer &timer)
 {
-    // Histogram for adaptive scheduling (33 buckets)
+    // --- Setup for Adaptive Mining ---
+    Stack<Task, CAPACITY> *curr_stack, *new_stack, *one_stack, *one_stack_next;
+    gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
+    gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
+    gpuErrchk(cudaMallocManaged(&one_stack, sizeof(*one_stack)));
+    gpuErrchk(cudaMallocManaged(&one_stack_next, sizeof(*one_stack_next)));
+    curr_stack->init();
+    new_stack->init();
+    one_stack->init();
+    one_stack_next->init();
+
+    // Seed initial work from primary patterns
+    copy_work<<<1, 1024>>>(curr_stack, bf.db, primary, bf.primary.size(), bf.max_id + 1);
+    gpuErrchk(cudaPeekAtLastError());
+    gpuErrchk(cudaDeviceSynchronize());
+
+    // Histogram for adaptive scheduling
     uint32_t *transaction_distribution;
-    const int dist_size = 34;
+    const int dist_size = 34; // 33 buckets + 1 for overflow
     gpuErrchk(cudaMallocManaged(&transaction_distribution, sizeof(uint32_t) * dist_size));
     memset(transaction_distribution, 0, sizeof(uint32_t) * dist_size);
 
+    transaction_distribution[33] = bf.primary.size(); // Seed with initial patterns to avoid zero-thread launch
+
+    // --- Main Mining Loop for Multi-Threaded Tasks ---
     int iter = 1;
-    bool use_st_kernel = false;
     uint32_t thread_count = parser.get_uint32("--block_size"); // Initial block size
 
-    while (curr_stack->top != 0)
+    uint64_t initial_offset = allocators::atomic::allocator_offset;
+    uint64_t total_boundary = allocators::atomic::allocator_total;
+    uint64_t safety_boundary = 0;
+    uint64_t current_boundary = 0;
+
+    while (curr_stack->top != 0 || one_stack->top != 0)
     {
-        // --- Adaptive Logic: Calculate optimal block size for this iteration ---
+        safety_boundary = allocators::atomic::allocator_offset;
 
-        // print the transaction distribution for debugging
-        // for (int i = 0; i < dist_size; ++i)
-        // {
-            // if (transaction_distribution[i] > 0)
-                // std::cout << "Bucket " << i << ": " << transaction_distribution[i] << " tasks\n";
-        // }
-        // std::cout << "Current Stack Top: " << curr_stack->top << " tasks\n";
-
-        unsigned long long weighted_sum = 0;
-        uint32_t tasks_in_dist = 0;
-
-        // Check if conditions are met to switch to the single-thread-per-task kernel
-        if (!use_st_kernel && transaction_distribution[0] > 0)
+        // mine blah blah blah
+        if (curr_stack->top != 0)
         {
-            bool all_others_empty = true;
+            
+            // --- Adaptive Logic: Calculate optimal block size for this iteration ---
+            unsigned long long weighted_sum = 0;
+            uint32_t tasks_in_dist = 0;
+
             for (int i = 1; i < dist_size; ++i)
             {
-                if (transaction_distribution[i] > 0)
+                const uint32_t num_tasks = transaction_distribution[i];
+                if (num_tasks > 0)
                 {
-                    all_others_empty = false;
-                    break;
+                    std::cout << i * 32 << ":" << num_tasks << " ";
+                    const uint32_t rep = i * 32;
+                    weighted_sum += (unsigned long long)rep * num_tasks;
+                    tasks_in_dist += num_tasks;
                 }
             }
-            if (all_others_empty)
-                use_st_kernel = true;
-        }
+            std::cout << "\tTasks in Dist: " << tasks_in_dist << " Total Tasks: " << curr_stack->top << std::endl;
 
-        for (int i = 0; i < dist_size; ++i)
-        {
-            const uint32_t num_tasks = transaction_distribution[i];
-            if (num_tasks > 0)
+            if (tasks_in_dist > 0)
             {
-                const uint32_t rep = i * 32;
-                weighted_sum += (unsigned long long)rep * num_tasks;
-                tasks_in_dist += num_tasks;
+                const uint32_t weighted_avg = (uint32_t)(weighted_sum / tasks_in_dist);
+                thread_count = round_up_to_warp_size(weighted_avg);
             }
+            else if (curr_stack->top > 0) // Fallback for the first iteration
+            {
+                const uint32_t avg = curr_stack->total_transactions / curr_stack->top;
+                if (avg > 0) thread_count = next_pow2(avg);
+            }
+
+            // Clamp thread_count to valid CUDA limits
+            thread_count = std::max(32u, std::min(1024u, thread_count));
+
+            // Reset distribution for the next kernel launch to populate it
+            memset(transaction_distribution, 0, sizeof(uint32_t) * dist_size);
+                // The 'mine' kernel now has added logic to offload single-thread tasks to 'one_stack'
+            mine<<<curr_stack->top, thread_count>>>(
+                curr_stack, new_stack, p,
+                (uint32_t)parser.get_uint32("--minutil"),
+                transaction_distribution, 0, true, one_stack);
+
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
         }
 
-        if (tasks_in_dist > 0)
+        if (one_stack->top != 0)
         {
-            const uint32_t weighted_avg = (uint32_t)(weighted_sum / tasks_in_dist);
-            thread_count = round_up_to_warp_size(weighted_avg);
-        }
-        else if (curr_stack->top > 0)
-        {
-            const uint32_t avg = curr_stack->total_transactions / curr_stack->top;
-            if (avg > 0)
-                thread_count = next_pow2(avg);
+            mine_st<<<(one_stack->top + 255) / 256, 256>>>(
+                one_stack, one_stack_next, p,
+                (uint32_t)parser.get_uint32("--minutil"), 0);
+            gpuErrchk(cudaPeekAtLastError());
+            gpuErrchk(cudaDeviceSynchronize());
+
         }
 
-        // Clamp thread_count to valid CUDA limits
-        if (thread_count > 1024)
-            thread_count = 1024;
-        if (thread_count < 32)
-            thread_count = 32;
-
-        // Reset distribution for the next iteration
-        memset(transaction_distribution, 0, sizeof(uint32_t) * dist_size);
-
-        // --- Launch Kernels ---
-        launch_and_time_kernels(
-            true, // is_adaptive
-            use_st_kernel,
-            curr_stack,
-            new_stack,
-            p,
-            (uint32_t)parser.get_uint32("--minutil"),
-            thread_count,
-            transaction_distribution,
-            timer,
-            iter++);
-
+        // Prepare for the next iteration
         std::swap(curr_stack, new_stack);
+        std::swap(one_stack, one_stack_next);
         new_stack->init();
+        one_stack_next->init();
 
 
+        current_boundary = allocators::atomic::allocator_offset;
+        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary);
 
-            
-        // sort_stack_descending(curr_stack);
-        // // print_top_tasks<<<1, 1>>>(curr_stack, 0);
-        // gpuErrchk(cudaPeekAtLastError());
-        // gpuErrchk(cudaDeviceSynchronize());
+        // so from safety to current we will need it. but initial to safety we can clear it but we only set it if the head is less than tail
+        // head being the current boundary to the total
+        // tail being previous to safety
+        uint64_t head = total_boundary - current_boundary;
+        uint64_t tail = safety_boundary - initial_offset;
+        std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
+        if (head < tail)
+        {
+            std::cout << "Reset Mem: " << initial_offset  / (1024 * 1024)<< " to " << safety_boundary  / (1024 * 1024)<< std::endl;
+            allocators::atomic::allocator_offset = initial_offset;
+            cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
+        }
+
+        iter++;
+
     }
 
+    // --- Cleanup for Adaptive Mining ---
     cudaFree(transaction_distribution);
+    cudaFree(curr_stack);
+    cudaFree(new_stack);
+    cudaFree(one_stack); // Free the additional stack
+    cudaFree(one_stack_next);
 }
-
-// {
-//     // 34 stacks for different task sizes
-    
-//     Stack<Task, CAPACITY> *stacks[34];
-//     for (int i = 0; i < 34; ++i)
-//     {
-//         gpuErrchk(cudaMallocManaged(&stacks[i], sizeof(Stack<Task, CAPACITY>)));
-//         stacks[i]->init();
-//     }
-//     int iter = 1;
-
-//     Stack<Task, CAPACITY> *new_stack[34];
-//     for (int i = 0; i < 34; ++i)
-//     {
-//         gpuErrchk(cudaMallocManaged(&new_stack[i], sizeof(Stack<Task, CAPACITY>)));
-//         new_stack[i]->init();
-//     }
-
-//     // copy all the tasks in curr_stack the 33rd stack
-//     cudaMemcpy(stacks[33], curr_stack, sizeof(Stack<Task, CAPACITY>), cudaMemcpyDeviceToDevice);
-
-    
-
-// }
 
 //------------------------------------------------------------------------------
 // Main Host Driver - Now acts as a dispatcher
@@ -1086,34 +1102,26 @@ void static_parallel_mining(built_file &bf,
                             size_t available_shared_memory)
 {
     // --- Common Setup ---
-    Stack<Task, CAPACITY> *curr_stack, *new_stack;
-    gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
-    gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
-    curr_stack->init();
-    new_stack->init();
-
+    // Allocate and copy primary patterns to the device
     uint32_t *primary;
     gpuErrchk(cudaMallocManaged(&primary, sizeof(uint32_t) * bf.primary.size()));
     memcpy(primary, bf.primary.data(), sizeof(uint32_t) * bf.primary.size());
 
-    // Seed initial work from primaries
-    copy_work<<<1, 1024>>>(curr_stack, bf.db, primary, bf.primary.size(), bf.max_id + 1);
-    gpuErrchk(cudaPeekAtLastError());
-    gpuErrchk(cudaDeviceSynchronize());
-
     // --- Dispatch to the correct mining strategy ---
     if (parser.get_bool("--adaptive"))
     {
-        run_adaptive_mining(curr_stack, new_stack, p, parser, timer);
+        printf("Running Adaptive Mining...\n");
+        run_adaptive_mining(bf, primary, p, parser, timer);
     }
     else
     {
-        run_static_mining(curr_stack, new_stack, p, parser, timer);
+        printf("Running Static Mining...\n");
+        run_static_mining(bf, primary, p, parser, timer);
     }
 
     // --- Common Cleanup ---
-    cudaFree(curr_stack);
-    cudaFree(new_stack);
+    // The stacks and other strategy-specific memory are freed within the run_* functions.
+    // We only need to free memory that was common to both.
     cudaFree(bf.db->data);
     cudaFree(bf.db->transactions);
     cudaFree(bf.db);
