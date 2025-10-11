@@ -1,6 +1,7 @@
 #include "file/save.cuh"
 
-void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item)
+// void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item)
+void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns, Item_mapping *item_map, uint32_t max_item)
 {
 
     // if /dev/null is used, do not write to files
@@ -25,6 +26,30 @@ void save_patterns(const std::string &output_path, const uint32_t *data, const u
         return;
     }
 
+    uint64_t pattern_count = 0;
+    for (const auto& pattern_data : all_patterns)
+    {
+        std::cout << "Written patterns so far: " << pattern_count << "\r" << std::flush;
+        if (!pattern_data.empty())
+        {
+            for (size_t j = 0; j <  pattern_data.size(); ++j)
+            {
+                // output_file << item_map_copy[pattern_data[j]] << " ";
+                if (pattern_data[j] == 0)
+                {
+                    output_file << "\n";
+                    pattern_count++;
+                }
+                else
+                {
+                    output_file << pattern_data[j] << " ";
+                }
+            }
+        }
+    }
+
+    std::cout << "\nTotal patterns written: " << pattern_count << "\n";
+
 
 
 
@@ -33,30 +58,30 @@ void save_patterns(const std::string &output_path, const uint32_t *data, const u
     // std::vector<uint32_t> pattern_data;
     // std::string pattern;
 
-    bool first = false;
+    // bool first = false;
 
-    uint64_t i = 0;
-    while(true)
-    {
-        if (data[i] == 0)
-        {
-            if (first)
-            { 
-                break;
-            }
+    // uint64_t i = 0;
+    // while(true)
+    // {
+    //     if (data[i] == 0)
+    //     {
+    //         if (first)
+    //         { 
+    //             break;
+    //         }
 
-            output_file << "\n";
-            first = true;
+    //         output_file << "\n";
+    //         first = true;
 
             
-        }
-        else
-        {
-            first = false;
-            output_file << data[i] << " ";
-        }
-        i++;
-    }
+    //     }
+    //     else
+    //     {
+    //         first = false;
+    //         output_file << data[i] << " ";
+    //     }
+    //     i++;
+    // }
     //     if (data[i] != 0)
     //     {
     //         // pattern +=

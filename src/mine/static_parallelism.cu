@@ -30,7 +30,7 @@ __global__ void copy_work(Stack<Task, CAPACITY> *work_stack,
         task.db = (Database *)gmalloc(memory_needed);
         task.db->data = (Item *)((char *)task.db + sizeof(Database));
         task.db->transactions = (Transaction *)((char *)task.db->data + sizeof(Item) * db->num_items);
-       
+
         // task.work_done = (uint32_t *)((char *)task.db->transactions + sizeof(Transaction) * db->num_transactions);
         // task.work_done[0] = 0;
         // task.work_count = primary_size;
@@ -256,8 +256,6 @@ __device__ void scan(const Task &curr_work_item,
     }
     __syncthreads();
 }
-
-
 
 //------------------------------------------------------------------------------
 // allocate (global) projected DB
@@ -837,7 +835,7 @@ void run_static_mining(built_file &bf,
                        uint32_t *primary,
                        patterns *p,
                        ArgParser &parser,
-                       Timer &timer)
+                       Timer &timer, std::vector<std::vector<uint32_t>> &all_patterns)
 {
     // --- Setup for Static Mining ---
     Stack<Task, CAPACITY> *curr_stack, *new_stack;
@@ -877,7 +875,6 @@ void run_static_mining(built_file &bf,
         gpuErrchk(cudaDeviceSynchronize());
 
         current_boundary = allocators::atomic::allocator_offset;
-        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary);
 
         // Prepare for the next iteration
         std::swap(curr_stack, new_stack);
@@ -885,16 +882,48 @@ void run_static_mining(built_file &bf,
 
         uint64_t head = total_boundary - current_boundary;
         uint64_t tail = safety_boundary - initial_offset;
-        std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
+        // std::cout << "H: " << head / (1024 * 1024) << " T: " << tail / (1024 * 1024) << std::endl;
         if (head < tail)
         {
-            std::cout << "Reset Mem: " << initial_offset / (1024 * 1024) << " to " << safety_boundary / (1024 * 1024) << std::endl;
+            // std::cout << "Reset Mem: " << initial_offset / (1024 * 1024) << " to " << safety_boundary / (1024 * 1024) << std::endl;
             allocators::atomic::allocator_offset = initial_offset;
             cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
         }
 
+        if (p->offset > 0)
+        {
+            std::vector<uint32_t> iter_pattern;
+            iter_pattern.resize(p->offset); // <<< resize, not reserve
+
+            // ensure device work is finished before copying
+            cudaDeviceSynchronize();
+
+            cudaError_t err = cudaMemcpy(iter_pattern.data(),
+                                         p->data,
+                                         sizeof(uint32_t) * p->offset,
+                                         cudaMemcpyDeviceToHost);
+            if (err != cudaSuccess)
+            {
+                std::cerr << "cudaMemcpy failed: " << cudaGetErrorString(err) << "\n";
+                // handle error...
+            }
+
+            // move into container to avoid a copy
+            all_patterns.push_back(std::move(iter_pattern));
+
+            // clear the device buffer
+            cudaMemset(p->data, 0, sizeof(uint32_t) * p->offset);
+            p->offset = 0;
+            
+        }
+
+        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary);
+
         iter++;
     }
+
+    curr_stack->de_init();
+    new_stack->de_init();
 
     // --- Cleanup for Static Mining ---
     cudaFree(curr_stack);
@@ -907,17 +936,17 @@ void run_adaptive_mining(built_file &bf,
                          uint32_t *primary,
                          patterns *p,
                          ArgParser &parser,
-                         Timer &timer)
+                         Timer &timer, std::vector<std::vector<uint32_t>> &all_patterns)
 {
-    
+
     // --- Setup for Adaptive Mining ---
     Stack<Task, CAPACITY> *curr_stack, *new_stack, *one_stack, *one_stack_next;
     gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
     gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
     gpuErrchk(cudaMallocManaged(&one_stack, sizeof(*one_stack)));
     gpuErrchk(cudaMallocManaged(&one_stack_next, sizeof(*one_stack_next)));
-    curr_stack->init();
-    new_stack->init();
+    curr_stack->init_managed();
+    new_stack->init_managed();
     one_stack->init();
     one_stack_next->init();
 
@@ -970,14 +999,11 @@ void run_adaptive_mining(built_file &bf,
                 }
             }
 
+            thread_count = 1024;
             if (tasks_in_dist > 0)
             {
                 const uint32_t weighted_avg = (uint32_t)(weighted_sum / tasks_in_dist);
                 thread_count = round_up_to_warp_size(weighted_avg);
-            }
-            else if (curr_stack->top > 0) // Fallback for the first iteration
-            {
-                thread_count = 1024;
             }
 
             // Clamp thread_count to valid CUDA limits
@@ -1003,7 +1029,6 @@ void run_adaptive_mining(built_file &bf,
                 curr_stack->de_init();
                 new_stack->de_init();
             }
-
         }
 
         transaction_distribution[0] = one_stack->top;
@@ -1021,7 +1046,6 @@ void run_adaptive_mining(built_file &bf,
         one_stack_next->reset();
 
         current_boundary = allocators::atomic::allocator_offset;
-        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary, dist_copy);
 
         // so from safety to current we will need it. but initial to safety we can clear it but we only set it if the head is less than tail
         // head being the current boundary to the total
@@ -1036,8 +1060,40 @@ void run_adaptive_mining(built_file &bf,
             cudaMemset(allocators::atomic::allocator_base + initial_offset, 0, tail);
         }
 
+        if (p->offset > 0)
+        {
+            std::vector<uint32_t> iter_pattern;
+            iter_pattern.resize(p->offset); // <<< resize, not reserve
+
+            // ensure device work is finished before copying
+
+            cudaError_t err = cudaMemcpy(iter_pattern.data(),
+                                         p->data,
+                                         sizeof(uint32_t) * p->offset,
+                                         cudaMemcpyDeviceToHost);
+            if (err != cudaSuccess)
+            {
+                std::cerr << "cudaMemcpy failed: " << cudaGetErrorString(err) << "\n";
+                // handle error...
+            }
+
+            // move into container to avoid a copy
+            all_patterns.push_back(std::move(iter_pattern));
+
+            // clear the device buffer
+            // cudaMemset(p->data, 0, sizeof(uint32_t) * p->offset);
+            p->offset = 0;
+            
+        }
+
+        timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary, dist_copy);
+
+
         iter++;
     }
+
+    one_stack->de_init();
+    one_stack_next->de_init();
 
     // --- Cleanup for Adaptive Mining ---
     cudaFree(transaction_distribution);
@@ -1051,7 +1107,7 @@ void static_parallel_mining(built_file &bf,
                             patterns *p,
                             ArgParser &parser,
                             Timer &timer,
-                            size_t available_shared_memory)
+                            size_t available_shared_memory, std::vector<std::vector<uint32_t>> &all_patterns)
 {
     // Allocate and copy primary patterns to the device
     uint32_t *primary;
@@ -1062,12 +1118,12 @@ void static_parallel_mining(built_file &bf,
     if (parser.get_bool("--adaptive"))
     {
         printf("Running Adaptive Mining...\n");
-        run_adaptive_mining(bf, primary, p, parser, timer);
+        run_adaptive_mining(bf, primary, p, parser, timer, all_patterns);
     }
     else
     {
         printf("Running Static Mining...\n");
-        run_static_mining(bf, primary, p, parser, timer);
+        run_static_mining(bf, primary, p, parser, timer, all_patterns);
     }
 
     cudaFree(bf.db->data);

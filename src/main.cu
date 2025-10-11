@@ -70,9 +70,8 @@ int main(int argc, char *argv[])
         parser.add_argument("--managed", "bool", "Use managed memory", false, "false");
         parser.add_argument("--separator", "string", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
         parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
-        parser.add_argument("--num_blocks", "int", "Number of GPU blocks", false, "0");
         parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
-        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "256M");
+        parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "2G");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
         parser.parse(argc, argv);
 
@@ -84,6 +83,7 @@ int main(int argc, char *argv[])
         std::cout << "Adaptive: " << (parser.get_bool("--adaptive") ? "true" : "false") << "\n";
         std::cout << "Pattern Memory: " << parser.get("--pattern_memory") << "\n";
         std::cout << "Total Memory: " << parser.get("--total_memory") << "\n";
+        std::cout << "Block Size: " << parser.get("--block_size") << "\n";
     }
     catch (const std::exception &e)
     {
@@ -149,12 +149,17 @@ int main(int argc, char *argv[])
 
     size_t shared_memory = get_shared_memory_per_block();
 
-    static_parallel_mining(bf, p, parser, timer, shared_memory);
+    std::vector<std::vector<uint32_t>> all_patterns;
+
+    static_parallel_mining(bf, p, parser, timer, shared_memory, all_patterns);
 
     timer.recordPoint("End");
 
+
     // free allocator
     free_global_allocator();
+    p->free();
+    cudaFree(p);
 
     timer.printRecords();
     std::cout << "Number of patterns: " << p->pattern_count << "\n";
@@ -165,7 +170,7 @@ int main(int argc, char *argv[])
 #endif
 
 
-    save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
+    save_patterns(parser.get("--output"), all_patterns, item_map, pf.max_item);
 
     // std::cout << "Pattern last offset: " << p->offset << "\n";
 

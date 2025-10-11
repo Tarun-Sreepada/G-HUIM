@@ -624,7 +624,7 @@ if __name__ == "__main__":
     process_data = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9500000],
+            [9700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
@@ -637,11 +637,11 @@ if __name__ == "__main__":
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3600000, 3650000, 3700000, 3750000, 3800000, 3850000, 3900000],
+            [3900000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [6100000, 6200000, 6300000, 6400000, 6500000, 6600000],
+            [7400000, 7500000, 7600000, 7700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
@@ -649,12 +649,16 @@ if __name__ == "__main__":
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1425, 1430, 1435, 1440, 1445, 1450],
+            [1435, 1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [5000, 5500, 6000, 6500, 7000, 7500, 8000],
+            [6000, 5500, 6000, 6500, 7000, 7500, 8000],
         ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/synthetic/huT10M_ni100_avg25.txt",
+        #     [15000000, 16000000, 17000000, 18000000, 19000000, 20000000],
+        # ],
     ]
 
     for input_path, minutils in process_data:

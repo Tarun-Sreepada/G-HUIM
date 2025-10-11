@@ -13,12 +13,21 @@ struct Stack
     volatile unsigned int top;                     // Points to the next free slot
     // unsigned long long int total_transactions = 0; // Total transactions in the database
 
+    __host__ void init_managed()
+    {
+        top = 0;
+        // total_transactions = 0;
+        printf("Managed Type size: %lu, Capacity: %d, Total size: %lu MB\n", sizeof(T), CAPACITY, (sizeof(T) * CAPACITY) / (1024 * 1024));
+        cudaMallocManaged(&data, sizeof(T) * CAPACITY);
+    }
+
+
     __host__ void init()
     {
         top = 0;
         // total_transactions = 0;
-        // printf("Type size: %lu, Capacity: %d, Total size: %lu MB\n", sizeof(T), CAPACITY, (sizeof(T) * CAPACITY) / (1024 * 1024));
-        cudaMallocManaged(&data, sizeof(T) * CAPACITY);
+        printf("Type size: %lu, Capacity: %d, Total size: %lu MB\n", sizeof(T), CAPACITY, (sizeof(T) * CAPACITY) / (1024 * 1024));
+        cudaMalloc(&data, sizeof(T) * CAPACITY);
     }
 
     __host__ void reset()

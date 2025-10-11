@@ -60,7 +60,7 @@ def _append_to_detailed_cache(rows: list) -> None:
 def run_and_parse_detailed(
     input_file: str,
     minutil: int,
-    total_memory: str = "64G",
+    total_memory: str = "60G",
     method: str = "SP",
     adaptive: bool = True,
     block_size: int | None = None,
@@ -274,50 +274,54 @@ if __name__ == "__main__":
     process_data = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9500000],
+            [9700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
             # , 2002000,2004000,2006000
             [1999000]
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-        #     [700000],
-        # ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            [700000],
+        ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3600000,],
+            [3900000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [7100000],
+            [7400000, 7500000, 7600000, 7700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
-            [170000],
+            [170000, 175000, 180000, 185000, 190000, 195000, 200000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1435,],
+            [1435, 1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [5000],
+            [6000, 5500, 6000, 6500, 7000, 7500, 8000],
         ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/synthetic/huT10M_ni100_avg25.txt",
+        #     [15000000, 16000000, 17000000, 18000000, 19000000, 20000000],
+        # ],
     ]
 
     
 
     for input_path, minutils in process_data:
-        for minutil in minutils:
-            print(f"\nProcessing {Path(input_path).name} with minutil {minutil}")
+        minutil = minutils[0]
+        print(f"\nProcessing {Path(input_path).name} with minutil {minutil}")
 
-            iteration_df = get_or_run_detailed_data(input_path, minutil)
+        iteration_df = get_or_run_detailed_data(input_path, minutil)
 
-            if not iteration_df.empty:
-                file_base = Path(input_path).stem
-                output_file = OUT_DIR / f"{file_base}_minutil_{minutil}_log_timeline.png"
-                plot_log_timeline(iteration_df, output_file)
-            else:
-                print(f"Skipping plot for {input_path} as no data was generated or cache was invalid.")
+        if not iteration_df.empty:
+            file_base = Path(input_path).stem
+            output_file = OUT_DIR / f"{file_base}_minutil_{minutil}_log_timeline.png"
+            plot_log_timeline(iteration_df, output_file)
+        else:
+            print(f"Skipping plot for {input_path} as no data was generated or cache was invalid.")

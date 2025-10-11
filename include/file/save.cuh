@@ -11,4 +11,4 @@
 #include <cstdint>
 #include "build.cuh"
 
-void save_patterns(const std::string& output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item);
+void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns, Item_mapping *item_map, uint32_t max_item);
