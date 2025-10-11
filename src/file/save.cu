@@ -33,16 +33,29 @@ void save_patterns(const std::string &output_path, const uint32_t *data, const u
     // std::vector<uint32_t> pattern_data;
     // std::string pattern;
 
-    for (uint32_t i = 0; i < offset; ++i)
+    bool first = false;
+
+    uint64_t i = 0;
+    while(true)
     {
         if (data[i] == 0)
         {
+            if (first)
+            { 
+                break;
+            }
+
             output_file << "\n";
+            first = true;
+
+            
         }
         else
         {
-            output_file << item_map_copy[data[i]] << " ";
+            first = false;
+            output_file << data[i] << " ";
         }
+        i++;
     }
     //     if (data[i] != 0)
     //     {

@@ -901,18 +901,15 @@ void run_static_mining(built_file &bf,
     cudaFree(new_stack);
 }
 
-//------------------------------------------------------------------------------
-// Adaptive Parallel Mining Host Driver
-//
-// This function now manages its own stacks, seeds initial work,
-// and handles its own adaptive logic, kernel launching, and timing.
-//------------------------------------------------------------------------------
+
+
 void run_adaptive_mining(built_file &bf,
                          uint32_t *primary,
                          patterns *p,
                          ArgParser &parser,
                          Timer &timer)
 {
+    
     // --- Setup for Adaptive Mining ---
     Stack<Task, CAPACITY> *curr_stack, *new_stack, *one_stack, *one_stack_next;
     gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
@@ -998,6 +995,17 @@ void run_adaptive_mining(built_file &bf,
 
             gpuErrchk(cudaPeekAtLastError());
             gpuErrchk(cudaDeviceSynchronize());
+
+            // Prepare for the next iteration
+            std::swap(curr_stack, new_stack);
+            new_stack->init();
+
+            if (curr_stack->top == 0)
+            {
+                curr_stack->de_init();
+                new_stack->de_init();
+            }
+
         }
 
         transaction_distribution[0] = one_stack->top;
@@ -1011,10 +1019,7 @@ void run_adaptive_mining(built_file &bf,
             gpuErrchk(cudaDeviceSynchronize());
         }
 
-        // Prepare for the next iteration
-        std::swap(curr_stack, new_stack);
         std::swap(one_stack, one_stack_next);
-        new_stack->init();
         one_stack_next->init();
 
         current_boundary = allocators::atomic::allocator_offset;
@@ -1044,16 +1049,12 @@ void run_adaptive_mining(built_file &bf,
     cudaFree(one_stack_next);
 }
 
-//------------------------------------------------------------------------------
-// Main Host Driver - Now acts as a dispatcher
-//------------------------------------------------------------------------------
 void static_parallel_mining(built_file &bf,
                             patterns *p,
                             ArgParser &parser,
                             Timer &timer,
                             size_t available_shared_memory)
 {
-    // --- Common Setup ---
     // Allocate and copy primary patterns to the device
     uint32_t *primary;
     gpuErrchk(cudaMallocManaged(&primary, sizeof(uint32_t) * bf.primary.size()));
@@ -1071,9 +1072,6 @@ void static_parallel_mining(built_file &bf,
         run_static_mining(bf, primary, p, parser, timer);
     }
 
-    // --- Common Cleanup ---
-    // The stacks and other strategy-specific memory are freed within the run_* functions.
-    // We only need to free memory that was common to both.
     cudaFree(bf.db->data);
     cudaFree(bf.db->transactions);
     cudaFree(bf.db);
