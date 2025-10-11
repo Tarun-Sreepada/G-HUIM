@@ -157,6 +157,8 @@ int main(int argc, char *argv[])
     free_global_allocator();
 
     timer.printRecords();
+    std::cout << "Number of patterns: " << p->pattern_count << "\n";
+
 
 #ifdef DEBUG
     std::cout << "Saving to file: " << parser.get("--output") << "\n";
@@ -165,11 +167,10 @@ int main(int argc, char *argv[])
 
     save_patterns(parser.get("--output"), p->data, p->offset, item_map, pf.max_item);
 
-    std::cout << "Pattern last offset: " << p->offset << "\n";
+    // std::cout << "Pattern last offset: " << p->offset << "\n";
 
     p->free();
 
-    std::cout << "Number of patterns: " << p->pattern_count << "\n";
 
     cudaFree(item_map);
 

@@ -25,3 +25,5 @@ datasets/*.txt
 datasets/synthetic/*
 
 experiments/synthetic_hu/
+
+out.txt

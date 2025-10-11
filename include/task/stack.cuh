@@ -7,7 +7,8 @@
 template<typename T, int CAPACITY>
 struct Stack
 {
-    T data[CAPACITY];
+    // T data[CAPACITY];
+    T *data;
 
     volatile unsigned int top;                     // Points to the next free slot
     unsigned long long int total_transactions = 0; // Total transactions in the database
@@ -16,6 +17,12 @@ struct Stack
     {
         top = 0;
         total_transactions = 0;
+        cudaMallocManaged(&data, sizeof(T) * CAPACITY);
+    }
+
+    __host__ void de_init()
+    {
+        cudaFree(data);
     }
 
     __device__ bool push(T item)
