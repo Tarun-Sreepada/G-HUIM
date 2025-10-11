@@ -224,7 +224,7 @@ def main():
     datasets_to_process = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9500000],
+            [9700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
@@ -237,11 +237,11 @@ def main():
         # ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3600000, 3650000, 3700000, 3750000, 3800000, 3850000, 3900000],
+            [3900000, 4000000, 4100000, 4200000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [7100000, 7200000, 7300000, 7400000, 7500000, 7600000, 7700000],
+            [7400000, 7500000, 7600000, 7700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
@@ -253,12 +253,16 @@ def main():
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [5000, 5500, 6000, 6500, 7000, 7500, 8000],
+            [6000, 5500, 6000, 6500, 7000, 7500, 8000],
         ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/synthetic/huT10M_ni100_avg25.txt",
+        #     [15000000, 16000000, 17000000, 18000000, 19000000, 20000000],
+        # ],
     ]
 
     
-    run_all_experiments(datasets_to_process, args.repeats, args.output_csv, gpu_memory="64G")
+    run_all_experiments(datasets_to_process, args.repeats, args.output_csv, gpu_memory="60G")
     logging.info("All experiments completed.")
 
 if __name__ == '__main__':

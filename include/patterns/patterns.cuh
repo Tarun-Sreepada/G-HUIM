@@ -13,7 +13,7 @@ struct patterns
     __host__ void init(uint64_t s)
     {
         size = s;
-        cudaMallocManaged(&data, size * sizeof(uint32_t));
+        cudaMalloc(&data, size * sizeof(uint32_t));
         pattern_count = 0;
         offset = 0;
     }
@@ -46,6 +46,7 @@ struct patterns
                         data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
                     }
                 }
+                data[pattern_offset + task.pattern_length + 1] = 0; // Spacer
 
             }
             __syncthreads();
@@ -66,6 +67,7 @@ struct patterns
             {
                 data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
             }
+            data[pattern_offset + task.pattern_length + 1] = 0; // Spacer
         }
     }
 };
