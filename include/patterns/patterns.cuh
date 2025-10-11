@@ -38,13 +38,15 @@ struct patterns
             {
                 atomicAdd(&pattern_count, 1);                                                                                                                  // Increment the pattern count
                 pattern_offset = atomicAdd(reinterpret_cast<unsigned long long int *>(&offset), static_cast<unsigned long long int>(task.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
-                if (pattern_offset > size) return;
-
-                data[pattern_offset + task.pattern_length] = task.utility;      // Store the utility
-                for (uint32_t i = 0; i < task.pattern_length; i++)
-                {
-                    data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
+                // if (pattern_offset  size);
+                if (pattern_offset + task.pattern_length + 1 < size) {
+                    data[pattern_offset + task.pattern_length] = task.utility;      // Store the utility
+                    for (uint32_t i = 0; i < task.pattern_length; i++)
+                    {
+                        data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
+                    }
                 }
+
             }
             __syncthreads();
 
@@ -57,7 +59,7 @@ struct patterns
         {
             atomicAdd(&pattern_count, 1);                                                                                                                           // Increment the pattern count
             uint64_t pattern_offset = atomicAdd(reinterpret_cast<unsigned long long int *>(&offset), static_cast<unsigned long long int>(task.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
-            if (pattern_offset > size) return;
+            if (pattern_offset >= size) return;
 
             data[pattern_offset + task.pattern_length] = task.utility;      // Store the utility
             for (int i = 0; i < task.pattern_length; i++)

@@ -30,15 +30,15 @@ __global__ void copy_work(Stack<Task, CAPACITY> *work_stack,
         task.db = (Database *)gmalloc(memory_needed);
         task.db->data = (Item *)((char *)task.db + sizeof(Database));
         task.db->transactions = (Transaction *)((char *)task.db->data + sizeof(Item) * db->num_items);
-        task.work_done = (uint32_t *)((char *)task.db->transactions + sizeof(Transaction) * db->num_transactions);
-
-        task.work_done[0] = 0;
-        task.work_count = primary_size;
+       
+        // task.work_done = (uint32_t *)((char *)task.db->transactions + sizeof(Transaction) * db->num_transactions);
+        // task.work_done[0] = 0;
+        // task.work_count = primary_size;
+        // task.memory_usage = memory_needed;
 
         task.db->num_items = db->num_items;
         task.db->num_transactions = db->num_transactions;
 
-        task.memory_usage = memory_needed;
         task.unique_items = unique;
     }
     __syncthreads();
@@ -274,7 +274,7 @@ __device__ void allocate(Task &wi, uint32_t temp_item_count, uint32_t temp_trans
         wi.db = (Database *)gmalloc(memory_needed);
         wi.db->data = (Item *)((char *)wi.db + sizeof(Database));
         wi.db->transactions = (Transaction *)((char *)wi.db->data + sizeof(Item) * temp_item_count);
-        wi.memory_usage = memory_needed;
+        // wi.memory_usage = memory_needed;
 
         // atomicMax(&max_task_memory, memory_needed);
     }
@@ -687,7 +687,7 @@ __device__ void mine_recursive(Task &curr_task,
 
     new_task.utility = 0;
     new_task.unique_items = 0;
-    new_task.memory_usage = 0;
+    // new_task.memory_usage = 0;
 
     uint32_t temp_transaction_count = 0;
     uint32_t temp_item_count = 0;
@@ -745,8 +745,8 @@ __device__ void mine_recursive(Task &curr_task,
     new_task.db->transactions =
         (Transaction *)((char *)new_task.db->data + sizeof(Item) * temp_item_count);
     new_task.db->num_transactions = 0;
-    new_task.db->num_items = 0;
-    new_task.memory_usage = memory_needed_db;
+    // new_task.db->num_items = 0;
+    // new_task.memory_usage = memory_needed_db;
 
     // Local small buffer
     // const int TEMP_ITEM_BUFFER_SIZE = 256;
@@ -881,7 +881,7 @@ void run_static_mining(built_file &bf,
 
         // Prepare for the next iteration
         std::swap(curr_stack, new_stack);
-        new_stack->init();
+        new_stack->reset();
 
         uint64_t head = total_boundary - current_boundary;
         uint64_t tail = safety_boundary - initial_offset;
@@ -977,9 +977,7 @@ void run_adaptive_mining(built_file &bf,
             }
             else if (curr_stack->top > 0) // Fallback for the first iteration
             {
-                const uint32_t avg = curr_stack->total_transactions / curr_stack->top;
-                if (avg > 0)
-                    thread_count = next_pow2(avg);
+                thread_count = 1024;
             }
 
             // Clamp thread_count to valid CUDA limits
@@ -998,7 +996,7 @@ void run_adaptive_mining(built_file &bf,
 
             // Prepare for the next iteration
             std::swap(curr_stack, new_stack);
-            new_stack->init();
+            new_stack->reset();
 
             if (curr_stack->top == 0)
             {
@@ -1020,7 +1018,7 @@ void run_adaptive_mining(built_file &bf,
         }
 
         std::swap(one_stack, one_stack_next);
-        one_stack_next->init();
+        one_stack_next->reset();
 
         current_boundary = allocators::atomic::allocator_offset;
         timer.recordPoint("Iteration " + std::to_string(iter), safety_boundary, current_boundary, dist_copy);

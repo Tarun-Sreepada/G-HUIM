@@ -12,9 +12,9 @@ JAVA_XMX = "64G"                         # bump if you like
 SEED     = 12345
 
 # scale grids (tweak as needed)
-NUM_TRANSACTIONS = [10**6, 5*10**6, 10**7, 5*10**7]
-NUM_ITEMS        = [50, 100, 250, 500, 1000]  # “num distinct items” in SPMF generator
-TX_LENGTHS       = [10, 20, 45, 90, 200, 450]  # average transaction length
+NUM_TRANSACTIONS = [10**3, 10**6,10**7]
+NUM_ITEMS        = [50, 100, 250]  # “num distinct items” in SPMF generator
+TX_LENGTHS       = [10, 25, 90]  # average transaction length
 
 # ---------- SPMF bootstrap ----------
 def ensure_spmf(jar_path: Path = SPMF_JAR):

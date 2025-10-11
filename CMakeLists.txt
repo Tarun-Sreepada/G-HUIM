@@ -20,10 +20,9 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 # Device Link-Time Optimization is disabled to prevent toolchain conflicts.
 # set(CMAKE_CUDA_DEVICE_LINK_TIME_OPTIMIZATION ON) # <--- REMOVED
 
-# IMPORTANT: Target your specific GPU architecture.
 # Find your architecture: https://developer.nvidia.com/cuda-gpus
 # Examples: 86 (Ampere), 89 (Ada Lovelace), 90 (Hopper)
-set(CMAKE_CUDA_ARCHITECTURES 86) # <--- CHANGE THIS to your GPU's compute capability
+set(CMAKE_CUDA_ARCHITECTURES 86) #
 
 # 4. Find Source Files & Create Executable
 include_directories(${CMAKE_SOURCE_DIR}/include)
