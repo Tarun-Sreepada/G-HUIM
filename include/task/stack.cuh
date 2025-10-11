@@ -11,13 +11,20 @@ struct Stack
     T *data;
 
     volatile unsigned int top;                     // Points to the next free slot
-    unsigned long long int total_transactions = 0; // Total transactions in the database
+    // unsigned long long int total_transactions = 0; // Total transactions in the database
 
     __host__ void init()
     {
         top = 0;
-        total_transactions = 0;
+        // total_transactions = 0;
+        // printf("Type size: %lu, Capacity: %d, Total size: %lu MB\n", sizeof(T), CAPACITY, (sizeof(T) * CAPACITY) / (1024 * 1024));
         cudaMallocManaged(&data, sizeof(T) * CAPACITY);
+    }
+
+    __host__ void reset()
+    {
+        top = 0;
+        // total_transactions = 0;
     }
 
     __host__ void de_init()
@@ -28,7 +35,7 @@ struct Stack
     __device__ bool push(T item)
     {
         data[atomicAdd((unsigned int *)&top, 1)] = item;
-        atomicAdd(&total_transactions, (unsigned long long int)item.db->num_transactions);
+        // atomicAdd(&total_transactions, (unsigned long long int)item.db->num_transactions);
         return true;
     }
 

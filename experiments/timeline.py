@@ -272,15 +272,42 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
 
 if __name__ == "__main__":
     process_data = [
-        ["/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt", [9500000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt", [2000000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt", [700000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt", [3600000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt", [6100000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt", [170000]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt", [1425]],
-        ["/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt", [5000]],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+            [9500000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+            # , 2002000,2004000,2006000
+            [1999000]
+        ],
+        # [
+        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+        #     [700000],
+        # ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+            [3600000,],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
+            [7100000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
+            [170000],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
+            [1435,],
+        ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
+            [5000],
+        ],
     ]
+
+    
 
     for input_path, minutils in process_data:
         for minutil in minutils:

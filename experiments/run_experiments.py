@@ -169,7 +169,7 @@ def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
             return None # Stop this set of repeats if there's a persistent error
     return best_run
 
-def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: str = "75G"):
+def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: str = "64G"):
     """Main function to orchestrate all algorithm benchmarks."""
     df = load_results(csv_path)
 
@@ -201,14 +201,14 @@ def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: s
                     entry = {"Algorithm": "DPHIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
                     df = update_results(df, entry, csv_path)
             
-            # --- Run PHA ---
-            method_label = "PHA"
-            if not has_run_before(df, "PHA", method_label, base_name, min_util):
-                cmd = [PHA_BIN, file_path, str(min_util)]
-                best_run = run_experiment(cmd, parse_metrics_pha, repeats)
-                if best_run:
-                    entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
-                    df = update_results(df, entry, csv_path)
+            # # --- Run PHA ---
+            # method_label = "PHA"
+            # if not has_run_before(df, "PHA", method_label, base_name, min_util):
+            #     cmd = [PHA_BIN, file_path, str(min_util)]
+            #     best_run = run_experiment(cmd, parse_metrics_pha, repeats)
+            #     if best_run:
+            #         entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+            #         df = update_results(df, entry, csv_path)
 
 def main():
     parser = argparse.ArgumentParser(description="Run High-Utility Itemset Mining benchmarks.")
@@ -241,7 +241,7 @@ def main():
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [6100000, 6200000, 6300000, 6400000, 6500000, 6600000],
+            [7100000, 7200000, 7300000, 7400000, 7500000, 7600000, 7700000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
@@ -249,7 +249,7 @@ def main():
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1425, 1430, 1435, 1440, 1445, 1450],
+            [1435, 1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",

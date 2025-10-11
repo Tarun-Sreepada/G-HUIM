@@ -12,7 +12,7 @@
 #include "timer.hpp"
 
 #define scale 3/2
-#define CAPACITY (1024 * 1024 * 1024)
+#define CAPACITY (512 * 1024 * 1024)
 
 
 void static_parallel_mining(built_file &bf, patterns *p, ArgParser &parser, Timer &timer, size_t shared_memory);
