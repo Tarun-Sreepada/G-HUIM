@@ -66,10 +66,10 @@ def run_and_parse_detailed(
     block_size: int | None = None,
 ) -> pd.DataFrame:
     """
-    Run cuDPEFIM once, parse the detailed output, and return a DataFrame.
+    Run G-HUIM once, parse the detailed output, and return a DataFrame.
     """
     cmd = [
-        "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM",
+        "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
         "--input", input_file,
         "--minutil", str(minutil),
         "--method", method,

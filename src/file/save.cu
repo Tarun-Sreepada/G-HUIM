@@ -1,47 +1,39 @@
 #include "file/save.cuh"
 
-// void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping *item_map, uint32_t max_item)
-void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns, Item_mapping *item_map, uint32_t max_item)
+// void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping
+// *item_map, uint32_t max_item)
+void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns,
+                   Item_mapping* item_map, uint32_t max_item)
 {
-
     // if /dev/null is used, do not write to files
-    if (output_path == "/dev/null")
-    {
+    if (output_path == "/dev/null") {
         std::cout << "Output is directed to /dev/null, no file will be created.\n";
         return;
     }
 
-
     std::unordered_map<uint32_t, std::string> item_map_copy;
-    for (uint32_t i = 0; i < max_item; ++i)
-    {
+    for (uint32_t i = 0; i < max_item; ++i) {
         // item_map_copy[item_map->items[i].id] = item_map->items[i].item;
         item_map_copy[item_map[i].id] = std::to_string(item_map[i].item);
     }
 
     std::ofstream output_file(output_path);
-    if (!output_file.is_open())
-    {
+    if (!output_file.is_open()) {
         std::cerr << "Error: Could not open output file: " << output_path << "\n";
         return;
     }
 
     uint64_t pattern_count = 0;
-    for (const auto& pattern_data : all_patterns)
-    {
+    for (const auto& pattern_data : all_patterns) {
         std::cout << "Written patterns so far: " << pattern_count << "\r" << std::flush;
-        if (!pattern_data.empty())
-        {
-            for (size_t j = 0; j <  pattern_data.size(); ++j)
-            {
+        if (!pattern_data.empty()) {
+            for (size_t j = 0; j < pattern_data.size(); ++j) {
                 // output_file << item_map_copy[pattern_data[j]] << " ";
-                if (pattern_data[j] == 0)
-                {
+                if (pattern_data[j] == 0) {
                     output_file << "\n";
                     pattern_count++;
                 }
-                else
-                {
+                else {
                     output_file << pattern_data[j] << " ";
                 }
             }
@@ -49,9 +41,6 @@ void save_patterns(const std::string& output_path, const std::vector<std::vector
     }
 
     std::cout << "\nTotal patterns written: " << pattern_count << "\n";
-
-
-
 
     // // create a set to store unique patterns
     // std::set<std::string> unique_patterns;
@@ -66,14 +55,13 @@ void save_patterns(const std::string& output_path, const std::vector<std::vector
     //     if (data[i] == 0)
     //     {
     //         if (first)
-    //         { 
+    //         {
     //             break;
     //         }
 
     //         output_file << "\n";
     //         first = true;
 
-            
     //     }
     //     else
     //     {
@@ -122,7 +110,6 @@ void save_patterns(const std::string& output_path, const std::vector<std::vector
     //     output_file << pattern;
     //     pattern_count++;
     // }
-
 
     output_file.close();
 }

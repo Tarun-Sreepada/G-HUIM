@@ -1,84 +1,63 @@
-# cuDPEFIM
+# G-HUIM
 
-**cuDPEFIM**, is a CUDA-based high utility itemset mining program
-
----
-
-## Project Structure
-
-Below is a snapshot of the project structure (excluding `build/` and `docs/` directories):
-
-```bash
-.
-├── CMakeLists.txt
-├── Doxyfile
-├── README.md
-├── a.txt
-├── include
-│   ├── args.hpp
-│   ├── data_types
-│   ├── file
-│   ├── memory
-│   ├── mine
-│   ├── patterns
-│   ├── task
-│   └── timer.hpp
-└── src
-    ├── args.cpp
-    ├── file
-    ├── main.cu
-    ├── memory
-    └── mine
-```
-
-*(This was generated using: ` tree -L 2 -I 'build|docs' `)*
+GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware.
 
 ---
 
-## Build Instructions
+## Requirements
 
-### Release Build
+- CUDA toolkit 12.x (tested with 12.2)
+- CMake ≥ 3.20
+- A C++20-compatible host compiler and NVCC
 
-To build the project in Release mode, run the following commands:
+---
+
+## Configure & Build
 
 ```bash
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -- -j$(nproc)
+cmake --build build -- -j"$(nproc)"
+```
+
+For Debug builds swap `-DCMAKE_BUILD_TYPE=Release` with `-DCMAKE_BUILD_TYPE=Debug`.
+
+---
+
+## Run
+
+Show the runtime options:
+
+```bash
+./build/G-HUIM -h
+```
+
+Typical execution (update paths and thresholds to match your dataset):
+
+```bash
+./build/G-HUIM \
+  --input datasets/accidents_utility_spmf.txt \
+  --minutil 8000000 \
+  --method SP \
+  --adaptive true \
+  --total_memory 20G \
+  --output results.txt
+```
+
+Use `--block_size <N>` when running in fixed-block mode and `--pattern_memory` to cap pattern buffer size.
+
+---
+
+## Formatting
+
+Apply the repository `.clang-format` style to all headers and sources:
+
+```bash
+find include src -type f \( -name '*.hpp' -o -name '*.h' -o -name '*.cuh' -o -name '*.cpp' -o -name '*.cu' \) -print0 | \
+  xargs -0 clang-format -i
 ```
 
 ---
 
-## Dependencies
+## Datasets
 
----
-
-## Running the Application
-
-After building the project, you can run the application as follows:
-
-- **Display Help:**
-
-  ```bash
-  ./build/cuDPEFIM -h
-  ```
-
-- **Example Execution Commands:**
-
-  Build and run:
-  ```bash
-  cmake --build build -- -j$(nproc) && ./build/cuDPEFIM --input '/home/tarun/Documents/cuEFIM/datasets/accidents_utility_spmf.txt' --minutil 15000000 --threads 16 --block_size 512 --total_memory 20G 
-  
-  --managed true --output /dev/null
-  ```
-
-  Launch with NVIDIA Compute Utility (NSight Compute):
-  ```bash
-  sudo /usr/local/cuda-12.6/bin/ncu -o "new_scan_$(date +%Y%m%d_%H%M%S)" --set full -f ./build/cuDPEFIM --input accidents_utility_spmf.txt --minutil 15000000 --threads 16 --block_size 512 --num_blocks 114
-  ```
-
-  Run a sample job:
-  ```bash
-    cmake --build build -- -j$(nproc) &&  ./build/cuDPEFIM --input '/export/home1/ltarun/cuEFIM/datasets/accidents_utility_spmf.txt' --minutil 8000000 --threads 16 --total_memory 20G
-  ```
-
----
+Sample SPMF-formatted datasets live in `datasets/`. Use `datasets/download_datasets.sh` to fetch additional inputs or generate synthetic workloads from `experiments/synthetic.py`.

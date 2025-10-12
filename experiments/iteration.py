@@ -27,7 +27,7 @@ CSV_CACHE = RES_DIR / "iterations.csv"
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
     "minutil",  # minimum utility threshold
-    "method",  # cuDPEFIM_SP_fixed_32 | cuDPEFIM_SP_adaptive | ...
+    "method",  # GHUIM_SP_fixed_32 | GHUIM_SP_adaptive | ...
     "adaptive",  # bool
     "block_size",  # int or None
     "iteration",  # iteration index (int)
@@ -65,10 +65,10 @@ def run_iteration_times(
     total_memory: str = "78G",
     method: str = "SP",
 ) -> Dict[int, Tuple[float, int]]:
-    """Run cuDPEFIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
+    """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
     cmd = [
-        "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM",
+        "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
         "--input",
         input_file,
         "--minutil",
@@ -175,13 +175,13 @@ def get_or_run_iteration_times(
 
 method_nice_names = {
     "DPHIM_DPHIM_dphim": "DPHIM",
-    "cuDPEFIM_SP_fixed_32": "GS-HUIM(32)",
-    "cuDPEFIM_SP_fixed_64": "GS-HUIM(64)",
-    "cuDPEFIM_SP_fixed_128": "GS-HUIM(128)",
-    "cuDPEFIM_SP_fixed_256": "GS-HUIM(256)",
-    "cuDPEFIM_SP_fixed_512": "GS-HUIM(512)",
-    "cuDPEFIM_SP_fixed_1024": "GS-HUIM(1024)",
-    "cuDPEFIM_SP_adaptive": "GA-HUIM",
+    "G-HUIM_SP_fixed_32": "GS-HUIM(32)",
+    "G-HUIM_SP_fixed_64": "GS-HUIM(64)",
+    "G-HUIM_SP_fixed_128": "GS-HUIM(128)",
+    "G-HUIM_SP_fixed_256": "GS-HUIM(256)",
+    "G-HUIM_SP_fixed_512": "GS-HUIM(512)",
+    "G-HUIM_SP_fixed_1024": "GS-HUIM(1024)",
+    "G-HUIM_SP_adaptive": "GA-HUIM",
 }
 
 # Define styles
@@ -195,20 +195,20 @@ phase_colors = {
 
 method_colors = {
     "DPHIM_DPHIM_dphim": "#1f77b4",  # Blue
-    "cuDPEFIM_SP_adaptive": "#d62728",  # Red
+    "G-HUIM_SP_adaptive": "#d62728",  # Red
 }
 method_markers = {
     "DPHIM_DPHIM_dphim": "^",
-    "cuDPEFIM_SP_adaptive": "o",
+    "G-HUIM_SP_adaptive": "o",
 }
 
 static_methods = [
-    "cuDPEFIM_SP_fixed_32",
-    "cuDPEFIM_SP_fixed_64",
-    "cuDPEFIM_SP_fixed_128",
-    "cuDPEFIM_SP_fixed_256",
-    "cuDPEFIM_SP_fixed_512",
-    "cuDPEFIM_SP_fixed_1024",
+    "G-HUIM_SP_fixed_32",
+    "G-HUIM_SP_fixed_64",
+    "G-HUIM_SP_fixed_128",
+    "G-HUIM_SP_fixed_256",
+    "G-HUIM_SP_fixed_512",
+    "G-HUIM_SP_fixed_1024",
 ]
 
 green_steps = ["5F", "5F", "5F", "5F", "5F", "5F"]
@@ -256,7 +256,7 @@ from matplotlib.patches import Patch
 CACHE_COLUMNS = [
     "dataset",  # absolute path of the dataset file
     "minutil",  # minimum utility threshold
-    "method",  # cuDPEFIM_SP_fixed_32 | cuDPEFIM_SP_adaptive | ...
+    "method",  # G-HUIM_SP_fixed_32 | G-HUIM_SP_adaptive | ...
     "adaptive",  # bool
     "block_size",  # int or None
     "iteration",  # iteration index (int)
@@ -294,10 +294,10 @@ def run_iteration_times(
     total_memory: str = "78G",
     method: str = "SP",
 ) -> Dict[int, Tuple[float, int]]:
-    """Run cuDPEFIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
+    """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
     cmd = [
-        "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM",
+        "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
         "--input",
         input_file,
         "--minutil",
@@ -404,13 +404,13 @@ def get_or_run_iteration_times(
 
 method_nice_names = {
     "DPHIM_DPHIM_dphim": "DPHIM",
-    "cuDPEFIM_SP_fixed_32": "GS-HUIM(32)",
-    "cuDPEFIM_SP_fixed_64": "GS-HUIM(64)",
-    "cuDPEFIM_SP_fixed_128": "GS-HUIM(128)",
-    "cuDPEFIM_SP_fixed_256": "GS-HUIM(256)",
-    "cuDPEFIM_SP_fixed_512": "GS-HUIM(512)",
-    "cuDPEFIM_SP_fixed_1024": "GS-HUIM(1024)",
-    "cuDPEFIM_SP_adaptive": "GA-HUIM",
+    "G-HUIM_SP_fixed_32": "GS-HUIM(32)",
+    "G-HUIM_SP_fixed_64": "GS-HUIM(64)",
+    "G-HUIM_SP_fixed_128": "GS-HUIM(128)",
+    "G-HUIM_SP_fixed_256": "GS-HUIM(256)",
+    "G-HUIM_SP_fixed_512": "GS-HUIM(512)",
+    "G-HUIM_SP_fixed_1024": "GS-HUIM(1024)",
+    "G-HUIM_SP_adaptive": "GA-HUIM",
 }
 
 # Define styles
@@ -424,20 +424,20 @@ phase_colors = {
 
 method_colors = {
     "DPHIM_DPHIM_dphim": "#1f77b4",  # Blue
-    "cuDPEFIM_SP_adaptive": "#d62728",  # Red
+    "G-HUIM_SP_adaptive": "#d62728",  # Red
 }
 method_markers = {
     "DPHIM_DPHIM_dphim": "^",
-    "cuDPEFIM_SP_adaptive": "o",
+    "G-HUIM_SP_adaptive": "o",
 }
 
 static_methods = [
-    "cuDPEFIM_SP_fixed_32",
-    "cuDPEFIM_SP_fixed_64",
-    "cuDPEFIM_SP_fixed_128",
-    "cuDPEFIM_SP_fixed_256",
-    "cuDPEFIM_SP_fixed_512",
-    "cuDPEFIM_SP_fixed_1024",
+    "G-HUIM_SP_fixed_32",
+    "G-HUIM_SP_fixed_64",
+    "G-HUIM_SP_fixed_128",
+    "G-HUIM_SP_fixed_256",
+    "G-HUIM_SP_fixed_512",
+    "G-HUIM_SP_fixed_1024",
 ]
 
 green_steps = ["5F", "5F", "5F", "5F", "5F", "5F"]
@@ -512,7 +512,7 @@ def plot_for_configs(
     for label, bs in configs:
         adaptive_flag = label == "adaptive"
         method_key = (
-            "cuDPEFIM_SP_adaptive" if adaptive_flag else f"cuDPEFIM_SP_fixed_{bs}"
+            "G-HUIM_SP_adaptive" if adaptive_flag else f"G-HUIM_SP_fixed_{bs}"
         )
         display_name = method_nice_names.get(method_key, label)
         y_times = [results[label].get(i, (0, 0))[0] for i in iterations]

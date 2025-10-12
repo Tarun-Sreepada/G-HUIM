@@ -10,105 +10,91 @@
 
 static char decode_separator(const std::string& s)
 {
-    if (s == "\\s") return ' ';
-    if (s == "\\t") return '\t';
-    if (s == "\\n") return '\n';
-    if (s == ",")   return ',';
-    if (s == ";")   return ';';
-    if (s == "|")   return '|';
+    if (s == "\\s")
+        return ' ';
+    if (s == "\\t")
+        return '\t';
+    if (s == "\\n")
+        return '\n';
+    if (s == ",")
+        return ',';
+    if (s == ";")
+        return ';';
+    if (s == "|")
+        return '|';
 
     std::cerr << "Unknown separator: " << s << ". Exiting.\n";
     std::exit(1);
 }
 
-ArgParser::ArgParser(std::string prog_name)
-    : program_name(std::move(prog_name))
-{}
+ArgParser::ArgParser(std::string prog_name) : program_name(std::move(prog_name)) {}
 
-void ArgParser::add_argument(const std::string& name,
-                             const std::string& type,
-                             const std::string& desc,
-                             bool               required,
+void ArgParser::add_argument(const std::string& name, const std::string& type, const std::string& desc, bool required,
                              std::optional<std::string> default_val)
 {
-    args[name] = Argument{
-        name,
-        type,
-        desc,
-        required,
-        /*is_flag*/ false,
-        std::move(default_val),
-        /*value*/   std::nullopt
-    };
+    args[name] = Argument{name,
+                          type,
+                          desc,
+                          required,
+                          /*is_flag*/ false,
+                          std::move(default_val),
+                          /*value*/ std::nullopt};
 }
 
 void ArgParser::add_flag(const std::string& name, const std::string& desc)
 {
-    args[name] = Argument{
-        name,
-        /*type*/     "flag",
-        desc,
-        /*required*/ false,
-        /*is_flag*/  true,
-        /*default*/  std::nullopt,
-        /*value*/    std::nullopt
-    };
+    args[name] = Argument{name,
+                          /*type*/ "flag",
+                          desc,
+                          /*required*/ false,
+                          /*is_flag*/ true,
+                          /*default*/ std::nullopt,
+                          /*value*/ std::nullopt};
 }
 
 void ArgParser::parse(int argc, char* argv[])
 {
-    try
-    {
-        if (argc > 0) program_name = argv[0];
+    try {
+        if (argc > 0)
+            program_name = argv[0];
 
-        for (int i = 1; i < argc; ++i)
-        {
+        for (int i = 1; i < argc; ++i) {
             std::string token = argv[i];
 
-            if (auto it = args.find(token); it != args.end())
-            {
+            if (auto it = args.find(token); it != args.end()) {
                 Argument& a = it->second;
-                if (a.is_flag)
-                {
+                if (a.is_flag) {
                     a.value = "true";
                 }
-                else
-                {
+                else {
                     bool treat_as_flag_like_bool = false;
-                    if (a.type == "bool")
-                    {
+                    if (a.type == "bool") {
                         // Allow boolean options to be specified without an explicit value.
-                        if (i + 1 >= argc)
-                        {
+                        if (i + 1 >= argc) {
                             treat_as_flag_like_bool = true;
                         }
-                        else
-                        {
+                        else {
                             const std::string next_token = argv[i + 1];
                             if (next_token.rfind("--", 0) == 0)
                                 treat_as_flag_like_bool = true;
                         }
                     }
 
-                    if (treat_as_flag_like_bool)
-                    {
+                    if (treat_as_flag_like_bool) {
                         a.value = "true";
                     }
-                    else
-                    {
+                    else {
                         if (i + 1 >= argc)
                             throw std::runtime_error("Missing value for argument: " + token);
                         a.value = argv[++i];
                     }
                 }
             }
-            else if (token == "--help" || token == "-h")
-            {
+            else if (token == "--help" || token == "-h") {
                 print_help();
                 std::exit(0);
             }
-            else
-            {
+            else {
                 positional_args.push_back(token);
             }
         }
@@ -123,8 +109,7 @@ void ArgParser::parse(int argc, char* argv[])
             if (!a.value.has_value() && a.default_value.has_value())
                 a.value = a.default_value;
     }
-    catch (const std::exception& e)
-    {
+    catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n\n";
         print_help();
         std::exit(1);
@@ -167,9 +152,12 @@ uint64_t ArgParser::get_memory(const std::string& name)
     v.pop_back();
 
     uint64_t mul = 1;
-    if (suffix == 'G') mul = 1024ULL * 1024ULL * 1024ULL;
-    else if (suffix == 'M') mul = 1024ULL * 1024ULL;
-    else if (suffix == 'K') mul = 1024ULL;
+    if (suffix == 'G')
+        mul = 1024ULL * 1024ULL * 1024ULL;
+    else if (suffix == 'M')
+        mul = 1024ULL * 1024ULL;
+    else if (suffix == 'K')
+        mul = 1024ULL;
     else
         throw std::runtime_error("Invalid memory suffix for " + name + "; use G, M, or K");
 
@@ -212,8 +200,7 @@ void ArgParser::print_help()
         widest_type = std::max(widest_type, static_cast<int>(arg.type.length()));
     widest_type += 2; // padding
 
-    for (auto const& [key, arg] : args)
-    {
+    for (auto const& [key, arg] : args) {
         std::cout << "  " << std::left << std::setw(widest) << key;
         std::cout << " <" << arg.type << ">" << std::setw(widest_type - arg.type.length());
         std::cout << "  " << arg.description;

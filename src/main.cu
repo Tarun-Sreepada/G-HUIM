@@ -1,11 +1,11 @@
 #include "args.hpp"
-#include "timer.hpp"
-#include "file/parse.cuh"
 #include "file/build.cuh"
+#include "file/parse.cuh"
 #include "file/save.cuh"
-#include "patterns/patterns.cuh"
 #include "memory/memory.cuh"
 #include "mine/static_parallelism.cuh"
+#include "patterns/patterns.cuh"
+#include "timer.hpp"
 
 __global__ void __warmup() {}
 
@@ -19,58 +19,54 @@ size_t get_shared_memory_per_block()
 // calcTWU<<<pf.db->num_transactions, 1024>>>(pf.db, item_map);
 // cudaDeviceSynchronize();
 
-__global__ void calcTWU(Database *db, Item_mapping *item_map)
+__global__ void calcTWU(Database* db, Item_mapping* item_map)
 {
     uint32_t transacion_id = blockIdx.x;
 
     __shared__ Transaction trans;
-    __shared__ uint32_t sum;
+    __shared__ uint32_t    sum;
 
     uint32_t thread_id = threadIdx.x;
 
-    if (threadIdx.x == 0)
-    {
+    if (threadIdx.x == 0) {
         trans = db->transactions[transacion_id];
-        sum = trans.utility;
+        sum   = trans.utility;
     }
     __syncthreads();
 
-    for (int i = thread_id; i < trans.length; i += blockDim.x)
-    {
+    for (int i = thread_id; i < trans.length; i += blockDim.x) {
         Item item = trans.data[i];
         atomicAdd(&item_map[item.key].local_utility, sum);
     }
 }
 
-__global__ void print_pattern(patterns *p)
+__global__ void print_pattern(patterns* p)
 {
     // print first 100 entries of data
-    for (uint32_t i = 0; i < 100; ++i)
-    {
+    for (uint32_t i = 0; i < 100; ++i) {
         printf("%u ", p->data[i]);
     }
     printf("\n");
 }
 
-int main(int argc, char *argv[])
+int main(int argc, char* argv[])
 {
 #ifdef DEBUG
     std::cout << "DEBUG" << std::endl;
 #endif
 
     ArgParser parser("cuDPEFIM");
-    Timer timer;
+    Timer     timer;
 
-    try
-    {
-
+    try {
         parser.add_argument("--input", "string", "Input file path", true);
         parser.add_argument("--minutil", "int", "Minimum utility", true);
         parser.add_argument("--output", "string", "Output file path", false, "/dev/null");
         parser.add_argument("--managed", "bool", "Use managed memory", false, "false");
         parser.add_argument("--separator", "string", "Field separator (e.g., \\s, \\t, \\n, , ;)", false, "\\s");
         parser.add_argument("--block_size", "int", "Number of threads per GPU block", false, "1024");
-        parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false, "36G");
+        parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false,
+                            "36G");
         parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "2G");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
         parser.parse(argc, argv);
@@ -85,8 +81,7 @@ int main(int argc, char *argv[])
         std::cout << "Total Memory: " << parser.get("--total_memory") << "\n";
         std::cout << "Block Size: " << parser.get("--block_size") << "\n";
     }
-    catch (const std::exception &e)
-    {
+    catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
         return 1;
     }
@@ -102,8 +97,7 @@ int main(int argc, char *argv[])
     // Parse File
     // check if file exists and is a file and not a directory
     std::ifstream infile(parser.get("--input"));
-    if (!infile.good())
-    {
+    if (!infile.good()) {
         std::cerr << "Error: Input file does not exist or is not a file: " << parser.get("--input") << "\n";
         return 1;
     }
@@ -114,12 +108,11 @@ int main(int argc, char *argv[])
     timer.recordPoint("Parse");
 
     // calculate TWU
-    Item_mapping *item_map;
+    Item_mapping* item_map;
     cudaMallocManaged(&item_map, pf.max_item * sizeof(Item_mapping));
     cudaMemset(item_map, 0, pf.max_item * sizeof(Item_mapping));
     // set the ids
-    for (uint32_t i = 0; i < pf.max_item; i++)
-    {
+    for (uint32_t i = 0; i < pf.max_item; i++) {
         item_map[i].item = i;
     }
 
@@ -141,7 +134,7 @@ int main(int argc, char *argv[])
     timer.recordPoint("Allocator Initialized");
 
     // Allocate memory for patterns
-    patterns *p;
+    patterns* p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
     std::cout << "Allocating memory for patterns: " << parser.get_memory("--pattern_memory") << " B\n";
     p->init(parser.get_memory("--pattern_memory"));
@@ -155,7 +148,6 @@ int main(int argc, char *argv[])
 
     timer.recordPoint("End");
 
-
     // free allocator
     free_global_allocator();
     p->free();
@@ -164,18 +156,15 @@ int main(int argc, char *argv[])
     timer.printRecords();
     std::cout << "Number of patterns: " << p->pattern_count << "\n";
 
-
 #ifdef DEBUG
     std::cout << "Saving to file: " << parser.get("--output") << "\n";
 #endif
-
 
     save_patterns(parser.get("--output"), all_patterns, item_map, pf.max_item);
 
     // std::cout << "Pattern last offset: " << p->offset << "\n";
 
     p->free();
-
 
     cudaFree(item_map);
 
