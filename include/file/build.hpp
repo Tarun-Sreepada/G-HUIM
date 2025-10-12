@@ -1,19 +1,20 @@
 #pragma once
 
+#include "data_types/data_types.hpp"
+#include "file/parse.hpp"
+
+#include <algorithm>
 #include <cstdint>
-#include <vector>
+#include <map>
+#include <numeric>
+#include <omp.h>
 #include <string>
 #include <unordered_map>
-#include <map>
-#include <omp.h>
-#include "file/parse.hpp"
-#include <algorithm>
-#include <numeric>
-#include "data_types/data_types.hpp"
+#include <vector>
 
 struct built_file
 {
-    std::map<uint32_t, uint32_t> ordered_twu;                      ///< Items ordered by transaction-weighted utility.
+    std::map<uint32_t, uint32_t>               ordered_twu;        ///< Items ordered by transaction-weighted utility.
     std::vector<std::pair<uint32_t, uint32_t>> ordered_twu_vector; ///< Vector version of ordered_twu for fast access.
 
     std::unordered_map<uint32_t, uint32_t> item_to_itemID; ///< Maps original item IDs to internal IDs.
@@ -29,9 +30,9 @@ struct built_file
 
     built_file()
     {
-        transaction_count = 0;
+        transaction_count    = 0;
         max_transaction_size = 0;
-        total_items = 0;
+        total_items          = 0;
     }
 
     ~built_file()
@@ -43,4 +44,4 @@ struct built_file
     }
 };
 
-built_file build_file(parsed_file &pf, int threads, uint64_t min_utility);
+built_file build_file(parsed_file& pf, int threads, uint64_t min_utility);

@@ -1,0 +1,47 @@
+# ClangFormat configuration for G-HUIM
+BasedOnStyle: LLVM
+Language: Cpp
+Standard: c++17
+UseTab: Never
+IndentWidth: 4
+ContinuationIndentWidth: 8
+ColumnLimit: 120
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: false
+  AfterEnum: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInSquareBrackets: false
+PointerAlignment: Left
+ReferenceAlignment: Left
+SortIncludes: true
+IncludeBlocks: Regroup
+IncludeCategories:
+  - Regex: '^".*'
+    Priority: 2
+  - Regex: '^<cuda/.*'
+    Priority: 3
+  - Regex: '^<.*'
+    Priority: 4
+  - Regex: '.*'
+    Priority: 1
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveDeclarations: Consecutive
+AlignOperands: Align
+ReflowComments: true
+DerivePointerAlignment: false
+KeepEmptyLinesAtTheStartOfBlocks: false

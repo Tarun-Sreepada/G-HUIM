@@ -22,29 +22,29 @@ logging.basicConfig(
 STYLE_CONFIG = {
     "method_labels": {
         "DPHIM_DPHIM_dphim": "DPHIM",
-        "cuDPEFIM_SP_adaptive": "GA-HUIM",
+    "G-HUIM_SP_adaptive": "GA-HUIM",
         "PHA_PHA": "PHA",
         # Add fixed block size labels if you run those experiments
-        "cuDPEFIM_SP_fixed_32": "GS-HUIM(32)", "cuDPEFIM_SP_fixed_64": "GS-HUIM(64)",
-        "cuDPEFIM_SP_fixed_128": "GS-HUIM(128)", "cuDPEFIM_SP_fixed_256": "GS-HUIM(256)",
-        "cuDPEFIM_SP_fixed_512": "GS-HUIM(512)", "cuDPEFIM_SP_fixed_1024": "GS-HUIM(1024)",
+    "G-HUIM_SP_fixed_32": "GS-HUIM(32)", "G-HUIM_SP_fixed_64": "GS-HUIM(64)",
+    "G-HUIM_SP_fixed_128": "GS-HUIM(128)", "G-HUIM_SP_fixed_256": "GS-HUIM(256)",
+    "G-HUIM_SP_fixed_512": "GS-HUIM(512)", "G-HUIM_SP_fixed_1024": "GS-HUIM(1024)",
     },
     "phase_colors": {
         "Parse": "#2ca0c2", "TWU": "#1f77b4", "Build": "#ffdd57", "Search": "#ff7f0e"
     },
     "method_colors": {
         "DPHIM_DPHIM_dphim": "#1f77b4",  # Blue
-        "cuDPEFIM_SP_adaptive": "#d62728",  # Red
+    "G-HUIM_SP_adaptive": "#d62728",  # Red
         "PHA_PHA": "#2ca02c",  # Green
     },
     "method_markers": {
         "DPHIM_DPHIM_dphim": "*",
-        "cuDPEFIM_SP_adaptive": "o",
+    "G-HUIM_SP_adaptive": "o",
         "PHA_PHA": "s",
     },
     "method_linestyles": {
         "DPHIM_DPHIM_dphim": "-",
-        "cuDPEFIM_SP_adaptive": "--",
+    "G-HUIM_SP_adaptive": "--",
         "PHA_PHA": ":",
     }
 }

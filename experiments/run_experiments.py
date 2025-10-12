@@ -19,7 +19,7 @@ logging.basicConfig(
 )
 
 # Define paths to algorithm executables
-CUDPEFIM_BIN = "/export/home1/ltarun/cuDPEFIM/build/cuDPEFIM"
+GHUIM_BIN = "/export/home1/ltarun/cuDPEFIM/build/G-HUIM"
 DPHIM_BIN = "/export/home1/ltarun/dphim/build/run"
 PHA_BIN = "/export/home1/ltarun/cuDPEFIM/datasets/pha"
 
@@ -92,7 +92,7 @@ def has_run_before(df: pd.DataFrame, algorithm: str, method: str, file_name: str
 # --- Output Parsers ---
 
 def parse_metrics_cu(output: str) -> Tuple[float, float, float, float, int]:
-    """Extract metrics from cuDPEFIM stdout."""
+    """Extract metrics from G-HUIM stdout."""
     metrics = {"read": 0, "twu": 0, "parse_temp": 0, "build": 0, "mining": 0, "patterns": 0}
     iteration_total_ms = 0
 
@@ -177,16 +177,16 @@ def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: s
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         for min_util in min_utils:
             
-            # --- Run cuDPEFIM (Adaptive) ---
+            # --- Run G-HUIM (Adaptive) ---
             method_label = "SP_adaptive"
-            if not has_run_before(df, "cuDPEFIM", method_label, base_name, min_util):
+            if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
                 cmd = [
-                    CUDPEFIM_BIN, "--input", file_path, "--minutil", str(min_util),
+                    GHUIM_BIN, "--input", file_path, "--minutil", str(min_util),
                     "--method", "SP", "--adaptive", "true", "--total_memory", gpu_memory, "--output", "/dev/null"
                 ]
                 best_run = run_experiment(cmd, parse_metrics_cu, repeats)
                 if best_run:
-                    entry = {"Algorithm": "cuDPEFIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+                    entry = {"Algorithm": "G-HUIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
                     df = update_results(df, entry, csv_path)
 
             # --- Run DPHIM ---
