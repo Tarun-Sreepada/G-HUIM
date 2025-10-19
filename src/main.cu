@@ -7,8 +7,10 @@
 #include "patterns/patterns.cuh"
 #include "timer.hpp"
 
+// Triggers a minimal kernel launch to initialize the CUDA context.
 __global__ void __warmup() {}
 
+// Queries the device for maximum shared memory per block.
 size_t get_shared_memory_per_block()
 {
     cudaDeviceProp prop;
@@ -16,9 +18,7 @@ size_t get_shared_memory_per_block()
     return prop.sharedMemPerBlock;
 }
 
-// calcTWU<<<pf.db->num_transactions, 1024>>>(pf.db, item_map);
-// cudaDeviceSynchronize();
-
+// Computes transaction-weighted utility per item across the database.
 __global__ void calcTWU(Database* db, Item_mapping* item_map)
 {
     uint32_t transacion_id = blockIdx.x;
@@ -40,15 +40,16 @@ __global__ void calcTWU(Database* db, Item_mapping* item_map)
     }
 }
 
+// Prints the first portion of the pattern buffer for debugging.
 __global__ void print_pattern(patterns* p)
 {
-    // print first 100 entries of data
     for (uint32_t i = 0; i < 100; ++i) {
         printf("%u ", p->data[i]);
     }
     printf("\n");
 }
 
+// Entry point configuring the mining pipeline and launching kernels.
 int main(int argc, char* argv[])
 {
 #ifdef DEBUG
@@ -89,13 +90,10 @@ int main(int argc, char* argv[])
     timer.recordPoint("Start");
 
     cudaFree(0);
-    // Warmup GPU
     __warmup<<<1, 1>>>();
     cudaDeviceSynchronize();
     timer.recordPoint("CUDA Warmup");
 
-    // Parse File
-    // check if file exists and is a file and not a directory
     std::ifstream infile(parser.get("--input"));
     if (!infile.good()) {
         std::cerr << "Error: Input file does not exist or is not a file: " << parser.get("--input") << "\n";
@@ -103,21 +101,17 @@ int main(int argc, char* argv[])
     }
     infile.close();
 
-    // Parsed pf = gpuParse(parser.get("--input"), parser.get_uint32("--threads"), parser.get_separator("--separator"));
     Parsed pf = gpuParse(parser.get("--input"), parser.get_separator("--separator"));
     timer.recordPoint("Parse");
 
-    // calculate TWU
     Item_mapping* item_map;
     cudaMallocManaged(&item_map, pf.max_item * sizeof(Item_mapping));
     cudaMemset(item_map, 0, pf.max_item * sizeof(Item_mapping));
-    // set the ids
     for (uint32_t i = 0; i < pf.max_item; i++) {
         item_map[i].item = i;
     }
 
     uint32_t block_size = pf.db->num_items / pf.db->num_transactions;
-    // max is 1024 else nextpow2
     block_size = std::min(block_size, 1024u);
     block_size = next_pow2(block_size);
 
@@ -125,42 +119,28 @@ int main(int argc, char* argv[])
     cudaDeviceSynchronize();
     timer.recordPoint("CalcTWU");
 
-    // Build file
     built_file bf = build(pf, parser.get_uint64("--minutil"), parser, item_map);
     timer.recordPoint("Build");
 
-    // Initialize memory for GPU mining
     init_global_allocator(parser.get_memory("--total_memory"), parser.get_bool("--managed"));
     timer.recordPoint("Allocator Initialized");
 
-    // Allocate memory for patterns
     patterns* p;
     gpuErrchk(cudaMallocManaged(&p, sizeof(patterns)));
     std::cout << "Allocating memory for patterns: " << parser.get_memory("--pattern_memory") << " B\n";
     p->init(parser.get_memory("--pattern_memory"));
 
-
-    // std::vector<std::vector<uint32_t>> all_patterns;
     std::pair<uint32_t *, uint64_t> all_patterns;
-    // all_patterns.first = c
     cudaMallocManaged(&all_patterns.first, sizeof(uint32_t) * 32 * GIGA);
-    // all_patterns.first = (uint32_t*)malloc(sizeof(uint32_t) * 32 * GIGA);
     all_patterns.second = 0;
 
     timer.recordPoint("Patterns Allocated");
 
     size_t shared_memory = get_shared_memory_per_block();
 
-
     static_parallel_mining(bf, p, parser, timer, shared_memory, all_patterns);
 
     timer.recordPoint("End");
-
-    // free allocator
-    free_global_allocator();
-    p->free();
-    cudaFree(p);
-
 
     timer.printRecords();
     std::cout << "Number of patterns: " << p->pattern_count << "\n";
@@ -171,15 +151,13 @@ int main(int argc, char* argv[])
 
     save_patterns(parser.get("--output"), all_patterns, item_map, pf.max_item);
 
-    // std::cout << "Pattern last offset: " << p->offset << "\n";
-
     p->free();
     cudaFree(p);
+
+    free_global_allocator();
     cudaFree(all_patterns.first);
 
     cudaFree(item_map);
-
-    // Free resources
 
     return 0;
 }

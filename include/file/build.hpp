@@ -44,4 +44,5 @@ struct built_file
     }
 };
 
+// Compacts a parsed file into the format required by the mining kernels.
 built_file build_file(parsed_file& pf, int threads, uint64_t min_utility);

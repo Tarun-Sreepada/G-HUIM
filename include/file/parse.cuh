@@ -29,4 +29,5 @@ struct Parsed
     uint32_t  max_item;
 };
 
+// Parses the dataset directly on the GPU and returns device-resident buffers.
 Parsed gpuParse(const std::string& filename, const char separator);

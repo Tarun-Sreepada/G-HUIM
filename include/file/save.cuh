@@ -12,5 +12,6 @@
 #include <unordered_map>
 #include <vector>
 
+// Persists mined patterns to disk while translating internal item identifiers.
 void save_patterns(const std::string& output_path, const std::pair<uint32_t *, uint64_t>& all_patterns,
                    Item_mapping* item_map, uint32_t max_item);

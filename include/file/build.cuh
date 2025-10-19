@@ -27,4 +27,5 @@ struct built_file
     std::vector<uint32_t> primary;
 };
 
+// Builds the GPU-friendly database layout from parsed input and pruning data.
 built_file build(Parsed& pf, uint32_t minutil, ArgParser& parser, Item_mapping* item_map);

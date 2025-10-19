@@ -18,21 +18,18 @@ OUT_DIR.mkdir(exist_ok=True)
 RES_DIR = Path("results")
 RES_DIR.mkdir(exist_ok=True)
 
-###############################################################################
-# Persistent cache (CSV) utilities                                            #
-###############################################################################
 
 CSV_CACHE = RES_DIR / "iterations.csv"
 
 CACHE_COLUMNS = [
-    "dataset",  # absolute path of the dataset file
-    "minutil",  # minimum utility threshold
-    "method",  # GHUIM_SP_fixed_32 | GHUIM_SP_adaptive | ...
-    "adaptive",  # bool
-    "block_size",  # int or None
-    "iteration",  # iteration index (int)
-    "time_ms",  # execution time in ms (float)
-    "gpu_mem_mb",  # GPU memory used in MB (int)
+    "dataset",
+    "minutil",
+    "method",
+    "adaptive",
+    "block_size",
+    "iteration",
+    "time_ms",
+    "gpu_mem_mb",
 ]
 
 
@@ -50,11 +47,6 @@ def _append_to_cache(rows: List[Tuple[Union[str, int, float]]]) -> None:
         df_new.to_csv(CSV_CACHE, mode="a", header=False, index=False)
     else:
         df_new.to_csv(CSV_CACHE, mode="w", header=True, index=False)
-
-
-###############################################################################
-# Low‑level execution helper                                                  #
-###############################################################################
 
 
 def run_iteration_times(
@@ -105,11 +97,6 @@ def run_iteration_times(
     return times
 
 
-###############################################################################
-# Public helper with caching                                                  #
-###############################################################################
-
-
 def get_or_run_iteration_times(
     input_file: str,
     minutil: int,
@@ -131,7 +118,7 @@ def get_or_run_iteration_times(
         )
         subset = cache.loc[mask]
         if not subset.empty:
-            # Reconstruct dict and return
+
             return dict(
                 zip(
                     subset["iteration"].astype(int),
@@ -142,7 +129,6 @@ def get_or_run_iteration_times(
                 )
             )
 
-    # Otherwise execute and store
     times_and_mems = run_iteration_times(
         input_file,
         minutil,
@@ -169,10 +155,6 @@ def get_or_run_iteration_times(
     return times_and_mems
 
 
-###############################################################################
-# Nice‑name mapping & style dictionaries (DO NOT MODIFY)                      #
-###############################################################################
-
 method_nice_names = {
     "DPHIM_DPHIM_dphim": "DPHIM",
     "G-HUIM_SP_fixed_32": "GS-HUIM(32)",
@@ -184,7 +166,7 @@ method_nice_names = {
     "G-HUIM_SP_adaptive": "GA-HUIM",
 }
 
-# Define styles
+
 phases = ["Parse", "TWU", "Build", "Search"]
 phase_colors = {
     "Parse": "#2ca02c",
@@ -194,8 +176,8 @@ phase_colors = {
 }
 
 method_colors = {
-    "DPHIM_DPHIM_dphim": "#1f77b4",  # Blue
-    "G-HUIM_SP_adaptive": "#d62728",  # Red
+    "DPHIM_DPHIM_dphim": "#1f77b4",
+    "G-HUIM_SP_adaptive": "#d62728",
 }
 method_markers = {
     "DPHIM_DPHIM_dphim": "^",
@@ -234,9 +216,7 @@ method_style = {
     for i, m in enumerate(all_methods)
 }
 
-###############################################################################
-# Plotting                                                                   #
-###############################################################################
+
 import os
 import subprocess
 import csv
@@ -248,20 +228,16 @@ import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
 
-###############################################################################
-# Persistent cache (CSV) utilities                                            #
-###############################################################################
-
 
 CACHE_COLUMNS = [
-    "dataset",  # absolute path of the dataset file
-    "minutil",  # minimum utility threshold
-    "method",  # G-HUIM_SP_fixed_32 | G-HUIM_SP_adaptive | ...
-    "adaptive",  # bool
-    "block_size",  # int or None
-    "iteration",  # iteration index (int)
-    "time_ms",  # execution time in ms (float)
-    "gpu_mem_mb",  # GPU memory used in MB (int)
+    "dataset",
+    "minutil",
+    "method",
+    "adaptive",
+    "block_size",
+    "iteration",
+    "time_ms",
+    "gpu_mem_mb",
 ]
 
 
@@ -279,11 +255,6 @@ def _append_to_cache(rows: List[Tuple[Union[str, int, float]]]) -> None:
         df_new.to_csv(CSV_CACHE, mode="a", header=False, index=False)
     else:
         df_new.to_csv(CSV_CACHE, mode="w", header=True, index=False)
-
-
-###############################################################################
-# Low‑level execution helper                                                  #
-###############################################################################
 
 
 def run_iteration_times(
@@ -334,11 +305,6 @@ def run_iteration_times(
     return times
 
 
-###############################################################################
-# Public helper with caching                                                  #
-###############################################################################
-
-
 def get_or_run_iteration_times(
     input_file: str,
     minutil: int,
@@ -360,7 +326,7 @@ def get_or_run_iteration_times(
         )
         subset = cache.loc[mask]
         if not subset.empty:
-            # Reconstruct dict and return
+
             return dict(
                 zip(
                     subset["iteration"].astype(int),
@@ -371,7 +337,6 @@ def get_or_run_iteration_times(
                 )
             )
 
-    # Otherwise execute and store
     times_and_mems = run_iteration_times(
         input_file,
         minutil,
@@ -398,10 +363,6 @@ def get_or_run_iteration_times(
     return times_and_mems
 
 
-###############################################################################
-# Nice‑name mapping & style dictionaries (DO NOT MODIFY)                      #
-###############################################################################
-
 method_nice_names = {
     "DPHIM_DPHIM_dphim": "DPHIM",
     "G-HUIM_SP_fixed_32": "GS-HUIM(32)",
@@ -413,7 +374,7 @@ method_nice_names = {
     "G-HUIM_SP_adaptive": "GA-HUIM",
 }
 
-# Define styles
+
 phases = ["Parse", "TWU", "Build", "Search"]
 phase_colors = {
     "Parse": "#2ca02c",
@@ -423,8 +384,8 @@ phase_colors = {
 }
 
 method_colors = {
-    "DPHIM_DPHIM_dphim": "#1f77b4",  # Blue
-    "G-HUIM_SP_adaptive": "#d62728",  # Red
+    "DPHIM_DPHIM_dphim": "#1f77b4",
+    "G-HUIM_SP_adaptive": "#d62728",
 }
 method_markers = {
     "DPHIM_DPHIM_dphim": "^",
@@ -462,10 +423,6 @@ method_style = {
     }
     for i, m in enumerate(all_methods)
 }
-
-###############################################################################
-# Plotting                                                                   #
-###############################################################################
 
 
 def plot_for_configs(
@@ -484,7 +441,6 @@ def plot_for_configs(
     all_iterations: set[int] = set()
     results: Dict[str, Dict[int, Tuple[float, int]]] = {}
 
-    # Collect / compute data (cache aware)
     for label, bs in configs:
         adaptive_flag = label == "adaptive"
         times_and_mems = get_or_run_iteration_times(
@@ -504,16 +460,12 @@ def plot_for_configs(
 
     iterations = sorted(list(all_iterations))
 
-    # ──────────────────────────────────────────────────────────── plotting ────
     fig, ax1 = plt.subplots(figsize=(10, 6))
     ax2 = ax1.twinx()
 
-    # --- Plot Execution Times on ax1 ---
     for label, bs in configs:
         adaptive_flag = label == "adaptive"
-        method_key = (
-            "G-HUIM_SP_adaptive" if adaptive_flag else f"G-HUIM_SP_fixed_{bs}"
-        )
+        method_key = "G-HUIM_SP_adaptive" if adaptive_flag else f"G-HUIM_SP_fixed_{bs}"
         display_name = method_nice_names.get(method_key, label)
         y_times = [results[label].get(i, (0, 0))[0] for i in iterations]
 
@@ -526,44 +478,31 @@ def plot_for_configs(
             color=method_colors.get(method_key, None),
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # --- START OF CHANGE: Plot Memory as (Previous Iter + Current Iter) ---
-    # ──────────────────────────────────────────────────────────────────────────
-
-    # 1. Extract the raw memory usage for each iteration
     raw_adaptive_mems = [results["adaptive"].get(i, (0, 0))[1] for i in iterations]
 
-    # 2. Calculate the memory to be plotted according to the "prev + current" rule
     plotted_mems = []
     if raw_adaptive_mems:
-        # The first iteration has no "previous", so it's just its own memory
+
         plotted_mems.append(raw_adaptive_mems[0])
-        # For all subsequent iterations, sum the current and previous memory values
+
         for i in range(1, len(raw_adaptive_mems)):
             plotted_mems.append(raw_adaptive_mems[i - 1] + raw_adaptive_mems[i])
 
-    # 3. Plot the calculated memory footprint
     if plotted_mems:
         ax2.fill_between(
             iterations,
             plotted_mems,
             alpha=0.3,
             color="gray",
-            label="Active GPU Memory (GA-HUIM)",  # More accurate label
+            label="Active GPU Memory (GA-HUIM)",
         )
 
-    # ──────────────────────────────────────────────────────────────────────────
-    # --- END OF CHANGE ---
-    # ──────────────────────────────────────────────────────────────────────────
-
-    # --- Collect Legend Handles ---
     handles1, labels1 = ax1.get_legend_handles_labels()
-    # Update label to reflect the new memory calculation
+
     mem_patch = Patch(color="gray", alpha=0.3, label="Active GPU Memory (GA-HUIM)")
     all_handles = handles1 + [mem_patch]
     all_labels = labels1 + ["Active GPU Memory"]
 
-    # --- Formatting ---
     adaptive_times = [results["adaptive"].get(i, (0, 0))[0] for i in iterations]
     max_adaptive_time = max(adaptive_times) if adaptive_times else 1
     height_cutoff = 1.5 * max_adaptive_time
@@ -582,20 +521,15 @@ def plot_for_configs(
         ax1.set_xlim(min(iterations) - 0.2, max(iterations) + 0.2)
     ax1.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
 
-    # --- Save Main Plot ---
     file_base = Path(input_file).stem
     file_name = f"{file_base}_minutil_{minutil}_iteration.png"
 
-    # title
     title = file_base.split("_")[0]
     plt.title(f"Iteration-wise Execution Time and Memory on {title}", fontsize=16)
 
-    # plt.tight_layout()
-    # plt.savefig(file_name, dpi=500)
     fig.savefig(OUT_DIR / file_name, dpi=500, bbox_inches="tight")
     plt.close(fig)
 
-    # --- Generate and Save Separate Legend Image ---
     if include_legend:
         num_items = len(all_labels)
         ncol = 2
@@ -613,13 +547,13 @@ def plot_for_configs(
         )
 
         legend_filename = "iteration_times_legend.png"
-        # plt.savefig(legend_filename, dpi=500, bbox_inches="tight", pad_inches=0.1)
+
         fig_legend.savefig(OUT_DIR / legend_filename, dpi=500, bbox_inches="tight")
         plt.close(fig_legend)
 
 
 if __name__ == "__main__":
-    block_sizes = [32,64,128,256,512,1024]
+    block_sizes = [32, 64, 128, 256, 512, 1024]
 
     datasets_to_process = [
         [
@@ -659,7 +593,5 @@ if __name__ == "__main__":
     for input_path, minutils in datasets_to_process:
         minutil = minutils[0]
         print(f"Processing {input_path} with minutil {minutil}")
-        # if input_path.endswith("accidents_utility_spmf.txt"):
+
         plot_for_configs(input_path, minutil, block_sizes, include_legend=True)
-        # else:
-        # plot_for_configs(input_path, minutil, block_sizes)
