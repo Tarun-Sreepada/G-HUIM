@@ -2,7 +2,7 @@
 
 // void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping
 // *item_map, uint32_t max_item)
-void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns,
+void save_patterns(const std::string& output_path, const std::pair<uint32_t *, uint64_t>& all_patterns,
                    Item_mapping* item_map, uint32_t max_item)
 {
     // if /dev/null is used, do not write to files
@@ -26,7 +26,6 @@ void save_patterns(const std::string& output_path, const std::vector<std::vector
     }
 
     std::vector<uint32_t> current_pattern;
-    current_pattern.reserve(32);
 
     auto write_pattern = [&](const std::vector<uint32_t>& pattern_buffer) {
         if (pattern_buffer.empty())
@@ -55,17 +54,40 @@ void save_patterns(const std::string& output_path, const std::vector<std::vector
         output_file << line << '\n';
     };
 
-    for (const auto& pattern_data : all_patterns) {
-        for (uint32_t value : pattern_data) {
-            if (value == 0) {
-                write_pattern(current_pattern);
-                current_pattern.clear();
+    // for (const auto& pattern_data : all_patterns) {
+    //     for (uint32_t value : pattern_data) {
+    //         if (value == 0) {
+    //             write_pattern(current_pattern);
+    //             current_pattern.clear();
+    //         }
+    //         else {
+    //             current_pattern.push_back(value);
+    //         }
+    //     }
+    // }
+
+    bool _first_zero_skipped = false;
+
+    for (uint64_t i = 0; i < all_patterns.second; ++i) {
+        uint32_t value = all_patterns.first[i];
+        if (value == 0) {
+            if (!_first_zero_skipped) {
+                _first_zero_skipped = true;
             }
-            else {
-                current_pattern.push_back(value);
+            else
+            {
+                break;
             }
+
+            write_pattern(current_pattern);
+            current_pattern.clear();
+        }
+        else {
+            _first_zero_skipped = false;
+            current_pattern.push_back(value);
         }
     }
+
 
     write_pattern(current_pattern);
 

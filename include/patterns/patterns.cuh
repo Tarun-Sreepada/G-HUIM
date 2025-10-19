@@ -13,10 +13,12 @@ struct patterns
 
     __host__ void init(uint64_t s)
     {
-        size = s;
+        // size = s;
+        this->size = s;
         cudaMalloc(&data, size * sizeof(uint32_t));
         pattern_count = 0;
         offset        = 0;
+
     }
 
     // deconstructor

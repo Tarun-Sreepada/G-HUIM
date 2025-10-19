@@ -168,10 +168,11 @@ def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
             logging.error(f"Command failed with error:\n{e.stderr}")
             return None # Stop this set of repeats if there's a persistent error
     return best_run
-
 def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: str = "64G"):
     """Main function to orchestrate all algorithm benchmarks."""
     df = load_results(csv_path)
+
+    block_sizes = [32, 64, 128, 256, 512, 1024]
 
     for file_path, min_utils in process_data:
         base_name = os.path.splitext(os.path.basename(file_path))[0]
@@ -188,6 +189,23 @@ def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: s
                 if best_run:
                     entry = {"Algorithm": "G-HUIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
                     df = update_results(df, entry, csv_path)
+
+            # --- Run G-HUIM (Static) ---
+            # Static version: adaptive=false, pattern_memory 2G, block_size 1024
+            for block_size in block_sizes:
+                method_label = f"SP_fixed_{block_size}"
+                if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
+                    cmd = [
+                        GHUIM_BIN, "--input", file_path, "--minutil", str(min_util),
+                        "--method", "SP", "--adaptive", "false",
+                        "--pattern_memory", "2G", "--block_size", str(block_size),
+                        "--total_memory", gpu_memory, "--output", "/dev/null"
+                    ]
+                    best_run = run_experiment(cmd, parse_metrics_cu, repeats)
+                    if best_run:
+                        entry = {"Algorithm": "G-HUIM", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+                        df = update_results(df, entry, csv_path)
+
 
             # --- Run DPHIM ---
             method_label = "DPHIM_dphim"
@@ -210,6 +228,7 @@ def run_all_experiments(process_data, repeats: int, csv_path: str, gpu_memory: s
             #         entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
             #         df = update_results(df, entry, csv_path)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Run High-Utility Itemset Mining benchmarks.")
     parser.add_argument(
@@ -224,41 +243,36 @@ def main():
     datasets_to_process = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9700000],
+            [9680000, 9690000, 9700000, 9710000, 9720000, 9730000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
-            # , 2002000,2004000,2006000
-            [1999000]
+            [1999000, 2000000, 2001000, 2003000, 2004000, 2005000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-        #     [700000],
-        # ],
+        [
+            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            [720000, 730000, 740000, 750000, 760000, 770000],
+        ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3900000, 4000000, 4100000, 4200000],
+            [3900000, 4000000, 4100000, 4200000, 4300000, 4400000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [7400000, 7500000, 7600000, 7700000],
+            [7400000, 7500000, 7600000, 7700000, 7800000, 7900000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
-            [170000, 175000, 180000, 185000, 190000, 195000, 200000],
+            [170000, 175000, 180000, 185000, 190000, 195000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1435, 1440, 1445, 1450, 1455, 1460, 1465],
+            [1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [6000, 5500, 6000, 6500, 7000, 7500, 8000],
+            [5500, 6000, 6500, 7000, 7500, 8000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/synthetic/huT10M_ni100_avg25.txt",
-        #     [15000000, 16000000, 17000000, 18000000, 19000000, 20000000],
-        # ],
     ]
 
     

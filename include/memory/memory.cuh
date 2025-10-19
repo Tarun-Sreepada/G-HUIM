@@ -30,9 +30,6 @@ extern __managed__ unsigned long long allocator_total;
 void init_global_allocator(unsigned long long int total_memory, bool managed = false);
 void free_global_allocator();
 
-void reclaim_memory();
-void record_memory_usage();
-
 __device__ void* gmalloc(unsigned long long size);
 __host__ void*   gmalloc_host(unsigned long long size);
 __device__ void  gfree(void* ptr);

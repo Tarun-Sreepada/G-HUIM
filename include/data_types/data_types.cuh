@@ -1,6 +1,10 @@
 #pragma once
 #include "data_types.hpp"
 
+#define KILO 1024ULL
+#define MEGA (1024ULL * KILO)
+#define GIGA (1024ULL * MEGA)
+
 #include <cstdint>
 
 struct Transaction

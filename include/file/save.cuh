@@ -12,5 +12,5 @@
 #include <unordered_map>
 #include <vector>
 
-void save_patterns(const std::string& output_path, const std::vector<std::vector<uint32_t>>& all_patterns,
+void save_patterns(const std::string& output_path, const std::pair<uint32_t *, uint64_t>& all_patterns,
                    Item_mapping* item_map, uint32_t max_item);

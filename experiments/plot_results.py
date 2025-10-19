@@ -201,8 +201,10 @@ def plot_all_results(csv_path: str, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     
     df = _preprocess_data(pd.read_csv(csv_path))
+    print(df)
     
     all_methods = sorted([m for m in df["AlgoMeth"].unique() if m in STYLE_CONFIG["method_labels"]])
+    print(all_methods)
     
     for file_name in sorted(df["File"].unique()):
         df_file = df[df["File"] == file_name].copy()

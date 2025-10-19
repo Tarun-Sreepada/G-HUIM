@@ -36,7 +36,7 @@ for work_done in work_vals:
     plt.close(fig)
 
     # ---- Log plot ----
-    fig, ax = plt.subplots(figsize=(2, 3))
+    fig, ax = plt.subplots(figsize=(2, 2))
     ax.plot(df.block_size, df.mixed_ms, marker="o", linestyle="-")
     ax.set_xscale("log", base=2)
     # ax.set_xlabel("Threads per Block")
