@@ -472,7 +472,7 @@ def plot_for_configs(
     input_file: str,
     minutil: int,
     block_sizes: List[int],
-    total_memory: str = "64G",
+    total_memory: str = "60G",
     method: str = "SP",
     include_legend: bool = False,
 ) -> None:
@@ -619,49 +619,44 @@ def plot_for_configs(
 
 
 if __name__ == "__main__":
-    block_sizes = []
+    block_sizes = [32,64,128,256,512,1024]
 
-    process_data = [
+    datasets_to_process = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
-            [9700000],
+            [9680000, 9690000, 9700000, 9710000, 9720000, 9730000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
-            # , 2002000,2004000,2006000
-            [1999000]
+            [1999000, 2000000, 2001000, 2003000, 2004000, 2005000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
-            [700000],
+            [720000, 730000, 740000, 750000, 760000, 770000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
-            [3900000],
+            [3900000, 4000000, 4100000, 4200000, 4300000, 4400000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
-            [7400000, 7500000, 7600000, 7700000],
+            [7400000, 7500000, 7600000, 7700000, 7800000, 7900000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
-            [170000, 175000, 180000, 185000, 190000, 195000, 200000],
+            [170000, 175000, 180000, 185000, 190000, 195000],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
-            [1435, 1440, 1445, 1450, 1455, 1460, 1465],
+            [1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
-            [6000, 5500, 6000, 6500, 7000, 7500, 8000],
+            [5500, 6000, 6500, 7000, 7500, 8000],
         ],
-        # [
-        #     "/export/home1/ltarun/cuDPEFIM/datasets/synthetic/huT10M_ni100_avg25.txt",
-        #     [15000000, 16000000, 17000000, 18000000, 19000000, 20000000],
-        # ],
     ]
 
-    for input_path, minutils in process_data:
+    for input_path, minutils in datasets_to_process:
         minutil = minutils[0]
         print(f"Processing {input_path} with minutil {minutil}")
         # if input_path.endswith("accidents_utility_spmf.txt"):
