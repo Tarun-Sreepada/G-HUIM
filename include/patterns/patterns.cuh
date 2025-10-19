@@ -11,9 +11,9 @@ struct patterns
     uint32_t  pattern_count = 0;       ///< Number of patterns.
     uint64_t  size          = 0;       ///< Size of the patterns array.
 
+    // Initializes device storage for collecting patterns.
     __host__ void init(uint64_t s)
     {
-        // size = s;
         this->size = s;
         cudaMalloc(&data, size * sizeof(uint32_t));
         pattern_count = 0;
@@ -21,7 +21,7 @@ struct patterns
 
     }
 
-    // deconstructor
+    // Releases device storage for patterns.
     __host__ void free()
     {
         if (data) {
@@ -30,46 +30,45 @@ struct patterns
         }
     }
 
+    // Adds a pattern using cooperative updates across a thread block.
     __device__ void add_pattern(Task& task, uint32_t min_util)
     {
         if (task.utility >= min_util) {
-            // Store the utility
             __shared__ uint64_t pattern_offset;
             if (threadIdx.x == 0) {
-                atomicAdd(&pattern_count, 1); // Increment the pattern count
+                atomicAdd(&pattern_count, 1);
                 pattern_offset = atomicAdd(
                         reinterpret_cast<unsigned long long int*>(&offset),
                         static_cast<unsigned long long int>(
-                                task.pattern_length + 2)); // Get the current offset // 1 for Utility, 1 for spacer
-                // if (pattern_offset  size);
+                                task.pattern_length + 2));
                 if (pattern_offset + task.pattern_length + 1 < size) {
-                    data[pattern_offset + task.pattern_length] = task.utility; // Store the utility
+                    data[pattern_offset + task.pattern_length] = task.utility;
                     for (uint32_t i = 0; i < task.pattern_length; i++) {
-                        data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
+                        data[pattern_offset + i] = task.pattern[i];
                     }
                 }
-                data[pattern_offset + task.pattern_length + 1] = 0; // Spacer
+                data[pattern_offset + task.pattern_length + 1] = 0;
             }
             __syncthreads();
         }
     }
 
+    // Adds a pattern using a single thread for serialization.
     __device__ void add_pattern_st(Task& task, uint32_t min_util)
     {
         if (task.utility >= min_util) {
-            atomicAdd(&pattern_count, 1); // Increment the pattern count
+            atomicAdd(&pattern_count, 1);
             uint64_t pattern_offset = atomicAdd(
                     reinterpret_cast<unsigned long long int*>(&offset),
-                    static_cast<unsigned long long int>(task.pattern_length +
-                                                        2)); // Get the current offset // 1 for Utility, 1 for spacer
+                    static_cast<unsigned long long int>(task.pattern_length + 2));
             if (pattern_offset >= size)
                 return;
 
-            data[pattern_offset + task.pattern_length] = task.utility; // Store the utility
+            data[pattern_offset + task.pattern_length] = task.utility;
             for (int i = 0; i < task.pattern_length; i++) {
-                data[pattern_offset + i] = task.pattern[i]; // Copy the pattern
+                data[pattern_offset + i] = task.pattern[i];
             }
-            data[pattern_offset + task.pattern_length + 1] = 0; // Spacer
+            data[pattern_offset + task.pattern_length + 1] = 0;
         }
     }
 };

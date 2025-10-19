@@ -10,16 +10,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.patches import Patch
 
-# --- Directory Setup ---
+
 OUT_DIR = Path("plots")
 OUT_DIR.mkdir(exist_ok=True)
 
 RES_DIR = Path("results")
 RES_DIR.mkdir(exist_ok=True)
 
-###############################################################################
-# Persistent cache (CSV) utilities for Detailed Data                          #
-###############################################################################
 
 CSV_CACHE_DETAILED = RES_DIR / "iterations_detailed.csv"
 CACHE_COLUMNS_DETAILED = [
@@ -39,7 +36,9 @@ def _load_detailed_cache() -> pd.DataFrame:
         try:
             return pd.read_csv(CSV_CACHE_DETAILED)
         except Exception as e:
-            print(f"Warning: Could not read cache file. It might be outdated. Error: {e}")
+            print(
+                f"Warning: Could not read cache file. It might be outdated. Error: {e}"
+            )
             return pd.DataFrame(columns=CACHE_COLUMNS_DETAILED)
     return pd.DataFrame(columns=CACHE_COLUMNS_DETAILED)
 
@@ -47,14 +46,11 @@ def _load_detailed_cache() -> pd.DataFrame:
 def _append_to_detailed_cache(rows: list) -> None:
     """Append new rows to the detailed CSV cache."""
     df_new = pd.DataFrame(rows, columns=CACHE_COLUMNS_DETAILED)
-    # Check if file exists and is not empty to decide whether to write header
-    header = not (CSV_CACHE_DETAILED.exists() and os.path.getsize(CSV_CACHE_DETAILED) > 0)
+
+    header = not (
+        CSV_CACHE_DETAILED.exists() and os.path.getsize(CSV_CACHE_DETAILED) > 0
+    )
     df_new.to_csv(CSV_CACHE_DETAILED, mode="a", header=header, index=False)
-
-
-###############################################################################
-# Low-level execution and parsing                                             #
-###############################################################################
 
 
 def run_and_parse_detailed(
@@ -70,11 +66,16 @@ def run_and_parse_detailed(
     """
     cmd = [
         "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
-        "--input", input_file,
-        "--minutil", str(minutil),
-        "--method", method,
-        "--total_memory", total_memory,
-        "--output", "/dev/null",
+        "--input",
+        input_file,
+        "--minutil",
+        str(minutil),
+        "--method",
+        method,
+        "--total_memory",
+        total_memory,
+        "--output",
+        "/dev/null",
     ]
     if adaptive:
         cmd += ["--adaptive", "true"]
@@ -100,26 +101,34 @@ def run_and_parse_detailed(
     for line in stdout.splitlines():
         if line.strip().startswith("Iteration"):
             line_stripped = line.strip()
-            list_start_index = line_stripped.find('[')
-            
+            list_start_index = line_stripped.find("[")
+
             if list_start_index != -1:
                 before_list_part = line_stripped[:list_start_index]
                 parts = before_list_part.split()
-                
+
                 list_part_str = line_stripped[list_start_index:]
-                dist_str_cleaned = list_part_str.strip('[]')
+                dist_str_cleaned = list_part_str.strip("[]")
                 distribution = []
                 if dist_str_cleaned:
-                    distribution = [int(x) for x in dist_str_cleaned.split(',')]
+                    distribution = [int(x) for x in dist_str_cleaned.split(",")]
 
                 it = int(parts[1])
                 t_ms = float(parts[2])
                 mem_before_mb = int(parts[3])
                 mem_after_mb = int(parts[4])
 
-                parsed_rows.append([
-                    input_file, minutil, it, t_ms, mem_before_mb, mem_after_mb, str(distribution)
-                ])
+                parsed_rows.append(
+                    [
+                        input_file,
+                        minutil,
+                        it,
+                        t_ms,
+                        mem_before_mb,
+                        mem_after_mb,
+                        str(distribution),
+                    ]
+                )
 
     return pd.DataFrame(parsed_rows, columns=CACHE_COLUMNS_DETAILED)
 
@@ -140,16 +149,10 @@ def get_or_run_detailed_data(input_file: str, minutil: int) -> pd.DataFrame:
     df_new = run_and_parse_detailed(input_file, minutil)
     if not df_new.empty:
         _append_to_detailed_cache(df_new.values.tolist())
-    
-    # Ensure distribution is a list for plotting
+
     if not df_new.empty:
         df_new["distribution"] = df_new["distribution"].apply(eval)
     return df_new
-
-
-###############################################################################
-# Plotting with Logarithmic Scale                                             #
-###############################################################################
 
 
 def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
@@ -164,45 +167,45 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
     df["cumulative_time_ms"] = df["time_ms"].cumsum()
     df["start_time_ms"] = df["cumulative_time_ms"] - df["time_ms"]
 
-    # rename the dataset by removing everything before the last '/'
     df["dataset"] = df["dataset"].apply(lambda x: Path(x).name)
 
     fig, ax1 = plt.subplots(figsize=(18, 9))
     ax2 = ax1.twinx()
 
-    # --- PLOT GPU MEMORY (ax1) ---
-    # This plots the 'After' memory measurement at the cumulative time of each iteration's completion.
-    # It strictly uses the data returned by the program.
     memory = []
     for _, row in df.iterrows():
-        memory.append((row["mem_after_mb"] - row["mem_before_mb"], row["cumulative_time_ms"]))
-
-
+        memory.append(
+            (row["mem_after_mb"] - row["mem_before_mb"], row["cumulative_time_ms"])
+        )
 
     usage_by_iteration = []
     for i, (mem, time) in enumerate(memory):
         if i == 0:
             usage_by_iteration.append((mem, time))
         else:
-            usage_by_iteration.append((mem + memory[i-1][0], time))
-
+            usage_by_iteration.append((mem + memory[i - 1][0], time))
 
     ax1.plot(
         df["cumulative_time_ms"],
         [mem for mem, _ in usage_by_iteration],
-        color="black", lw=2.5, marker='o', markersize=4, label="GPU Memory"
+        color="black",
+        lw=2.5,
+        marker="o",
+        markersize=4,
+        label="GPU Memory",
     )
     ax1.fill_between(
         df["cumulative_time_ms"],
         [mem for mem, _ in usage_by_iteration],
-        color="gray", alpha=0.4
+        color="gray",
+        alpha=0.4,
     )
 
-    # ax1.plot(df["cumulative_time_ms"], df["mem_after_mb"], color="black", lw=2.5, marker='o', markersize=4, label="GPU Memory")
-    # ax1.fill_between(df["cumulative_time_ms"], df["mem_after_mb"], color="gray", alpha=0.4)
-
-    # --- Plot Task Distribution (ax2) ---
-    num_dist = len(df["distribution"].iloc[0]) if not df.empty and df["distribution"].iloc[0] else 0
+    num_dist = (
+        len(df["distribution"].iloc[0])
+        if not df.empty and df["distribution"].iloc[0]
+        else 0
+    )
     colors = plt.cm.YlOrRd(np.linspace(0.3, 1, num_dist))
 
     for _, row in df.iterrows():
@@ -214,14 +217,15 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
                     height=task_count,
                     width=row["time_ms"] if row["time_ms"] > 0 else 0.1,
                     bottom=bottom if bottom > 0 else 1,
-                    color=colors[i], align="edge", linewidth=0,
-                    alpha=0.5
+                    color=colors[i],
+                    align="edge",
+                    linewidth=0,
+                    alpha=0.5,
                 )
             bottom += task_count
-    
-    ax2.set_yscale('log')
 
-    # --- Formatting and Labels ---
+    ax2.set_yscale("log")
+
     ax1.set_xlabel("Cumulative Time (ms)", fontsize=16)
     ax1.set_ylabel("GPU Memory (MB)", fontsize=16)
     ax2.set_ylabel("Task Distribution Count (Log Scale)", fontsize=16)
@@ -234,29 +238,28 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
     ax2.set_ylim(bottom=1)
     ax1.set_xlim(left=0, right=df["cumulative_time_ms"].max() * 1.02)
     ax1.grid(True, which="both", linestyle="--", linewidth=0.5)
-    
 
-    title = Path(output_filename).stem.replace("utility_spmf", "").replace("_", " ").title()
-    
+    title = (
+        Path(output_filename).stem.replace("utility_spmf", "").replace("_", " ").title()
+    )
 
-    # title = Path(output_filename).stem.replace("_", " ").title()
     plt.title(f"Iteration Timeline: {title}", fontsize=20, pad=20)
-    
-    # --- Legend ---
+
     thread_labels = ["1", "32", "64", "128", "256", "512", "1024", "1024+"]
     legend_elements = [Patch(facecolor="gray", alpha=0.4, label="GPU Memory")]
     if num_dist <= len(thread_labels):
         legend_elements += [
-            Patch(facecolor=colors[i], label=f"{thread_labels[i]} threads") for i in range(num_dist)
+            Patch(facecolor=colors[i], label=f"{thread_labels[i]} threads")
+            for i in range(num_dist)
         ]
 
     fig.legend(
         handles=legend_elements,
         title="Threads per Task (Yellow=Few)",
         loc="lower center",
-        # bbox_to_anchor=(0.5, -0.05),
         ncol=5,
-        fontsize=12, title_fontsize=14,
+        fontsize=12,
+        title_fontsize=14,
     )
 
     fig.tight_layout()
@@ -265,10 +268,6 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
     plt.close(fig)
     print(f"Plot saved to {output_filename}")
 
-
-###############################################################################
-# Main execution block                                                        #
-###############################################################################
 
 if __name__ == "__main__":
     process_data = [
@@ -306,8 +305,6 @@ if __name__ == "__main__":
         ],
     ]
 
-    
-
     for input_path, minutils in process_data:
         minutil = minutils[0]
         print(f"\nProcessing {Path(input_path).name} with minutil {minutil}")
@@ -319,4 +316,6 @@ if __name__ == "__main__":
             output_file = OUT_DIR / f"{file_base}_minutil_{minutil}_log_timeline.png"
             plot_log_timeline(iteration_df, output_file)
         else:
-            print(f"Skipping plot for {input_path} as no data was generated or cache was invalid.")
+            print(
+                f"Skipping plot for {input_path} as no data was generated or cache was invalid."
+            )

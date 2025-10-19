@@ -13,48 +13,58 @@ struct Transaction
     uint32_t length  = 0;       ///< Number of items.
     uint32_t utility = 0;       ///< Transaction utility.
 
+    // Returns the number of items in the transaction.
     __device__ __host__ uint32_t size() const
     {
         return length;
     }
 
+    // Provides mutable access to an item by index.
     __device__ __host__ Item& operator[](unsigned int index)
     {
         return data[index];
     }
+    // Provides read-only access to an item by index.
     __device__ __host__ const Item& operator[](unsigned int index) const
     {
         return data[index];
     }
 
+    // Returns an iterator to the first item.
     __device__ __host__ Item* begin()
     {
         return data;
     }
+    // Returns an iterator past the last item.
     __device__ __host__ Item* end()
     {
         return data + length;
     }
+    // Returns a const iterator to the first item.
     __device__ __host__ const Item* begin() const
     {
         return data;
     }
+    // Returns a const iterator past the last item.
     __device__ __host__ const Item* end() const
     {
         return data + length;
     }
 
+    // Checks whether the transaction contains no items.
     __device__ __host__ bool is_empty() const
     {
         return length == 0;
     }
+    // Resets the transaction to an empty state.
     __device__ __host__ void clear()
     {
-        data    = nullptr; // Simply reset the pointer
+        data    = nullptr;
         length  = 0;
         utility = 0;
     }
 
+    // Performs a binary search for the given item key.
     __device__ __host__ int binary_search(uint32_t item) const
     {
         int  lr[2]  = {0, (int)length - 1};
@@ -73,6 +83,7 @@ struct Transaction
         return -1;
     }
 
+    // Legacy binary search variant retained for reference.
     __device__ __host__ int binary_search_old(uint32_t item) const
     {
         int left  = 0;
@@ -95,7 +106,7 @@ struct Transaction
         return -1;
     }
 
-    // util_sum doesn't modify the Transaction, so make it const
+    // Computes the sum of utilities from the given starting position.
     __device__ __host__ uint32_t util_sum(uint32_t start = 0) const
     {
         uint32_t total = 0;
@@ -105,6 +116,7 @@ struct Transaction
         return total;
     }
 
+    // Checks for equality with another transaction by comparing keys.
     __device__ __host__ bool operator==(const Transaction& other) const
     {
         if (length != other.length)
@@ -126,6 +138,7 @@ struct Database
     int          num_transactions; ///< Number of transactions.
     int          num_items;        ///< Total number of items.
 
+    // Compares two transactions identified by their indices for equality.
     __device__ __host__ bool compare_transactions(int idx1, int idx2) const
     {
         const Transaction& trans1 = transactions[idx1];
@@ -152,13 +165,13 @@ struct Utilities
     static const int EMPTY_LOCAL_UTILITY   = 0;
     static const int EMPTY_SUBTREE_UTILITY = 0;
 
-    // enum for local and subtree utility
     enum UtilityType
     {
         LOCAL_UTILITY,
         SUBTREE_UTILITY
     };
 
+    // Resets the utility entry to denote an unused slot.
     __device__ void clear()
     {
         key             = EMPTY_KEY;

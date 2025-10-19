@@ -3,13 +3,11 @@
 namespace allocators {
 namespace atomic {
 
-// Definitions
 __managed__ char*                  allocator_base   = nullptr;
 __managed__ unsigned long long int allocator_offset = 0;
 __managed__ unsigned long long int allocator_total  = 0;
 
-std::vector<unsigned long long> allocation_sizes;
-
+// Reserves device or managed memory for the global allocator.
 void init_global_allocator(unsigned long long int total_memory, bool managed)
 {
     allocator_total = total_memory;
@@ -37,6 +35,7 @@ void init_global_allocator(unsigned long long int total_memory, bool managed)
     allocator_offset = 0;
 }
 
+// Releases allocator storage and resets bookkeeping.
 void free_global_allocator()
 {
     if (allocator_base) {
@@ -45,17 +44,18 @@ void free_global_allocator()
     }
 }
 
+// Allocates aligned memory from the global allocator.
 __device__ void* gmalloc(unsigned long long int size)
 {
-    size                       = (size + 7) & ~7ULL; // align to 8 bytes
+    size                       = (size + 7) & ~7ULL;
     unsigned long long int ret = atomicAdd(&allocator_offset, size);
 
     return allocator_base + ret;
 }
 
+// No-op placeholder for freeing memory from the allocator.
 __device__ void gfree(void* /*ptr*/)
 {
-    // No-op
 }
 
 } // namespace atomic

@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <utility>
 
+// Translates a separator token (e.g. "\\n") into its character value.
 static char decode_separator(const std::string& s)
 {
     if (s == "\\s")
@@ -27,8 +28,10 @@ static char decode_separator(const std::string& s)
     std::exit(1);
 }
 
+// Stores the program name for help output and initializes the parser.
 ArgParser::ArgParser(std::string prog_name) : program_name(std::move(prog_name)) {}
 
+// Registers an argument that expects a value, with optional default.
 void ArgParser::add_argument(const std::string& name, const std::string& type, const std::string& desc, bool required,
                              std::optional<std::string> default_val)
 {
@@ -41,6 +44,7 @@ void ArgParser::add_argument(const std::string& name, const std::string& type, c
                           /*value*/ std::nullopt};
 }
 
+// Registers a boolean flag argument.
 void ArgParser::add_flag(const std::string& name, const std::string& desc)
 {
     args[name] = Argument{name,
@@ -52,6 +56,7 @@ void ArgParser::add_flag(const std::string& name, const std::string& desc)
                           /*value*/ std::nullopt};
 }
 
+// Parses command-line arguments into the internal argument map.
 void ArgParser::parse(int argc, char* argv[])
 {
     try {
@@ -69,7 +74,6 @@ void ArgParser::parse(int argc, char* argv[])
                 else {
                     bool treat_as_flag_like_bool = false;
                     if (a.type == "bool") {
-                        // Allow boolean options to be specified without an explicit value.
                         if (i + 1 >= argc) {
                             treat_as_flag_like_bool = true;
                         }
@@ -99,12 +103,10 @@ void ArgParser::parse(int argc, char* argv[])
             }
         }
 
-        // check required
         for (auto const& [key, a] : args)
             if (a.required && !a.value.has_value())
                 throw std::runtime_error("Missing required argument: " + key);
 
-        // fill defaults
         for (auto& [_, a] : args)
             if (!a.value.has_value() && a.default_value.has_value())
                 a.value = a.default_value;
@@ -116,6 +118,7 @@ void ArgParser::parse(int argc, char* argv[])
     }
 }
 
+// Returns an argument value as a string.
 std::string ArgParser::get(const std::string& name)
 {
     auto it = args.find(name);
@@ -124,6 +127,7 @@ std::string ArgParser::get(const std::string& name)
     return it->second.value.value_or("");
 }
 
+// Returns an argument interpreted as a boolean.
 bool ArgParser::get_bool(const std::string& name)
 {
     auto it = args.find(name);
@@ -132,16 +136,19 @@ bool ArgParser::get_bool(const std::string& name)
     return it->second.value.has_value() && it->second.value.value() == "true";
 }
 
+// Returns an argument parsed as uint32.
 uint32_t ArgParser::get_uint32(const std::string& name)
 {
     return static_cast<uint32_t>(std::stoul(get(name)));
 }
 
+// Returns an argument parsed as uint64.
 uint64_t ArgParser::get_uint64(const std::string& name)
 {
     return std::stoull(get(name));
 }
 
+// Parses a memory argument with suffix (K/M/G) into bytes.
 uint64_t ArgParser::get_memory(const std::string& name)
 {
     std::string v = get(name);
@@ -164,11 +171,13 @@ uint64_t ArgParser::get_memory(const std::string& name)
     return std::stoull(v) * mul;
 }
 
+// Returns a separator character argument.
 char ArgParser::get_separator(const std::string& name)
 {
     return decode_separator(get(name));
 }
 
+// Checks whether a flag was provided.
 bool ArgParser::flag_set(const std::string& name)
 {
     auto it = args.find(name);
@@ -177,6 +186,7 @@ bool ArgParser::flag_set(const std::string& name)
     return it->second.value.has_value();
 }
 
+// Returns the declared type string for an argument.
 std::string ArgParser::get_type(const std::string& name) const
 {
     auto it = args.find(name);
@@ -185,6 +195,7 @@ std::string ArgParser::get_type(const std::string& name) const
     return it->second.type;
 }
 
+// Prints usage and argument descriptions.
 void ArgParser::print_help()
 {
     std::cout << "Usage: " << program_name << " [options]\n\n"
@@ -209,6 +220,7 @@ void ArgParser::print_help()
     std::cout << "  --help, -h  Show this help message\n";
 }
 
+// Overrides an argument value programmatically.
 void ArgParser::set(const std::string& name, const std::string& value)
 {
     auto it = args.find(name);

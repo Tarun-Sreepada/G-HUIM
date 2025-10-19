@@ -1,11 +1,9 @@
 #include "file/save.cuh"
 
-// void save_patterns(const std::string &output_path, const uint32_t *data, const uint32_t offset, Item_mapping
-// *item_map, uint32_t max_item)
+// Writes mined patterns to disk, translating internal IDs back to original items.
 void save_patterns(const std::string& output_path, const std::pair<uint32_t *, uint64_t>& all_patterns,
                    Item_mapping* item_map, uint32_t max_item)
 {
-    // if /dev/null is used, do not write to files
     if (output_path == "/dev/null") {
         std::cout << "Output is directed to /dev/null, no file will be created.\n";
         return;
@@ -53,18 +51,6 @@ void save_patterns(const std::string& output_path, const std::pair<uint32_t *, u
         line += std::to_string(utility);
         output_file << line << '\n';
     };
-
-    // for (const auto& pattern_data : all_patterns) {
-    //     for (uint32_t value : pattern_data) {
-    //         if (value == 0) {
-    //             write_pattern(current_pattern);
-    //             current_pattern.clear();
-    //         }
-    //         else {
-    //             current_pattern.push_back(value);
-    //         }
-    //     }
-    // }
 
     bool _first_zero_skipped = false;
 
