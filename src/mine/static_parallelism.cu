@@ -685,11 +685,6 @@ void run_static_mining(built_file& bf, uint32_t* primary, patterns* p, ArgParser
     uint64_t safety_boundary  = 0;
     uint64_t current_boundary = 0;
 
-
-    // pinned buffer
-    uint32_t* pinned_buffer;
-    gpuErrchk(cudaMallocHost((void**)&pinned_buffer, sizeof(uint32_t) * p->size)); // pinned host memory
-
     while (curr_stack->top != 0) {
         // const unsigned long long before_offset = allocators::atomic::allocator_offset;
         safety_boundary = allocators::atomic::allocator_offset;
@@ -772,11 +767,6 @@ void run_adaptive_mining(built_file& bf, uint32_t* primary, patterns* p, ArgPars
     cudaStream_t copy_stream;
     gpuErrchk(cudaStreamCreate(&copy_stream));
 
-
-
-    // // pinned buffer
-    // uint32_t* pinned_buffer;
-    // gpuErrchk(cudaMallocHost((void**)&pinned_buffer, sizeof(uint32_t) * p->size)); // pinned host memory
 
 
     // Seed initial work from primary patterns
