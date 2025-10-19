@@ -99,9 +99,8 @@ def _generate_legends(output_dir: str, all_methods: List[str]):
     fig_phase, ax_phase = plt.subplots(figsize=(4.5, 0.5))
     phases = PHASE_COLORS.keys()
     handles = []
-    for i, p in enumerate(phases):
-        hatch = HATCHES[i % len(HATCHES)]
-        handles.append(Patch(facecolor=PHASE_COLORS[p], label=p, edgecolor='black', hatch=hatch))
+    for p in phases:
+        handles.append(Patch(facecolor=PHASE_COLORS[p], label=p, edgecolor='black'))
     ax_phase.legend(handles=handles, loc="center", ncol=len(phases), frameon=False, title="Execution Phases")
     ax_phase.axis("off")
     fig_phase.savefig(os.path.join(output_dir, "legend_phases.png"), dpi=300, bbox_inches="tight")
@@ -130,6 +129,19 @@ def _generate_legends(output_dir: str, all_methods: List[str]):
     plt.close(fig_line)
     
     logging.info(f"Legends saved to {output_dir}")
+
+    # Method Hatch Legend (shows hatch per method)
+    fig_hatch, ax_hatch = plt.subplots(figsize=(7, 1.5))
+    hatch_handles = []
+    # Use same ordering as methods_for_legend
+    for i, m in enumerate(methods_for_legend):
+        hatch = HATCHES[i % len(HATCHES)]
+        hatch_handles.append(Patch(facecolor=METHOD_COLORS.get(m, 'gray'), label=method_nice_names[m], edgecolor='black', hatch=hatch))
+
+    ax_hatch.legend(handles=hatch_handles, loc='center', ncol=3, frameon=False, title='Method Hatches')
+    ax_hatch.axis('off')
+    fig_hatch.savefig(os.path.join(output_dir, 'legend_hatches.png'), dpi=300, bbox_inches='tight')
+    plt.close(fig_hatch)
 
 def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
     """Generate and save a stacked bar chart of execution time breakdown with custom order/labels."""
@@ -176,14 +188,15 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
     positions = np.array([ga_center] + list(gs_positions_centered) + [dphim_center])
     
     # 3. Plot the bars
-    for method, pos in zip(plot_methods, positions):
+    # Use a distinct hatch per bar (method) so each bar gets a different hatch pattern
+    for method_idx, (method, pos) in enumerate(zip(plot_methods, positions)):
         row = df_subset[df_subset["AlgoMeth"] == method]
         if row.empty: continue
-        
+
         bottom = 0.0
-        for i, (phase, color) in enumerate(PHASE_COLORS.items()):
+        hatch = HATCHES[method_idx % len(HATCHES)]
+        for phase, color in PHASE_COLORS.items():
             height = row[phase].iloc[0] / 1000.0
-            hatch = HATCHES[i % len(HATCHES)]
             ax.bar(pos, height, bar_width, bottom=bottom, color=color, edgecolor="black", linewidth=0.7, hatch=hatch)
             bottom += height
             
@@ -227,7 +240,7 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
     ax.grid(True, axis='y', linestyle='--', alpha=0.7)
     
     file_base = df_file["File"].iloc[0]
-    # plt.title(f"Execution Time Breakdown on {file_base.capitalize()}")
+    plt.title(f"Execution Time Breakdown on {file_base.capitalize()}")
     fig.tight_layout()
     plt.savefig(output_path, dpi=300)
     plt.close(fig)
