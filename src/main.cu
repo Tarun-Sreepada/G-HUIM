@@ -156,28 +156,6 @@ int main(int argc, char* argv[])
 
     timer.recordPoint("End");
 
-
-    // // copy back any remaining patterns
-    // if (p->offset > 0) {
-    //     std::vector<uint32_t> iter_pattern;
-    //     printf("Pattern Data size on device: %u(mb)\n", p->size * sizeof(uint32_t) / (1024 * 1024));
-    //     iter_pattern.resize(p->offset); // <<< resize, not reserve
-    //     printf("Final copy of %u patterns.\n", p->offset);
-    //     cudaDeviceSynchronize();
-    //     cudaError_t err =
-    //             cudaMemcpy(iter_pattern.data(), p->data, sizeof(uint32_t) * p->offset, cudaMemcpyDeviceToHost);
-    //     if (err != cudaSuccess) {
-    //         std::cerr << "cudaMemcpy failed: " << cudaGetErrorString(err) << "\n";
-    //         // handle error...
-    //     }
-    //     // move into container to avoid a copy
-    //     all_patterns.push_back(std::move(iter_pattern));
-    //     // clear the device buffer
-    //     // cudaMemset(p->data, 0, sizeof(uint32_t) * p->offset);
-    //     p->offset = 0;
-    // }
-
-
     // free allocator
     free_global_allocator();
     p->free();
