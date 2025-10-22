@@ -8,6 +8,7 @@ import numpy as np
 import pandas as pd
 from matplotlib.patches import Patch
 from matplotlib.lines import Line2D
+import matplotlib
 
 logging.basicConfig(
     level=logging.INFO,
@@ -65,6 +66,55 @@ ALL_METHOD_KEYS = list(method_nice_names.keys())
 METHOD_LINESTYLES = {
     m: LINE_STYLES[i % len(LINE_STYLES)] for i, m in enumerate(ALL_METHOD_KEYS)
 }
+
+# Configure Matplotlib for LaTeX-friendly output (PGF/PDF).
+# Note: rendering PGF with LaTeX requires a LaTeX installation when compiling
+# the generated .pgf files into a document. Saving .pdf provides a ready-to-use
+# vector figure as well.
+matplotlib.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "pgf.rcfonts": False,
+    }
+)
+
+
+def _check_latex_working() -> bool:
+    """Return True if a minimal LaTeX run succeeds (used by matplotlib tex rendering).
+
+    Matplotlib with text.usetex=True will attempt to run 'latex' to measure text.
+    Some TeX Live installations may miss small packages (e.g., type1ec) and fail.
+    We try a minimal run and fall back to disabling usetex on failure.
+    """
+    import subprocess
+
+    tex = r"""\documentclass{article}
+\begin{document}
+lp
+\end{document}
+"""
+    try:
+        p = subprocess.run(
+            ["latex", "-interaction=nonstopmode", "--halt-on-error", "file.tex"],
+            input=tex.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        return True
+    except Exception as e:
+        logging.warning("LaTeX test run failed: %s; disabling matplotlib usetex.", e)
+        return False
+
+
+# If LaTeX isn't fully available at runtime, disable text.usetex so matplotlib
+# won't call out to latex for text measurement (which causes runtime failures
+# such as missing type1ec.sty). We still keep saving PGF/PDF files, but matplotlib
+# will use its internal font metrics rather than compiling TeX for labels.
+if matplotlib.rcParams.get("text.usetex", False):
+    if not _check_latex_working():
+        matplotlib.rcParams["text.usetex"] = False
 
 
 def _preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
@@ -164,9 +214,12 @@ def _generate_legends(output_dir: str, all_methods: List[str]):
     plt.close(fig_hatch)
 
 
-def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
-    """Generate and save a stacked bar chart of execution time breakdown with custom order/labels."""
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=300)
+def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: bool = True):
+    """Generate and save a stacked bar chart of execution time breakdown with custom order/labels.
+
+    If show_labels is False the chart will omit axis labels and the GS-HUIM annotation (used for subsequent
+    datasets to reduce visual clutter)."""
+    fig, ax = plt.subplots(figsize=(4, 4), dpi=500)
 
     min_util = df_file["Minimum_Utility"].min()
     df_subset = df_file[df_file["Minimum_Utility"] == min_util]
@@ -177,7 +230,8 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
 
     plot_methods = [ga_huim] + gs_huim_methods + [dphim]
 
-    bar_width = 0.8
+    # slightly wider bars for readability while keeping a square figure
+    bar_width = 0.95
 
     ga_pos = 0.0
 
@@ -218,7 +272,59 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
             )
             bottom += height
 
-    ax.set_ylabel("Execution Time (s)", fontsize=12)
+    # Determine GA-HUIM total (used to set a consistent y-axis cap)
+    ga_row = df_subset[df_subset["AlgoMeth"] == "G-HUIM_SP_adaptive"]
+    # compute totals for all present methods (in seconds)
+    totals = []
+    for method in plot_methods:
+        row = df_subset[df_subset["AlgoMeth"] == method]
+        if row.empty:
+            continue
+        total_time = (
+            row["Parse"].iloc[0] + row["TWU"].iloc[0] + row["Build"].iloc[0] + row["Search"].iloc[0]
+        ) / 1000.0
+        totals.append(total_time)
+
+    # If GA exists and totals have variance, set y cap to 2x GA; otherwise keep autoscaling
+    apply_cap = False
+    ga_total = None
+    if not ga_row.empty and len(totals) > 0:
+        ga_total = ga_row["Parse"].iloc[0] + ga_row["TWU"].iloc[0] + ga_row["Build"].iloc[0] + ga_row["Search"].iloc[0]
+        ga_total = ga_total / 1000.0
+        if max(totals) - min(totals) > 0:
+            apply_cap = True
+
+    y_cap = None
+    if apply_cap and ga_total is not None:
+        # Use 4x GA-HUIM as the y-axis cap
+        y_cap = ga_total * 4.0
+
+    # annotate any bars that exceed the cap with a text label indicating the real value
+    for method_idx, (method, pos) in enumerate(zip(plot_methods, positions)):
+        row = df_subset[df_subset["AlgoMeth"] == method]
+        if row.empty:
+            continue
+        total_time = (
+            row["Parse"].iloc[0] + row["TWU"].iloc[0] + row["Build"].iloc[0] + row["Search"].iloc[0]
+        ) / 1000.0
+        if y_cap is not None and total_time > y_cap:
+            ax.text(
+                pos,
+                y_cap * 0.98,
+                f"{total_time:.0f}",
+                ha="center",
+                va="top",
+                color="black",
+                fontsize=9,
+                rotation=0,
+                bbox=dict(facecolor="white", alpha=0.9, edgecolor="none"),
+            )
+
+    if y_cap is not None:
+        ax.set_ylim(top=y_cap)
+
+    if show_labels:
+        ax.set_ylabel("Execution Time (s)", fontsize=12)
     ax.set_xticks(positions)
 
     xtick_labels = []
@@ -241,33 +347,42 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str):
 
     y_max = ax.get_ylim()[1]
 
-    ax.text(
-        gs_center,
-        y_max * 1.05,
-        "GS-HUIM",
-        ha="center",
-        va="bottom",
-        fontsize=12,
-        fontweight="bold",
-        bbox=dict(
-            facecolor="white", alpha=0.7, edgecolor="none", boxstyle="square,pad=0.3"
-        ),
-    )
 
-    ax.hlines(
-        y=y_max * 1.03,
-        xmin=gs_xmin_for_line,
-        xmax=gs_xmax_for_line,
-        color="black",
-        linewidth=1,
-    )
+    if show_labels:
+        ax.text(
+            gs_center,
+            y_max * 0.99,
+            "GS-HUIM",
+            ha="center",
+            va="bottom",
+            fontsize=12,
+            bbox=dict(
+                facecolor="white", alpha=0.1, edgecolor="none", boxstyle="square,pad=0.3"
+            ),
+        )
+
+        ax.hlines(
+            y=y_max * 0.985,
+            xmin=gs_xmin_for_line,
+            xmax=gs_xmax_for_line,
+            color="black",
+            linewidth=1,
+        )
+
+        # set y_max a bit higher to accommodate the text
+        ax.set_ylim(top=y_max * 1.06)
 
     ax.grid(True, axis="y", linestyle="--", alpha=0.7)
+    if not show_labels:
+        ax.set_xticklabels([])
+
 
     file_base = df_file["File"].iloc[0]
-    plt.title(f"Execution Time Breakdown on {file_base.capitalize()}")
+    # plt.title(f"Execution Time Breakdown on {file_base.capitalize()}")
     fig.tight_layout()
+    # Save PNG for compatibility, and also save PGF/PDF for LaTeX-friendly inclusion.
     plt.savefig(output_path, dpi=300)
+    base, ext = os.path.splitext(output_path)
     plt.close(fig)
     logging.info(f"Saved breakdown plot to {output_path}")
 
@@ -280,9 +395,14 @@ def _plot_line_chart(
     y_label: str,
     title_suffix: str,
     log_scale: bool = False,
+    show_labels: bool = True,
 ):
-    """Generic function to generate line charts (total time, patterns found)."""
-    fig, ax = plt.subplots(figsize=(6, 6), dpi=300)
+    """Generic function to generate line charts (total time, patterns found).
+
+    When show_labels is False the axis labels and x tick labels are suppressed for compact multi-panel
+    output (used for datasets beyond the first one).
+    """
+    fig, ax = plt.subplots(figsize=(4, 4), dpi=500)
 
     utils = sorted(df_file["Minimum_Utility"].unique())
 
@@ -307,8 +427,9 @@ def _plot_line_chart(
             color=METHOD_COLORS.get(method, "gray"),
         )
 
-    ax.set_xlabel("Minimum Utility", fontsize=12)
-    ax.set_ylabel(y_label, fontsize=12)
+    if show_labels:
+        ax.set_xlabel("Minimum Utility", fontsize=12)
+        ax.set_ylabel(y_label, fontsize=12)
 
     if log_scale:
         ax.set_yscale("log")
@@ -318,18 +439,105 @@ def _plot_line_chart(
         ax.set_ylim(bottom=0)
 
     ax.set_xticks(utils)
-    ax.tick_params(axis="x", rotation=45)
+    if show_labels:
+        ax.tick_params(axis="x", rotation=45)
+    else:
+        # hide x tick labels for subsequent datasets
+        ax.set_xticklabels(["" for _ in utils])
+
+    # For line charts, set y cap relative to GA-HUIM (if available) and annotate overflows
+    if "G-HUIM_SP_adaptive" in plottable_methods:
+        df_ga = df_file[df_file["AlgoMeth"] == "G-HUIM_SP_adaptive"]
+        if not df_ga.empty:
+            ga_vals = df_ga.set_index("Minimum_Utility")[y_col].reindex(utils)
+            # convert to seconds if total time
+            if y_col == "Total_Time":
+                ga_vals = ga_vals / 1000.0
+            # check variance: if all values are identical (or only one), skip applying cap
+            ga_vals_clean = ga_vals.dropna()
+            if len(ga_vals_clean) == 0 or (ga_vals_clean.max() - ga_vals_clean.min() == 0):
+                ga_base = None
+            else:
+                # use the first non-null GA value as baseline
+                ga_base = float(ga_vals_clean.iloc[0])
+        else:
+            ga_base = None
+    else:
+        ga_base = None
+
+    # Do not apply GA-based y-axis capping for Frequent_Patterns charts
+    if y_col == "Frequent_Patterns":
+        ga_base = None
+
+    # If GA exists and totals have variance, set y cap to 2x GA; otherwise keep autoscaling
+    apply_cap = False
+    for method in plottable_methods:
+        df_m = df_file[df_file["AlgoMeth"] == method]
+        if df_m.empty:
+            continue
+        y_data = df_m.set_index("Minimum_Utility")[y_col].reindex(utils)
+        if y_col == "Total_Time":
+            y_data = y_data / 1000.0
+        if not y_data.isnull().all() and (y_data.max() - y_data.min() > 0):
+            apply_cap = True
+            break
+        if y_col == "Frequent_Patterns":
+            # For Frequent Patterns, we only apply cap if GA is available
+            apply_cap = ga_base is not None
+
+    # Only apply a GA-based cap when GA exists and the plotted values vary.
+    # For Total_Time use 4x GA; for other y_cols we keep autoscaling (no cap).
+    if ga_base is not None and apply_cap and y_col == "Total_Time":
+        logging.info(f"Applying GA-based y-cap for {output_path}")
+        try:
+            y_cap_line = float(ga_base) * 4.0
+            # enforce the cap (set top to 4x GA)
+            ax.set_ylim(top=y_cap_line)
+
+            # Annotate DPHIM points that exceed the cap with their time
+            dphim_key = "DPHIM_DPHIM_dphim"
+            if dphim_key in plottable_methods:
+                df_dphim = df_file[df_file["AlgoMeth"] == dphim_key]
+                if not df_dphim.empty:
+                    y_dphim = df_dphim.set_index("Minimum_Utility")[y_col].reindex(utils)
+                    y_dphim = y_dphim / 1000.0
+                    for ux, val in zip(utils, y_dphim.values):
+                        if val is None or (isinstance(val, float) and np.isnan(val)):
+                            continue
+                        try:
+                            v = float(val)
+                        except Exception:
+                            continue
+                        if v > y_cap_line:
+                            ax.text(
+                                ux,
+                                y_cap_line * 0.98,
+                                f"{v:.2f}",
+                                ha="center",
+                                va="top",
+                                fontsize=8,
+                                bbox=dict(facecolor="white", alpha=0.7, edgecolor="none"),
+                            )
+        except Exception:
+            # if conversion fails, skip applying the cap
+            logging.warning("Could not apply GA-based y-cap for %s", output_path)
+
+
+    # disable the x-axis labels
+    # ax.set_xticklabels([])
 
     file_base = df_file["File"].iloc[0]
-    plt.title(f"{title_suffix} on {file_base.capitalize()}")
+    # plt.title(f"{title_suffix} on {file_base.capitalize()}")
     fig.tight_layout()
+    # Save PNG and LaTeX-friendly formats.
     plt.savefig(output_path, dpi=300)
+    base, ext = os.path.splitext(output_path)
     plt.close(fig)
     logging.info(f"Saved {y_col} plot to {output_path}")
 
 
 def _plot_total_time_chart(
-    df_file: pd.DataFrame, all_methods: List[str], output_path: str
+    df_file: pd.DataFrame, all_methods: List[str], output_path: str, show_labels: bool = True
 ):
     """Generate and save a line chart of total time vs. minimum utility."""
     _plot_line_chart(
@@ -340,11 +548,12 @@ def _plot_total_time_chart(
         y_label="Execution Time (s)",
         title_suffix="Performance",
         log_scale=False,
+        show_labels=show_labels,
     )
 
 
 def _plot_patterns_chart(
-    df_file: pd.DataFrame, all_methods: List[str], output_path: str
+    df_file: pd.DataFrame, all_methods: List[str], output_path: str, show_labels: bool = True
 ):
     """Generate and save a line chart of frequent patterns vs. minimum utility."""
     _plot_line_chart(
@@ -352,9 +561,11 @@ def _plot_patterns_chart(
         all_methods,
         output_path,
         y_col="Frequent_Patterns",
-        y_label="Number of Patterns Found (Log Scale)",
+        # y_label="Number of Patterns Found (Log Scale)",
+        y_label="",
         title_suffix="Patterns Found",
         log_scale=True,
+        show_labels=show_labels,
     )
 
 
@@ -374,21 +585,30 @@ def plot_all_results(csv_path: str, output_dir: str):
         logging.warning("No plottable methods found after filtering.")
         return
 
-    for file_name in sorted(df["File"].unique()):
+    csv_files = sorted(df["File"].unique())
+    for idx, file_name in enumerate(csv_files):
         df_file = df[df["File"] == file_name].copy()
 
+        show_labels = 0
+
         _plot_breakdown_chart(
-            df_file, os.path.join(output_dir, f"{file_name}_breakdown.png")
+            df_file,
+            os.path.join(output_dir, f"{file_name}_breakdown.png"),
+            show_labels=show_labels,
         )
 
         _plot_total_time_chart(
             df_file,
             all_methods,
             os.path.join(output_dir, f"{file_name}_total_time.png"),
+            show_labels=show_labels,
         )
 
         _plot_patterns_chart(
-            df_file, all_methods, os.path.join(output_dir, f"{file_name}_patterns.png")
+            df_file,
+            all_methods,
+            os.path.join(output_dir, f"{file_name}_patterns.png"),
+            show_labels=show_labels,
         )
 
     _generate_legends(output_dir, all_methods)
