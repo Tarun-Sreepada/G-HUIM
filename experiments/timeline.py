@@ -270,7 +270,7 @@ def plot_log_timeline(df: pd.DataFrame, output_filename: str) -> None:
 
 
 if __name__ == "__main__":
-    process_data = [
+    datasets_to_process = [
         [
             "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
             [9680000, 9690000, 9700000, 9710000, 9720000, 9730000],
@@ -305,7 +305,7 @@ if __name__ == "__main__":
         ],
     ]
 
-    for input_path, minutils in process_data:
+    for input_path, minutils in datasets_to_process:
         minutil = minutils[0]
         print(f"\nProcessing {Path(input_path).name} with minutil {minutil}")
 
