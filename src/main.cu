@@ -7,6 +7,9 @@
 #include "patterns/patterns.cuh"
 #include "timer.hpp"
 
+#include <limits>
+#include <stdexcept>
+
 // Triggers a minimal kernel launch to initialize the CUDA context.
 __global__ void __warmup() {}
 
@@ -58,6 +61,7 @@ int main(int argc, char* argv[])
 
     ArgParser parser("cuDPEFIM");
     Timer     timer;
+    uint32_t  stack_capacity = kDefaultStackCapacity;
 
     try {
         parser.add_argument("--input", "string", "Input file path", true);
@@ -69,8 +73,15 @@ int main(int argc, char* argv[])
         parser.add_argument("--total_memory", "int+str", "Total memory to allocate for the global allocator", false,
                             "36G");
         parser.add_argument("--pattern_memory", "int+str", "Memory to allocate for the patterns", false, "2G");
+        parser.add_argument("--stack_capacity", "int+str",
+                            "Maximum number of tasks per stack (e.g., 128M)", false, "128M");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
         parser.parse(argc, argv);
+
+        const uint64_t stack_capacity_value = parser.get_scaled_uint("--stack_capacity");
+        if (stack_capacity_value == 0 || stack_capacity_value > std::numeric_limits<uint32_t>::max())
+            throw std::runtime_error("--stack_capacity must fit in 32 bits and be greater than zero");
+        stack_capacity = static_cast<uint32_t>(stack_capacity_value);
 
         std::cout << "Input File: " << parser.get("--input") << "\n";
         std::cout << "Minimum utility: " << parser.get("--minutil") << "\n";
@@ -81,6 +92,8 @@ int main(int argc, char* argv[])
         std::cout << "Pattern Memory: " << parser.get("--pattern_memory") << "\n";
         std::cout << "Total Memory: " << parser.get("--total_memory") << "\n";
         std::cout << "Block Size: " << parser.get("--block_size") << "\n";
+        std::cout << "Task Stack Capacity: " << parser.get("--stack_capacity") << " (" << stack_capacity
+                  << " tasks)\n";
     }
     catch (const std::exception& e) {
         std::cerr << "Error: " << e.what() << "\n";
@@ -138,7 +151,7 @@ int main(int argc, char* argv[])
 
     size_t shared_memory = get_shared_memory_per_block();
 
-    static_parallel_mining(bf, p, parser, timer, shared_memory, all_patterns);
+    static_parallel_mining(bf, p, parser, timer, shared_memory, all_patterns, stack_capacity);
 
     timer.recordPoint("End");
 

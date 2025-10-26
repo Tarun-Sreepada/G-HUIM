@@ -1,6 +1,7 @@
 #include "args.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <iomanip>
 #include <iostream>
@@ -169,6 +170,32 @@ uint64_t ArgParser::get_memory(const std::string& name)
         throw std::runtime_error("Invalid memory suffix for " + name + "; use G, M, or K");
 
     return std::stoull(v) * mul;
+}
+
+// Parses an integer argument allowing optional K/M/G suffix multipliers.
+uint64_t ArgParser::get_scaled_uint(const std::string& name)
+{
+    std::string v = get(name);
+    if (v.empty())
+        throw std::runtime_error("Scaled integer argument empty or missing: " + name);
+
+    uint64_t multiplier = 1;
+    const char suffix   = v.back();
+
+    if (!std::isdigit(static_cast<unsigned char>(suffix))) {
+        switch (suffix) {
+            case 'G': multiplier = 1024ULL * 1024ULL * 1024ULL; break;
+            case 'M': multiplier = 1024ULL * 1024ULL; break;
+            case 'K': multiplier = 1024ULL; break;
+            default: throw std::runtime_error("Invalid suffix for argument: " + name);
+        }
+        v.pop_back();
+    }
+
+    if (v.empty())
+        throw std::runtime_error("Missing numeric component for argument: " + name);
+
+    return std::stoull(v) * multiplier;
 }
 
 // Returns a separator character argument.
