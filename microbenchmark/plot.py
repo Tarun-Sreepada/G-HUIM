@@ -5,6 +5,56 @@ import io
 
 EXE_PATH = "./thread_usage"
 
+import matplotlib
+
+# Configure Matplotlib for LaTeX-friendly output (PGF/PDF).
+# Note: rendering PGF with LaTeX requires a LaTeX installation when compiling
+# the generated .pgf files into a document. Saving .pdf provides a ready-to-use
+# vector figure as well.
+matplotlib.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "pgf.rcfonts": False,
+    }
+)
+
+
+def _check_latex_working() -> bool:
+    """Return True if a minimal LaTeX run succeeds (used by matplotlib tex rendering).
+
+    Matplotlib with text.usetex=True will attempt to run 'latex' to measure text.
+    Some TeX Live installations may miss small packages (e.g., type1ec) and fail.
+    We try a minimal run and fall back to disabling usetex on failure.
+    """
+    import subprocess
+
+    tex = r"""\documentclass{article}
+\begin{document}
+lp
+\end{document}
+"""
+    try:
+        p = subprocess.run(
+            ["latex", "-interaction=nonstopmode", "--halt-on-error", "file.tex"],
+            input=tex.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        return True
+    except Exception as e:
+        return False
+
+
+# If LaTeX isn't fully available at runtime, disable text.usetex so matplotlib
+# won't call out to latex for text measurement (which causes runtime failures
+# such as missing type1ec.sty). We still keep saving PGF/PDF files, but matplotlib
+# will use its internal font metrics rather than compiling TeX for labels.
+if matplotlib.rcParams.get("text.usetex", False):
+    if not _check_latex_working():
+        matplotlib.rcParams["text.usetex"] = False
+
                     
 work_vals = [8192, 32 * 1024, 128 * 1024, 512 * 1024]
 sync_times = 128         

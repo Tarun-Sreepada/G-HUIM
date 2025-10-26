@@ -6,17 +6,70 @@ from typing import Dict, List, Tuple, Union
 
 import pandas as pd
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator
 from matplotlib.lines import Line2D
 
 import itertools
 from matplotlib.patches import Patch
 
+import matplotlib
 
 OUT_DIR = Path("plots")
 OUT_DIR.mkdir(exist_ok=True)
 
 RES_DIR = Path("results")
 RES_DIR.mkdir(exist_ok=True)
+
+
+# Configure Matplotlib for LaTeX-friendly output (PGF/PDF).
+# Note: rendering PGF with LaTeX requires a LaTeX installation when compiling
+# the generated .pgf files into a document. Saving .pdf provides a ready-to-use
+# vector figure as well.
+matplotlib.rcParams.update(
+    {
+        "text.usetex": True,
+        "font.family": "serif",
+        "pgf.rcfonts": False,
+    }
+)
+
+
+def _check_latex_working() -> bool:
+    """Return True if a minimal LaTeX run succeeds (used by matplotlib tex rendering).
+
+    Matplotlib with text.usetex=True will attempt to run 'latex' to measure text.
+    Some TeX Live installations may miss small packages (e.g., type1ec) and fail.
+    We try a minimal run and fall back to disabling usetex on failure.
+    """
+    import subprocess
+
+    tex = r"""\documentclass{article}
+\begin{document}
+lp
+\end{document}
+"""
+    try:
+        p = subprocess.run(
+            ["latex", "-interaction=nonstopmode", "--halt-on-error", "file.tex"],
+            input=tex.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        return True
+    except Exception as e:
+        return False
+
+
+# If LaTeX isn't fully available at runtime, disable text.usetex so matplotlib
+# won't call out to latex for text measurement (which causes runtime failures
+# such as missing type1ec.sty). We still keep saving PGF/PDF files, but matplotlib
+# will use its internal font metrics rather than compiling TeX for labels.
+if matplotlib.rcParams.get("text.usetex", False):
+    if not _check_latex_working():
+        matplotlib.rcParams["text.usetex"] = False
+
+
 
 
 CSV_CACHE = RES_DIR / "iterations.csv"
@@ -460,8 +513,9 @@ def plot_for_configs(
 
     iterations = sorted(list(all_iterations))
 
-    fig, ax1 = plt.subplots(figsize=(10, 6))
+    fig, ax1 = plt.subplots(figsize=(3, 5))
     ax2 = ax1.twinx()
+
 
     for label, bs in configs:
         adaptive_flag = label == "adaptive"
@@ -477,6 +531,12 @@ def plot_for_configs(
             marker=method_markers.get(method_key, None),
             color=method_colors.get(method_key, None),
         )
+
+        # add the lines
+        ax1.yaxis.grid(True, which="major", linestyle=(0, (1, 3)), linewidth=0.9, color="gray", alpha=0.6)
+
+    # reduce the x-axis ticks to be less crowded
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     raw_adaptive_mems = [results["adaptive"].get(i, (0, 0))[1] for i in iterations]
 
@@ -497,8 +557,33 @@ def plot_for_configs(
             label="Active GPU Memory (GA-HUIM)",
         )
 
-    handles1, labels1 = ax1.get_legend_handles_labels()
+        # Make the execution-time axis (ax1) grid visually prominent with large dotted lines
+        # Use a dotted dash pattern with thicker linewidth to emulate "large dots".
+        ax1.yaxis.grid(
+            True,
+            which="major",
+            linestyle=(0, (1, 5)),
+            linewidth=2.0,
+            color="gray",
+            alpha=0.25,
+        )
+        # ax1.yaxis.grid(
+        #     True,
+        #     which="minor",
+        #     linestyle=(0, (1, 5)),
+        #     linewidth=1.0,
+        #     color="gray",
+        #     alpha=0.6,
+        # )
+        # ax1.minorticks_on()
 
+        # For the memory axis (ax2) use thicker solid horizontal lines for easy mapping
+        ax2.yaxis.grid(True, which="major", linestyle="-", linewidth=2.0, color="gray", alpha=0.25)
+        # ax2.yaxis.grid(True, which="minor", linestyle="-", linewidth=1.0, color="gray", alpha=0.6)
+        # ax2.minorticks_on()
+
+    # collect legend entries from ax1 and add the memory patch
+    handles1, labels1 = ax1.get_legend_handles_labels()
     mem_patch = Patch(color="gray", alpha=0.3, label="Active GPU Memory (GA-HUIM)")
     all_handles = handles1 + [mem_patch]
     all_labels = labels1 + ["Active GPU Memory"]
@@ -510,8 +595,12 @@ def plot_for_configs(
     ax2.set_ylim(bottom=0)
 
     ax1.set_xlabel("Iteration", fontsize=14)
-    ax1.set_ylabel("Execution Time (ms)", fontsize=14)
-    ax2.set_ylabel("Active GPU Memory (MB)", fontsize=14, rotation=270, labelpad=20)
+
+    if input_file.lower().find('accidents') != -1:
+        ax1.set_ylabel("Time (ms)", fontsize=14)
+        ax2.set_ylabel("GPU Memory Usage (MB)", fontsize=14, rotation=270, labelpad=20)
+    # ax1.set_ylabel("Execution Time (ms)", fontsize=14)
+    # ax2.set_ylabel("Active GPU Memory (MB)", fontsize=14, rotation=270, labelpad=20)
 
     ax1.tick_params(axis="y", labelsize=14)
     ax2.tick_params(axis="y", labelsize=14)
@@ -519,13 +608,13 @@ def plot_for_configs(
 
     if iterations:
         ax1.set_xlim(min(iterations) - 0.2, max(iterations) + 0.2)
-    ax1.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax1.xaxis.set_major_locator(MaxNLocator(integer=True))
 
     file_base = Path(input_file).stem
     file_name = f"{file_base}_minutil_{minutil}_iteration.png"
 
     title = file_base.split("_")[0]
-    plt.title(f"Iteration-wise Execution Time and Memory on {title}", fontsize=16)
+    # plt.title(f"Iteration-wise Execution Time and Memory on {title}", fontsize=16)
 
     fig.savefig(OUT_DIR / file_name, dpi=500, bbox_inches="tight")
     plt.close(fig)

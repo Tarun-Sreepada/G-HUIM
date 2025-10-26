@@ -305,6 +305,14 @@ def run_all_experiments(
                     }
                     df = update_results(df, entry, csv_path)
 
+            # method_label = "PHA"
+            # if not has_run_before(df, "PHA", method_label, base_name, min_util):
+            #     cmd = [PHA_BIN, file_path, str(min_util)]
+            #     best_run = run_experiment(cmd, parse_metrics_pha, repeats)
+            #     if best_run:
+            #         entry = {"Algorithm": "PHA", "Method": method_label, "File": base_name, "Minimum_Utility": min_util, **best_run}
+            #         df = update_results(df, entry, csv_path)
+
 
 def main():
     parser = argparse.ArgumentParser(
