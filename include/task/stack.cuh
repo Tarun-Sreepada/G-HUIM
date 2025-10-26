@@ -9,6 +9,7 @@ template <typename T, int CAPACITY> struct Stack
     T* data;
 
     volatile unsigned int top;
+    uint32_t capacity;
 
     // Allocates unified memory for the stack data.
     __host__ void init_managed()

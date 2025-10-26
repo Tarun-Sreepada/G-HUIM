@@ -137,81 +137,133 @@ def _preprocess_data(df: pd.DataFrame) -> pd.DataFrame:
     return df_processed
 
 
-def _generate_legends(output_dir: str, all_methods: List[str]):
-    """Generate and save separate legend images for phases and methods."""
-    fig_phase, ax_phase = plt.subplots(figsize=(4.5, 0.5))
-    phases = PHASE_COLORS.keys()
-    handles = []
-    for p in phases:
-        handles.append(Patch(facecolor=PHASE_COLORS[p], label=p, edgecolor="black"))
-    ax_phase.legend(
-        handles=handles,
-        loc="center",
-        ncol=len(phases),
-        frameon=False,
-        title="Execution Phases",
-    )
-    ax_phase.axis("off")
-    fig_phase.savefig(
-        os.path.join(output_dir, "legend_phases.png"), dpi=300, bbox_inches="tight"
-    )
-    plt.close(fig_phase)
+def _generate_legends(output_dir: str, all_methods: List[str]): 
+    """Generate and save separate legend images for phases and methods.""" 
+    if not os.path.exists(output_dir): 
+        os.makedirs(output_dir) 
 
-    fig_line, ax_line = plt.subplots(figsize=(7, 1.5))
-    handles = []
-    methods_for_legend = sorted(
-        [m for m in all_methods if m in method_nice_names],
-        key=lambda x: method_nice_names[x],
-    )
+    phases = list(PHASE_COLORS.keys()) 
 
-    for m in methods_for_legend:
-        handles.append(
-            Line2D(
-                [0],
-                [0],
-                color=METHOD_COLORS.get(m, "gray"),
-                linestyle=METHOD_LINESTYLES.get(m, "-"),
-                marker=METHOD_MARKERS.get(m, ""),
-                label=method_nice_names[m],
-            )
-        )
+    # --- Phase legend --- 
+    phase_fig_width = max(12, len(phases) * 1.5) 
+    fig_phase, ax_phase = plt.subplots(figsize=(phase_fig_width, 3)) 
+    phase_handles = [ 
+        Patch( 
+            facecolor=PHASE_COLORS[p], 
+            label=p, 
+            edgecolor="black", 
+            linewidth=1.5, 
+        ) 
+        for p in phases 
+    ] 
+    ax_phase.legend( 
+        handles=phase_handles, 
+        loc="center", 
+        ncol=4, 
+        frameon=False, 
+        fontsize=20, 
+        title_fontsize=22, 
+        handlelength=4, 
+        handleheight=2.5, 
+        columnspacing=2.0, 
+        borderpad=1.2, 
+        labelspacing=1.5, 
+    ) 
+    ax_phase.axis("off") 
+    fig_phase.savefig( 
+        os.path.join(output_dir, "legend_phases.png"), dpi=500, bbox_inches="tight" 
+    ) 
+    plt.close(fig_phase) 
 
-    ax_line.legend(
-        handles=handles, loc="center", ncol=3, frameon=False, title="Algorithms"
-    )
-    ax_line.axis("off")
-    fig_line.savefig(
-        os.path.join(output_dir, "legend_lines.png"), dpi=300, bbox_inches="tight"
-    )
-    plt.close(fig_line)
+    # --- Algorithm line legend --- 
+    available_methods = [m for m in all_methods if m in method_nice_names] 
+    ordered_methods: List[str] = [] 
 
-    logging.info(f"Legends saved to {output_dir}")
+    def _append_if_present(method_name: str) -> None: 
+        if method_name in available_methods and method_name not in ordered_methods: 
+            ordered_methods.append(method_name) 
 
-    fig_hatch, ax_hatch = plt.subplots(figsize=(7, 1.5))
-    hatch_handles = []
-    for i, m in enumerate(methods_for_legend):
-        hatch = HATCHES[i % len(HATCHES)]
-        hatch_handles.append(
-            Patch(
-                facecolor=METHOD_COLORS.get(m, "gray"),
-                label=method_nice_names[m],
-                edgecolor="black",
-                hatch=hatch,
-            )
-        )
+    _append_if_present("G-HUIM_SP_adaptive") 
+    for static_method in STATIC_METHODS: 
+        _append_if_present(static_method) 
+    _append_if_present("DPHIM_DPHIM_dphim") 
 
-    ax_hatch.legend(
-        handles=hatch_handles,
-        loc="center",
-        ncol=3,
-        frameon=False,
-        title="Method Hatches",
-    )
-    ax_hatch.axis("off")
-    fig_hatch.savefig(
-        os.path.join(output_dir, "legend_hatches.png"), dpi=300, bbox_inches="tight"
-    )
-    plt.close(fig_hatch)
+    for method in available_methods: 
+        _append_if_present(method) 
+
+    methods_for_legend = ordered_methods if ordered_methods else available_methods 
+    line_handles = [ 
+        Line2D( 
+            [0], 
+            [0], 
+            color=METHOD_COLORS.get(m, "gray"), 
+            linestyle=METHOD_LINESTYLES.get(m, "-"), 
+            marker=METHOD_MARKERS.get(m, ""), 
+            label=method_nice_names[m], 
+            linewidth=6, 
+            markersize=16, 
+        ) 
+        for m in methods_for_legend 
+    ] 
+
+    line_fig_width = max(12, len(line_handles) * 2.5) 
+    fig_line, ax_line = plt.subplots(figsize=(line_fig_width, 3)) 
+    ax_line.legend( 
+        handles=line_handles, 
+        loc="center", 
+        ncol=4, 
+        frameon=False, 
+        fontsize=20, 
+        title_fontsize=22, 
+        handlelength=2.5, 
+        handleheight=1.8, 
+        columnspacing=1, 
+        # borderpad=1.4, 
+        # labelspacing=1.8, 
+    ) 
+    ax_line.axis("off") 
+    fig_line.savefig( 
+        os.path.join(output_dir, "legend_lines.png"), dpi=500, bbox_inches="tight" 
+    ) 
+    plt.close(fig_line) 
+
+    # --- Hatch legend --- 
+    hatch_handles = [ 
+        Patch( 
+            facecolor="white", 
+            edgecolor="black", 
+            hatch=HATCHES[i % len(HATCHES)], 
+            label=method_nice_names[m], 
+            linewidth=1.5, 
+        ) 
+        for i, m in enumerate(methods_for_legend) 
+    ] 
+
+    hatch_fig_width = max(12, len(hatch_handles) * 2.5) 
+    fig_hatch, ax_hatch = plt.subplots(figsize=(hatch_fig_width, 3)) 
+    ax_hatch.legend( 
+        handles=hatch_handles, 
+        loc="center", 
+        ncol=4, 
+        frameon=False, 
+        fontsize=20, 
+        title_fontsize=22, 
+        handlelength=1.5, 
+        handleheight=1.5, 
+        columnspacing=1, 
+        # borderpad=1.4, 
+        # labelspacing=1.8, 
+    ) 
+    ax_hatch.axis("off") 
+    
+
+    fig_hatch.savefig( 
+        os.path.join(output_dir, "legend_hatches.png"), dpi=500, bbox_inches="tight" 
+    ) 
+    plt.close(fig_hatch) 
+
+    logging.info(f"Legends saved to {output_dir}") 
+
 
 
 def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: bool = True):
@@ -219,7 +271,7 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: 
 
     If show_labels is False the chart will omit axis labels and the GS-HUIM annotation (used for subsequent
     datasets to reduce visual clutter)."""
-    fig, ax = plt.subplots(figsize=(4, 4), dpi=500)
+    fig, ax = plt.subplots(figsize=(2, 2), dpi=500)
 
     min_util = df_file["Minimum_Utility"].min()
     df_subset = df_file[df_file["Minimum_Utility"] == min_util]
@@ -275,6 +327,11 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: 
     # Determine GA-HUIM total (used to set a consistent y-axis cap)
     ga_row = df_subset[df_subset["AlgoMeth"] == "G-HUIM_SP_adaptive"]
     # compute totals for all present methods (in seconds)
+
+    # if file name contains 'accidents' on y axis label put time
+    if 'accidents' in df_file['File'].iloc[0].lower():
+        ax.set_ylabel("Time (s)", fontsize=12)
+
     totals = []
     for method in plot_methods:
         row = df_subset[df_subset["AlgoMeth"] == method]
@@ -294,10 +351,14 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: 
         if max(totals) - min(totals) > 0:
             apply_cap = True
 
+    # longest
+    longest = max(totals) if len(totals) > 0 else None
+
     y_cap = None
     if apply_cap and ga_total is not None:
         # Use 4x GA-HUIM as the y-axis cap
-        y_cap = ga_total * 4.0
+        # y_cap = ga_total * 8.0
+        y_cap = min(ga_total * 16.0, longest * 1.1 if longest is not None else 0)
 
     # annotate any bars that exceed the cap with a text label indicating the real value
     for method_idx, (method, pos) in enumerate(zip(plot_methods, positions)):
@@ -355,14 +416,14 @@ def _plot_breakdown_chart(df_file: pd.DataFrame, output_path: str, show_labels: 
             "GS-HUIM",
             ha="center",
             va="bottom",
-            fontsize=12,
+            fontsize=10,
             bbox=dict(
-                facecolor="white", alpha=0.1, edgecolor="none", boxstyle="square,pad=0.3"
+                facecolor="white", alpha=0.9, edgecolor="none", boxstyle="square,pad=0.3"
             ),
         )
 
         ax.hlines(
-            y=y_max * 0.985,
+            y=y_max * 0.97,
             xmin=gs_xmin_for_line,
             xmax=gs_xmax_for_line,
             color="black",
@@ -402,7 +463,16 @@ def _plot_line_chart(
     When show_labels is False the axis labels and x tick labels are suppressed for compact multi-panel
     output (used for datasets beyond the first one).
     """
-    fig, ax = plt.subplots(figsize=(4, 4), dpi=500)
+
+    fig, ax = plt.subplots(figsize=(2, 2), dpi=500)
+    if y_col == "Total_Time":
+        fig, ax = plt.subplots(figsize=(3, 3), dpi=500)
+
+
+    # ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=1000))
+    ax.yaxis.set_major_locator(plt.MaxNLocator(nbins=10))
+    ax.yaxis.set_minor_locator(plt.AutoLocator())
+
 
     utils = sorted(df_file["Minimum_Utility"].unique())
 
@@ -431,6 +501,13 @@ def _plot_line_chart(
         ax.set_xlabel("Minimum Utility", fontsize=12)
         ax.set_ylabel(y_label, fontsize=12)
 
+        # if file name contains 'accidents' on y axis label put time
+    if 'accidents' in df_file['File'].iloc[0].lower():
+        ax.set_ylabel("Time (s)", fontsize=12)
+        ax.set_xlabel("Minimum Utility", fontsize=12)
+
+
+
     if log_scale:
         ax.set_yscale("log")
         ax.grid(True, which="both", linestyle="--", alpha=0.7)
@@ -439,11 +516,11 @@ def _plot_line_chart(
         ax.set_ylim(bottom=0)
 
     ax.set_xticks(utils)
-    if show_labels:
-        ax.tick_params(axis="x", rotation=45)
-    else:
-        # hide x tick labels for subsequent datasets
-        ax.set_xticklabels(["" for _ in utils])
+    # if show_labels:
+    #     ax.tick_params(axis="x", rotation=45)
+    # else:
+    #     # hide x tick labels for subsequent datasets
+    #     ax.set_xticklabels(["" for _ in utils])
 
     # For line charts, set y cap relative to GA-HUIM (if available) and annotate overflows
     if "G-HUIM_SP_adaptive" in plottable_methods:
@@ -485,12 +562,12 @@ def _plot_line_chart(
             # For Frequent Patterns, we only apply cap if GA is available
             apply_cap = ga_base is not None
 
-    # Only apply a GA-based cap when GA exists and the plotted values vary.
-    # For Total_Time use 4x GA; for other y_cols we keep autoscaling (no cap).
-    if ga_base is not None and apply_cap and y_col == "Total_Time":
+    # Only apply a GA-based cap when GA exists, the plotted values vary, and
+    # log-scale is not requested. For Total_Time use 4x GA; otherwise keep autoscaling.
+    if not log_scale and ga_base is not None and apply_cap and y_col == "Total_Time":
         logging.info(f"Applying GA-based y-cap for {output_path}")
         try:
-            y_cap_line = float(ga_base) * 4.0
+            y_cap_line = float(ga_base) * 8.0
             # enforce the cap (set top to 4x GA)
             ax.set_ylim(top=y_cap_line)
 
@@ -526,6 +603,9 @@ def _plot_line_chart(
     # disable the x-axis labels
     # ax.set_xticklabels([])
 
+    # set_ylim
+    ax.set_ylim(top=10**2)
+
     file_base = df_file["File"].iloc[0]
     # plt.title(f"{title_suffix} on {file_base.capitalize()}")
     fig.tight_layout()
@@ -537,7 +617,11 @@ def _plot_line_chart(
 
 
 def _plot_total_time_chart(
-    df_file: pd.DataFrame, all_methods: List[str], output_path: str, show_labels: bool = True
+    df_file: pd.DataFrame,
+    all_methods: List[str],
+    output_path: str,
+    show_labels: bool = True,
+    log_scale: bool = False,
 ):
     """Generate and save a line chart of total time vs. minimum utility."""
     _plot_line_chart(
@@ -547,13 +631,17 @@ def _plot_total_time_chart(
         y_col="Total_Time",
         y_label="Execution Time (s)",
         title_suffix="Performance",
-        log_scale=False,
+        log_scale=log_scale,
         show_labels=show_labels,
     )
 
 
 def _plot_patterns_chart(
-    df_file: pd.DataFrame, all_methods: List[str], output_path: str, show_labels: bool = True
+    df_file: pd.DataFrame,
+    all_methods: List[str],
+    output_path: str,
+    show_labels: bool = True,
+    log_scale: bool = True,
 ):
     """Generate and save a line chart of frequent patterns vs. minimum utility."""
     _plot_line_chart(
@@ -564,12 +652,12 @@ def _plot_patterns_chart(
         # y_label="Number of Patterns Found (Log Scale)",
         y_label="",
         title_suffix="Patterns Found",
-        log_scale=True,
+        log_scale=log_scale,
         show_labels=show_labels,
     )
 
 
-def plot_all_results(csv_path: str, output_dir: str):
+def plot_all_results(csv_path: str, output_dir: str, use_line_log: bool = False):
     """Main function to generate all plots from the results CSV."""
     if not os.path.exists(csv_path):
         logging.error(f"Results file not found: {csv_path}")
@@ -589,7 +677,7 @@ def plot_all_results(csv_path: str, output_dir: str):
     for idx, file_name in enumerate(csv_files):
         df_file = df[df["File"] == file_name].copy()
 
-        show_labels = 0
+        show_labels = idx == 0
 
         _plot_breakdown_chart(
             df_file,
@@ -597,11 +685,13 @@ def plot_all_results(csv_path: str, output_dir: str):
             show_labels=show_labels,
         )
 
+        # total-time uses log scale when requested via CLI; patterns keep their default
         _plot_total_time_chart(
             df_file,
             all_methods,
             os.path.join(output_dir, f"{file_name}_total_time.png"),
             show_labels=show_labels,
+            log_scale=True,
         )
 
         _plot_patterns_chart(
@@ -609,6 +699,7 @@ def plot_all_results(csv_path: str, output_dir: str):
             all_methods,
             os.path.join(output_dir, f"{file_name}_patterns.png"),
             show_labels=show_labels,
+            log_scale=True,
         )
 
     _generate_legends(output_dir, all_methods)

@@ -807,7 +807,7 @@ void run_adaptive_mining(built_file& bf, uint32_t* primary, patterns* p, ArgPars
             for (int i = 1; i < dist_size; ++i) {
                 const uint32_t num_tasks = transaction_distribution[i];
                 if (num_tasks > 0) {
-                    const uint32_t rep = (1 << (i + 5)); // 32, 64, 128, ..., 2048
+                    const uint32_t rep = (1 << (i + 3)); // 32, 64, 128, ..., 2048
                     weighted_sum += (unsigned long long)rep * num_tasks;
                     tasks_in_dist += num_tasks;
                 }
