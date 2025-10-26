@@ -59,6 +59,11 @@ int main(int argc, char* argv[])
     std::cout << "DEBUG" << std::endl;
 #endif
 
+    cudaFree(0);
+    __warmup<<<1, 1>>>();
+    cudaDeviceSynchronize();
+
+
     ArgParser parser("cuDPEFIM");
     Timer     timer;
     uint32_t  stack_capacity = kDefaultStackCapacity;
@@ -101,11 +106,6 @@ int main(int argc, char* argv[])
     }
 
     timer.recordPoint("Start");
-
-    cudaFree(0);
-    __warmup<<<1, 1>>>();
-    cudaDeviceSynchronize();
-    timer.recordPoint("CUDA Warmup");
 
     std::ifstream infile(parser.get("--input"));
     if (!infile.good()) {
