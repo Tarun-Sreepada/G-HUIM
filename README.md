@@ -6,7 +6,7 @@ GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware.
 
 ## Requirements
 
-- CUDA toolkit 12.x (tested with 12.2)
+- CUDA toolkit 12.x (tested with 12.6)
 - CMake ≥ 3.20
 - A C++20-compatible host compiler and NVCC
 
