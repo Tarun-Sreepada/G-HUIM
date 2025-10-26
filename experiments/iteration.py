@@ -113,7 +113,7 @@ def run_iteration_times(
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
     cmd = [
-        "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
+        "../../build/G-HUIM",
         "--input",
         input_file,
         "--minutil",
@@ -321,7 +321,7 @@ def run_iteration_times(
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
     cmd = [
-        "/export/home1/ltarun/cuDPEFIM/build/G-HUIM",
+        "../build/G-HUIM",
         "--input",
         input_file,
         "--minutil",
@@ -646,35 +646,35 @@ if __name__ == "__main__":
 
     datasets_to_process = [
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/pumsb_utility_spmf.txt",
+            "../datasets/pumsb_utility_spmf.txt",
             [9680000, 9690000, 9700000, 9710000, 9720000, 9730000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/BMS_utility_spmf.txt",
+            "../datasets/BMS_utility_spmf.txt",
             [1999000, 2000000, 2001000, 2003000, 2004000, 2005000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/kosarak_utility_spmf.txt",
+            "../datasets/kosarak_utility_spmf.txt",
             [720000, 730000, 740000, 750000, 760000, 770000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/accidents_utility_spmf.txt",
+            "../datasets/accidents_utility_spmf.txt",
             [3900000, 4000000, 4100000, 4200000, 4300000, 4400000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/connect_utility_spmf.txt",
+            "../datasets/connect_utility_spmf.txt",
             [7400000, 7500000, 7600000, 7700000, 7800000, 7900000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/chess_utility_spmf.txt",
+            "../datasets/chess_utility_spmf.txt",
             [170000, 175000, 180000, 185000, 190000, 195000],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/retail_utility_spmf.txt",
+            "../datasets/retail_utility_spmf.txt",
             [1440, 1445, 1450, 1455, 1460, 1465],
         ],
         [
-            "/export/home1/ltarun/cuDPEFIM/datasets/mushroom_utility_spmf.txt",
+            "../datasets/mushroom_utility_spmf.txt",
             [5500, 6000, 6500, 7000, 7500, 8000],
         ],
     ]

@@ -161,6 +161,3 @@ int main(int argc, char *argv[])
 
 // nvcc -O3 -arch=sm_90 thread_usage.cu -o thread_usage
 // ./thread_usage > results.csv
-
-
-// nvcc -O3 -arch=sm_90 thread_usage.cu -o thread_usage && /export/home1/ltarun/miniforge3/envs/rapids-25.02/bin/python /export/home1/ltarun/cuDPEFIM/microbenchmark/plot.py
