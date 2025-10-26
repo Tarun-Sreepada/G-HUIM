@@ -9,11 +9,12 @@
 #include "timer.hpp"
 
 #define scale 3 / 2
-#define CAPACITY (128 * 1024 * 1024)
+
+constexpr uint32_t kDefaultStackCapacity = 128u * 1024u * 1024u;
 
 // Launches the static-parallel mining pipeline on the prepared database.
 void static_parallel_mining(built_file& bf, patterns* p, ArgParser& parser, Timer& timer, size_t shared_memory,
-                            std::pair<uint32_t *, uint64_t>& all_patterns);
+                            std::pair<uint32_t *, uint64_t>& all_patterns, uint32_t stack_capacity);
 
 // Rounds an integer up to the next power of two.
 __host__ __device__ uint32_t next_pow2(uint32_t n);

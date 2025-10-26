@@ -4,7 +4,7 @@
 #define TEMP_ITEM_BUFFER_SIZE 256
 #define single_st 64
 
-__global__ void copy_work(Stack<Task, CAPACITY>* work_stack, Database* db, uint32_t* primary, uint32_t primary_size,
+__global__ void copy_work(Stack<Task>* work_stack, Database* db, uint32_t* primary, uint32_t primary_size,
                           uint32_t unique)
 {
     const int       tid = threadIdx.x;
@@ -45,7 +45,9 @@ __global__ void copy_work(Stack<Task, CAPACITY>* work_stack, Database* db, uint3
     Task copy = task;
     for (int i = tid; i < (int)primary_size; i += blockDim.x) {
         copy.primary = primary[i];
-        work_stack->push(copy);
+        const bool pushed = work_stack->push(copy);
+        if (!pushed && tid == 0)
+            printf("Work stack overflow while seeding tasks. Increase --stack_capacity.\n");
     }
     __syncthreads();
 }
@@ -63,7 +65,7 @@ static inline uint32_t round_up_to_warp_size(uint32_t n)
     return ((n + warp - 1) / warp) * warp;
 }
 
-__device__ __forceinline__ void fetch_task(Stack<Task, CAPACITY>* work_stack, Task& item, uint32_t offset)
+__device__ __forceinline__ void fetch_task(Stack<Task>* work_stack, Task& item, uint32_t offset)
 {
     if (threadIdx.x == 0)
         work_stack->get(item, blockIdx.x + offset);
@@ -348,10 +350,9 @@ __device__ void trim(Task& new_work_item)
     __syncthreads();
 }
 
-__device__ void push_work_item(Utilities* local_subtree_utilities, Task& new_work_item,
-                               Stack<Task, CAPACITY>* work_stack, uint32_t min_util, uint32_t unique_item_count,
-                               uint32_t* transaction_distribution, bool adaptive = false,
-                               Stack<Task, CAPACITY>* one_stack = nullptr)
+__device__ void push_work_item(Utilities* local_subtree_utilities, Task& new_work_item, Stack<Task>* work_stack,
+                               uint32_t min_util, uint32_t unique_item_count, uint32_t* transaction_distribution,
+                               bool adaptive = false, Stack<Task>* one_stack = nullptr)
 {
     __shared__ uint32_t new_unique_item_count;
     if (threadIdx.x == 0)
@@ -373,11 +374,17 @@ __device__ void push_work_item(Utilities* local_subtree_utilities, Task& new_wor
             copy.primary = local_subtree_utilities[i].key;
 
             if (!adaptive) {
-                work_stack->push(copy);
+                const bool pushed = work_stack->push(copy);
+                if (!pushed && threadIdx.x == 0)
+                    printf("Work stack overflow; increase --stack_capacity.\n");
                 continue;
             }
             if (copy.db->num_transactions <= 16) {
-                one_stack->push(copy);
+                if (one_stack != nullptr) {
+                    const bool pushed = one_stack->push(copy);
+                    if (!pushed && threadIdx.x == 0)
+                        printf("Single-thread stack overflow; increase --stack_capacity.\n");
+                }
             }
             else {
                 if (copy.db->num_transactions > 1024)
@@ -392,16 +399,18 @@ __device__ void push_work_item(Utilities* local_subtree_utilities, Task& new_wor
                     atomicAdd(&transaction_distribution[idx], 1);
                 }
 
-                work_stack->push(copy);
+                const bool pushed = work_stack->push(copy);
+                if (!pushed && threadIdx.x == 0)
+                    printf("Work stack overflow; increase --stack_capacity.\n");
             }
         }
     }
     __syncthreads();
 }
 
-__global__ void mine(Stack<Task, CAPACITY>* curr_stack, Stack<Task, CAPACITY>* new_stack, patterns* p,
-                     uint32_t min_util, uint32_t* transaction_distribution, uint32_t offset = 0, bool adaptive = false,
-                     Stack<Task, CAPACITY>* one_stack = nullptr)
+__global__ void mine(Stack<Task>* curr_stack, Stack<Task>* new_stack, patterns* p, uint32_t min_util,
+                     uint32_t* transaction_distribution, uint32_t offset = 0, bool adaptive = false,
+                     Stack<Task>* one_stack = nullptr)
 {
     __shared__ Task         curr_task;
     __shared__ Transaction* temporary_transactions;
@@ -485,7 +494,7 @@ __device__ void printDatabase(const Task& task)
     printf("\n");
 }
 
-__device__ void mine_recursive(Task& curr_task, patterns* p, uint32_t min_util, Stack<Task, CAPACITY>* new_stack)
+__device__ void mine_recursive(Task& curr_task, patterns* p, uint32_t min_util, Stack<Task>* new_stack)
 {
     // Cache reused values locally to reduce register pressure and global memory reads
     const Database* curr_db        = curr_task.db;
@@ -640,13 +649,15 @@ __device__ void mine_recursive(Task& curr_task, patterns* p, uint32_t min_util, 
     for (uint32_t i = 0; i < ui_scale; ++i) {
         if (local_subtree_utilities[i].subtree_utility >= min_util) {
             new_task.primary = local_subtree_utilities[i].key;
-            new_stack->push(new_task);
+            const bool pushed = new_stack->push(new_task);
+            if (!pushed && threadIdx.x == 0)
+                printf("Work stack overflow; increase --stack_capacity.\n");
         }
     }
 }
 
-__global__ void mine_st(Stack<Task, CAPACITY>* curr_stack, Stack<Task, CAPACITY>* new_stack, patterns* p,
-                        uint32_t min_util, uint32_t offset = 0)
+__global__ void mine_st(Stack<Task>* curr_stack, Stack<Task>* new_stack, patterns* p, uint32_t min_util,
+                        uint32_t offset = 0)
 {
     const int tid = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -662,14 +673,14 @@ __global__ void mine_st(Stack<Task, CAPACITY>* curr_stack, Stack<Task, CAPACITY>
 }
 
 void run_static_mining(built_file& bf, uint32_t* primary, patterns* p, ArgParser& parser, Timer& timer,
-                       std::pair<uint32_t *, uint64_t>& all_patterns)
+                       std::pair<uint32_t *, uint64_t>& all_patterns, uint32_t stack_capacity)
 {
     // --- Setup for Static Mining ---
-    Stack<Task, CAPACITY>*curr_stack, *new_stack;
+    Stack<Task>*curr_stack, *new_stack;
     gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
     gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
-    curr_stack->init();
-    new_stack->init();
+    curr_stack->init(stack_capacity);
+    new_stack->init(stack_capacity);
 
     // Seed initial work from primary patterns
     copy_work<<<1, 1024>>>(curr_stack, bf.db, primary, bf.primary.size(), bf.max_id + 1);
@@ -749,18 +760,18 @@ void run_static_mining(built_file& bf, uint32_t* primary, patterns* p, ArgParser
 }
 
 void run_adaptive_mining(built_file& bf, uint32_t* primary, patterns* p, ArgParser& parser, Timer& timer,
-                         std::pair<uint32_t *, uint64_t> & all_patterns)
+                         std::pair<uint32_t *, uint64_t> & all_patterns, uint32_t stack_capacity)
 {
     // --- Setup for Adaptive Mining ---
-    Stack<Task, CAPACITY>*curr_stack, *new_stack, *one_stack, *one_stack_next;
+    Stack<Task>*curr_stack, *new_stack, *one_stack, *one_stack_next;
     gpuErrchk(cudaMallocManaged(&curr_stack, sizeof(*curr_stack)));
     gpuErrchk(cudaMallocManaged(&new_stack, sizeof(*new_stack)));
     gpuErrchk(cudaMallocManaged(&one_stack, sizeof(*one_stack)));
     gpuErrchk(cudaMallocManaged(&one_stack_next, sizeof(*one_stack_next)));
-    curr_stack->init_managed();
-    new_stack->init_managed();
-    one_stack->init();
-    one_stack_next->init();
+    curr_stack->init_managed(stack_capacity);
+    new_stack->init_managed(stack_capacity);
+    one_stack->init(stack_capacity);
+    one_stack_next->init(stack_capacity);
 
 
     // memcopy stream
@@ -906,7 +917,8 @@ void run_adaptive_mining(built_file& bf, uint32_t* primary, patterns* p, ArgPars
 
 
 void static_parallel_mining(built_file& bf, patterns* p, ArgParser& parser, Timer& timer,
-                            size_t available_shared_memory, std::pair<uint32_t *, uint64_t>& all_patterns)
+                            size_t available_shared_memory, std::pair<uint32_t *, uint64_t>& all_patterns,
+                            uint32_t stack_capacity)
 {
     // Allocate and copy primary patterns to the device
     uint32_t* primary;
@@ -916,11 +928,11 @@ void static_parallel_mining(built_file& bf, patterns* p, ArgParser& parser, Time
     // --- Dispatch to the correct mining strategy ---
     if (parser.get_bool("--adaptive")) {
         printf("Running Adaptive Mining...\n");
-        run_adaptive_mining(bf, primary, p, parser, timer, all_patterns);
+        run_adaptive_mining(bf, primary, p, parser, timer, all_patterns, stack_capacity);
     }
     else {
         printf("Running Static Mining...\n");
-        run_static_mining(bf, primary, p, parser, timer, all_patterns);
+        run_static_mining(bf, primary, p, parser, timer, all_patterns, stack_capacity);
     }
 
     cudaFree(bf.db->data);

@@ -44,6 +44,8 @@ class ArgParser
     uint64_t    get_uint64(const std::string& name);
   // Parses a human-readable memory size (e.g. 512M) into bytes.
     uint64_t    get_memory(const std::string& name);    // 10G / 512M / 128K
+  // Parses an integer that may include a K/M/G suffix into a unit count.
+    uint64_t    get_scaled_uint(const std::string& name);
   // Retrieves a separator character from a one-character argument.
     char        get_separator(const std::string& name); // '\n', ',', …
 
