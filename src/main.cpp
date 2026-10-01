@@ -47,9 +47,9 @@ int main(int argc, char* argv[])
 
         const auto                mine_start = std::chrono::steady_clock::now();
         const ghuim::MiningResult result     = ghuim::mine(data, config.mining);
-        spdlog::info("Mined with {}: {} tasks in {} iterations, kernels {:.3f} s, peak live arena {} MiB ({:.3f} s)",
-                     ghuim::method_name(config.mining.method), result.tasks, result.iterations.size(),
-                     result.kernel_ms / 1000, result.peak_arena >> 20, seconds_since(mine_start));
+        spdlog::info("Mined: {} tasks in {} iterations, kernels {:.3f} s, peak live arena {} MiB ({:.3f} s)",
+                     result.tasks, result.iterations.size(), result.kernel_ms / 1000, result.peak_arena >> 20,
+                     seconds_since(mine_start));
         log_iterations(result);
 
         spdlog::info("Number of patterns: {}", result.patterns);

@@ -179,13 +179,12 @@ def run_all_experiments(
     """Main function to orchestrate all algorithm benchmarks."""
     df = load_results(csv_path)
 
-    block_sizes = [32, 64, 128, 256, 512, 1024]
 
     for file_path, min_utils in process_data:
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         for min_util in min_utils:
 
-            method_label = "SP_adaptive"
+            method_label = "bfs"
             if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
                 cmd = [
                     GHUIM_BIN,
@@ -193,8 +192,6 @@ def run_all_experiments(
                     file_path,
                     "--minutil",
                     str(min_util),
-                    "--method",
-                    "adaptive",
                     "--total_memory",
                     gpu_memory,
                     "--output",
@@ -210,37 +207,6 @@ def run_all_experiments(
                         **best_run,
                     }
                     df = update_results(df, entry, csv_path)
-
-            for block_size in block_sizes:
-                method_label = f"SP_fixed_{block_size}"
-                if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
-                    cmd = [
-                        GHUIM_BIN,
-                        "--input",
-                        file_path,
-                        "--minutil",
-                        str(min_util),
-                        "--method",
-                        "static",
-                        "--pattern_memory",
-                        "2G",
-                        "--block_size",
-                        str(block_size),
-                        "--total_memory",
-                        gpu_memory,
-                        "--output",
-                        "/dev/null",
-                    ]
-                    best_run = run_experiment(cmd, parse_metrics_cu, repeats)
-                    if best_run:
-                        entry = {
-                            "Algorithm": "G-HUIM",
-                            "Method": method_label,
-                            "File": base_name,
-                            "Minimum_Utility": min_util,
-                            **best_run,
-                        }
-                        df = update_results(df, entry, csv_path)
 
             method_label = "DPHIM_dphim"
             if not has_run_before(df, "DPHIM", method_label, base_name, min_util):

@@ -39,8 +39,6 @@ add_library(ghuim_core STATIC
     src/mine/miner.cpp
     src/mine/output.cpp
     src/mine/primitives.cu
-    src/mine/dfs/kernels.cu
-    src/mine/dfs/dfs_miner.cu
     src/mine/bfs/small_kernels.cu
     src/mine/bfs/huge_kernels.cu
     src/mine/bfs/schedule.cu
