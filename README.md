@@ -1,63 +1,84 @@
 # G-HUIM
 
-GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware.
+GPU-accelerated high-utility itemset mining (EFIM) on NVIDIA hardware.
 
----
+## Build
 
-## Requirements
-
-- CUDA toolkit 12.x (tested with 12.6)
-- CMake ≥ 3.20
-- A C++20-compatible host compiler and NVCC
-
----
-
-## Configure & Build
+Requires CMake 3.20+, a C++20 compiler, and CUDA 12.x or 13.x. The first
+configuration downloads pinned CLI11 2.6.2 and spdlog 1.16.0 dependencies.
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -- -j"$(nproc)"
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_CUDA_ARCHITECTURES=86
+cmake --build build -j 4
 ```
 
-For Debug builds swap `-DCMAKE_BUILD_TYPE=Release` with `-DCMAKE_BUILD_TYPE=Debug`.
-
----
+Architecture 86 (RTX 3000 series) is the minimum; supply the architecture for
+your GPU when configuring. Use `-DCMAKE_BUILD_TYPE=Debug` for a debug build.
+The build produces `build/G-HUIM` (GPU miner) and `build/efim` (CPU baseline).
 
 ## Run
 
-Show the runtime options:
-
 ```bash
-./build/G-HUIM -h
+./build/G-HUIM --help
+./build/G-HUIM --input datasets/accidents_utility_spmf.txt --minutil 4000000
+./build/G-HUIM --input datasets/accidents_utility_spmf.txt --minutil 4000000 \
+  --method adaptive-optimized --log-level debug
 ```
 
-Typical execution (update paths and thresholds to match your dataset):
+| Option | Meaning |
+| --- | --- |
+| `--input` | SPMF utility dataset (required) |
+| `--minutil` | Minimum itemset utility (required) |
+| `--method` | `static`, `adaptive` (default) or `adaptive-optimized`: how tasks are mapped to threads |
+| `--block-size` | Threads per block-sized task, 32-1024 (default 256) |
+| `--memory` | Device memory for projected databases (`K`/`M`/`G`); default uses most free memory |
+| `--separator` | Separator between items within each SPMF field (default space) |
+| `--log-level`, `--log-file` | Logging verbosity and optional log file |
+
+Help and argument validation run before CUDA initialization. `--log-level debug`
+prints stage timings, per-batch statistics and bin distributions.
+
+## Checking results against the CPU baseline
+
+`efim` is a multithreaded C++ EFIM used as the reference:
 
 ```bash
-./build/G-HUIM \
-  --input datasets/accidents_utility_spmf.txt \
-  --minutil 8000000 \
-  --method SP \
-  --adaptive true \
-  --total_memory 20G \
-  --output results.txt
+./build/efim <input> <output> <minUtil> [sep] [threads]
+uv run experiments/compare_counts.py datasets/accidents_utility_spmf.txt 4000000
 ```
 
-Use `--block_size <N>` when running in fixed-block mode and `--pattern_memory` to cap pattern buffer size.
+`compare_counts.py` runs `efim` once and `G-HUIM` with every method, then fails
+if any pattern count differs. Other scripts in `experiments/` run benchmarks and
+produce plots; see `experiments/adaptive_baseline.md`.
 
----
+## Source layout
 
-## Formatting
-
-Apply the repository `.clang-format` style to all headers and sources:
-
-```bash
-find include src -type f \( -name '*.hpp' -o -name '*.h' -o -name '*.cuh' -o -name '*.cpp' -o -name '*.cu' \) -print0 | \
-  xargs -0 clang-format -i
+```
+src/main.cpp              entry point
+src/app/                  configuration, CLI11 options, logging
+src/data/                 dataset loading: parse.cpp (parallel text parsing),
+                          dataset.cpp (TWU pruning, renaming, rebuild)
+src/mine/                 host side of the search
+  miner.cu                batch loop (select, bin, launch, reclaim)
+  bins.cu                 method -> kernel mapping, device auto-tune
+  schedule.cu             batch selection, binning, arena compaction kernels
+  arena_gc.cu             arena compaction driver
+  root_image.cu           root database in arena format
+  primitives.cu           scans and other device primitives
+  baseline/kernels.cu     static / adaptive kernels and launchers
+  optimized/              adaptive-optimized kernels: small.cu (warp, block,
+                          lane-group tasks), huge.cu (multi-block tasks),
+                          occupancy.cu (block-size selection)
+include/                  headers mirroring src/
+  mine/layout.cuh         database and task memory layout
+  mine/device/            device helpers shared by all kernels
+  mine/baseline/          thread groups and passes of the baseline kernels
+  mine/optimized/         thread groups, projection and passes of the optimized kernels
+  mine/host/              host/device copy and timing helpers
+  cuda/buffer.cuh         checked CUDA allocations
+efim/                     CPU EFIM baseline (level, scheduler, worker, reader, main)
+experiments/              benchmark, comparison and plotting scripts
+datasets/                 SPMF utility datasets; download_datasets.sh fetches more
 ```
 
----
-
-## Datasets
-
-Sample SPMF-formatted datasets live in `datasets/`. Use `datasets/download_datasets.sh` to fetch additional inputs or generate synthetic workloads from `experiments/synthetic.py`.
+Formatting follows the repository `.clang-format`.

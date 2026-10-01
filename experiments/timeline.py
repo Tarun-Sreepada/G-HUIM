@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import csv
 from pathlib import Path
@@ -76,6 +77,8 @@ def run_and_parse_detailed(
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
     if adaptive:
         cmd += ["--adaptive", "true"]
@@ -99,6 +102,7 @@ def run_and_parse_detailed(
 
     parsed_rows = []
     for line in stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             line_stripped = line.strip()
             list_start_index = line_stripped.find("[")

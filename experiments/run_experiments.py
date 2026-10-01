@@ -103,22 +103,23 @@ def parse_metrics_cu(output: str) -> Tuple[float, float, float, float, int]:
     iteration_total_ms = 0
 
     for line in output.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if not line.strip():
             continue
         parts = [p.strip() for p in line.split()]
         try:
             if "Read" in line:
-                metrics["read"] = int(parts[2])
+                metrics["read"] = float(parts[2])
             elif "CalcTWU" in line:
-                metrics["twu"] = int(parts[1])
+                metrics["twu"] = float(parts[1])
             elif "Parse" in line:
-                metrics["parse_temp"] = int(parts[1])
+                metrics["parse_temp"] = float(parts[1])
             elif "Build" in line:
-                metrics["build"] = int(parts[1])
+                metrics["build"] = float(parts[1])
             elif "Mining Completed" in line:
-                metrics["mining"] = int(parts[2])
+                metrics["mining"] = float(parts[2])
             elif "Iteration" in line:
-                iteration_total_ms += int(parts[2])
+                iteration_total_ms += float(parts[2])
             elif "Number of patterns:" in line:
                 metrics["patterns"] = int(parts[-1])
         except (IndexError, ValueError) as e:
@@ -183,12 +184,14 @@ def parse_metrics_pha(output: str) -> Tuple[float, float, float, float, int]:
 
 def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
     """A generic function to run a command multiple times and return the best result."""
+    if parser_func is parse_metrics_cu and "--log-level" not in cmd:
+        cmd = [*cmd, "--log-level", "debug"]
     best_run = None
     for i in range(repeats):
         logging.info(f"Run {i + 1}/{repeats}: {' '.join(cmd)}")
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            p, t, b, s, patterns = parser_func(proc.stdout)
+            p, t, b, s, patterns = parser_func(proc.stdout + "\n" + proc.stderr)
             total_time = p + t + b + s
 
             if best_run is None or total_time < best_run["Total_Time"]:
