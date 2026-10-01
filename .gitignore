@@ -27,3 +27,6 @@ datasets/synthetic/*
 experiments/synthetic_hu/
 
 out.txt
+__pycache__/
+*.pyc
+.venv/

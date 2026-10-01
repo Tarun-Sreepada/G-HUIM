@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import csv
 from pathlib import Path
@@ -124,6 +125,8 @@ def run_iteration_times(
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
 
     if adaptive:
@@ -141,6 +144,7 @@ def run_iteration_times(
 
     times: Dict[int, Tuple[float, int]] = {}
     for line in result.stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             parts = line.split()
             it = int(parts[1])
@@ -332,6 +336,8 @@ def run_iteration_times(
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
 
     if adaptive:
@@ -349,6 +355,7 @@ def run_iteration_times(
 
     times: Dict[int, Tuple[float, int]] = {}
     for line in result.stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             parts = line.split()
             it = int(parts[1])
