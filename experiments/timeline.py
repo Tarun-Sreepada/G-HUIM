@@ -57,7 +57,7 @@ def run_and_parse_detailed(
     input_file: str,
     minutil: int,
     total_memory: str = "60G",
-    method: str = "SP",
+    method: str = "adaptive",
     adaptive: bool = True,
     block_size: int | None = None,
 ) -> pd.DataFrame:
@@ -77,10 +77,9 @@ def run_and_parse_detailed(
         "--output",
         "/dev/null",
     ]
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
+    if not adaptive:
+        cmd[cmd.index("--method") + 1] = "static"
+        cmd += ["--block-size", str(block_size)]
 
     print(f"Executing: {' '.join(cmd)}")
     try:

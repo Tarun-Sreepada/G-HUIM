@@ -1,0 +1,87 @@
+// Scheduling kernels: scratch sizes per task, and binning of a chunk [begin, end) of the level.
+
+#include "cuda/buffer.cuh"
+#include "mine/bfs/device/task_view.cuh"
+#include "mine/bfs/kernels.cuh"
+
+#include <algorithm>
+
+namespace ghuim::bfs {
+namespace {
+
+uint32_t grid(uint64_t n, uint32_t block = 256)
+{
+    const uint64_t blocks = (n + block - 1) / block;
+    return static_cast<uint32_t>(blocks == 0 ? 1 : std::min<uint64_t>(blocks, 65535));
+}
+
+__global__ void scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes)
+{
+    for (uint32_t i = blockIdx.x * blockDim.x + threadIdx.x; i <= count; i += gridDim.x * blockDim.x)
+        sizes[i] = i < count ? scratch_bytes(tasks[i].n_items, tasks[i].n_trans) : 0;
+}
+
+__global__ void begin_chunk(Control* control)
+{
+    for (uint32_t b = threadIdx.x; b < kMaxBins; b += blockDim.x)
+        control->bin_count[b] = control->bin_cursor[b] = control->bin_max_slices[b] = 0;
+    if (threadIdx.x == 0)
+        control->batch_work = 0;
+}
+
+__global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end)
+{
+    __shared__ unsigned long long block_work;
+    if (threadIdx.x == 0)
+        block_work = 0;
+    __syncthreads();
+    unsigned long long work = 0;
+    for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x)
+        work += tasks[i].n_trans;
+    add(block_work, work);
+    __syncthreads();
+    if (threadIdx.x == 0 && block_work != 0)
+        add(control->batch_work, block_work);
+}
+
+__global__ void count_bins(Control* control, const Task* tasks, uint32_t begin, uint32_t end, AutoTune tune)
+{
+    for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x) {
+        const Placement place = place_task(tasks[i], tune, control->batch_work);
+        add(control->bin_count[place.bin], 1u);
+        fetch_max(control->bin_max_slices[place.bin], place.slices);
+    }
+}
+
+__global__ void scatter_bins(Control* control, const Task* tasks, uint32_t begin, uint32_t end, uint32_t* order,
+                             AutoTune tune)
+{
+    for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x) {
+        const uint32_t bin   = place_task(tasks[i], tune, control->batch_work).bin;
+        uint32_t       start = 0;
+        for (uint32_t b = 0; b < bin; ++b)
+            start += control->bin_count[b];
+        order[start + fetch_add(control->bin_cursor[bin], 1u)] = i;
+    }
+}
+
+} // namespace
+
+void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, cudaStream_t stream)
+{
+    scratch_sizes<<<grid(count + 1), 256, 0, stream>>>(tasks, count, sizes);
+    check_launch("launch scratch sizes");
+}
+
+void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, uint32_t* order,
+                      const AutoTune& tune, cudaStream_t stream)
+{
+    const uint32_t blocks = grid(end - begin);
+    begin_chunk<<<1, 32, 0, stream>>>(control);
+    measure_chunk<<<blocks, 256, 0, stream>>>(control, tasks, begin, end);
+    count_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, tune);
+    scatter_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, order, tune);
+    check_launch("launch chunk binning");
+}
+
+} // namespace ghuim::bfs

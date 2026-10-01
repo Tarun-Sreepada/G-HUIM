@@ -108,7 +108,7 @@ def run_iteration_times(
     adaptive: bool = False,
     block_size: int | None = None,
     total_memory: str = "78G",
-    method: str = "SP",
+    method: str = "adaptive",
 ) -> Dict[int, Tuple[float, int]]:
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
@@ -126,10 +126,9 @@ def run_iteration_times(
         "/dev/null",
     ]
 
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
+    if not adaptive:
+        cmd[cmd.index("--method") + 1] = "static"
+        cmd += ["--block-size", str(block_size)]
 
     result = subprocess.run(
         cmd,
@@ -316,7 +315,7 @@ def run_iteration_times(
     adaptive: bool = False,
     block_size: int | None = None,
     total_memory: str = "78G",
-    method: str = "SP",
+    method: str = "adaptive",
 ) -> Dict[int, Tuple[float, int]]:
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
@@ -334,10 +333,9 @@ def run_iteration_times(
         "/dev/null",
     ]
 
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
+    if not adaptive:
+        cmd[cmd.index("--method") + 1] = "static"
+        cmd += ["--block-size", str(block_size)]
 
     result = subprocess.run(
         cmd,
@@ -483,7 +481,7 @@ def plot_for_configs(
     minutil: int,
     block_sizes: List[int],
     total_memory: str = "60G",
-    method: str = "SP",
+    method: str = "adaptive",
     include_legend: bool = False,
 ) -> None:
     """

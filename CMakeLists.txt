@@ -1,89 +1,73 @@
 cmake_minimum_required(VERSION 3.20)
-project(GHUIM LANGUAGES CUDA CXX)
 
-# 1. Standards
+# Minimum supported GPU: RTX 3000 series (Ampere, sm_86). Kernels use sm_80+ warp intrinsics;
+# the embedded compute_86 PTX is JIT-compiled for newer GPUs.
+set(CMAKE_CUDA_ARCHITECTURES 90)
+project(GHUIM LANGUAGES C CXX CUDA)
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CUDA_STANDARD 20)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
-
-# 2. Build Type Configuration (default to Release for single-config generators)
-if(NOT CMAKE_CONFIGURATION_TYPES)
-  set(default_build_type "Release")
-  if(NOT CMAKE_BUILD_TYPE)
-    message(STATUS "Setting build type to '${default_build_type}' (use -DCMAKE_BUILD_TYPE=<type> to override)")
-    set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE STRING "Choose the build type." FORCE)
-  endif()
-  set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel")
-else()
-  message(STATUS "Multi-config generator detected. Available configurations: ${CMAKE_CONFIGURATION_TYPES}")
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type" FORCE)
 endif()
 
-# 3. CUDA Architecture & Compilation Settings
-set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
+include(FetchContent)
+# Pin dependency commits for reproducible builds (CLI11 2.6.2, spdlog 1.16.0).
+FetchContent_Declare(CLI11
+    GIT_REPOSITORY https://github.com/CLIUtils/CLI11.git
+    GIT_TAG 37bb6edc5317e99af72ef48405e65d9ca5218861)
+FetchContent_Declare(spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG 486b55554f11c9cccc913e11a87085b2a91f706f)
+FetchContent_MakeAvailable(CLI11 spdlog)
+find_package(CUDAToolkit REQUIRED)
 
-# Find your architecture: https://developer.nvidia.com/cuda-gpus
-# Examples: 86 (Ampere), 89 (Ada Lovelace), 90 (Hopper)
-set(CMAKE_CUDA_ARCHITECTURES 90) #
+add_library(ghuim_app STATIC
+    src/app/config.cpp
+    src/app/cli.cpp
+    src/app/logging.cpp
+    src/data/parse.cpp
+    src/data/dataset.cpp)
+target_include_directories(ghuim_app PUBLIC include)
+target_link_libraries(ghuim_app PUBLIC CLI11::CLI11 spdlog::spdlog)
+target_compile_options(ghuim_app PRIVATE -Wall -Wextra -Wpedantic)
 
-# 4. Find Source Files & Create Executable
-include_directories(${CMAKE_SOURCE_DIR}/include)
-file(GLOB_RECURSE SRC_FILES src/*.cpp src/*.cu)
-add_executable(GHUIM ${SRC_FILES})
+add_library(ghuim_core STATIC
+    src/mine/miner.cpp
+    src/mine/output.cpp
+    src/mine/primitives.cu
+    src/mine/dfs/kernels.cu
+    src/mine/dfs/dfs_miner.cu
+    src/mine/bfs/small_kernels.cu
+    src/mine/bfs/huge_kernels.cu
+    src/mine/bfs/schedule.cu
+    src/mine/bfs/occupancy.cu
+    src/mine/bfs/root_image.cu
+    src/mine/bfs/bfs_miner.cu)
+target_include_directories(ghuim_core PUBLIC include)
+target_link_libraries(ghuim_core PUBLIC CUDA::cudart spdlog::spdlog)
+target_compile_options(ghuim_core PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>
+    $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-O3>
+    $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
+target_compile_definitions(ghuim_core PRIVATE $<$<CONFIG:Debug>:DEBUG>)
+
+add_executable(GHUIM src/main.cpp)
 set_target_properties(GHUIM PROPERTIES OUTPUT_NAME "G-HUIM")
+target_link_libraries(GHUIM PRIVATE ghuim_app ghuim_core)
+set_target_properties(GHUIM PROPERTIES LINKER_LANGUAGE CUDA)
 
-# 5. Global Compiler & Linker Optimizations
-# set(HOST_WARNING_FLAGS "-Wall -Wextra -Wpedantic")
-set(CUDA_WARNING_FLAGS "-Xcompiler=${HOST_WARNING_FLAGS}")
-target_compile_options(GHUIM PRIVATE
-  $<$<COMPILE_LANGUAGE:CXX>:${HOST_WARNING_FLAGS}>
-  $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_WARNING_FLAGS}>
-)
+# CPU EFIM baseline.
+find_package(Threads REQUIRED)
+add_executable(efim efim/main.cpp efim/efim.cpp efim/reader.cpp efim/worker.cpp)
+target_link_libraries(efim PRIVATE Threads::Threads)
+target_compile_options(efim PRIVATE -Wall -Wextra $<$<CONFIG:Release>:-O3 -march=native>)
 
-# 6. Build-Type Specific Flags (applied via generator expressions)
-set(HOST_RELEASE_FLAGS
-  -O3
-  -DNDEBUG
-  -march=native
-  -fno-strict-aliasing
-  -ffast-math
-)
-
-set(CUDA_RELEASE_FLAGS
-  -O3
-  --use_fast_math
-  --extra-device-vectorization
-  --expt-extended-lambda
-  --expt-relaxed-constexpr
-  -lineinfo
-  -Xptxas=-O3,-v,-dlcm=ca
-  -Xcompiler=-O3,-march=native,-fno-rtti
-)
-
-set(HOST_DEBUG_FLAGS -O0 -g)
-set(CUDA_DEBUG_FLAGS -O0 -g -G)
-
-target_compile_definitions(GHUIM PRIVATE
-  $<$<CONFIG:Debug>:DEBUG>
-)
-
-target_compile_options(GHUIM PRIVATE
-  $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CXX>>:${HOST_RELEASE_FLAGS}>
-  $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:${CUDA_RELEASE_FLAGS}>
-  $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CXX>>:${HOST_DEBUG_FLAGS}>
-  $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:${CUDA_DEBUG_FLAGS}>
-)
-
-# 7. Link Libraries
-target_link_libraries(GHUIM PRIVATE cuda)
-
-# 8. Final Output (Cleaned for clarity)
-message(STATUS "--------------------------------------------------------------------")
-message(STATUS "Build Configuration for G-HUIM:")
-message(STATUS "  - Target GPU Arch: ${CMAKE_CUDA_ARCHITECTURES}")
-if(CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "  - Configurations:  ${CMAKE_CONFIGURATION_TYPES}")
-else()
-  message(STATUS "  - Build Type:      ${CMAKE_BUILD_TYPE}")
+include(CTest)
+if(BUILD_TESTING)
+    add_test(NAME cli_help_without_gpu COMMAND GHUIM --help)
+    set_tests_properties(cli_help_without_gpu PROPERTIES ENVIRONMENT "CUDA_VISIBLE_DEVICES=")
 endif()
-message(STATUS "--------------------------------------------------------------------")
