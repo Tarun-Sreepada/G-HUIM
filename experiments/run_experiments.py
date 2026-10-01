@@ -91,48 +91,15 @@ def has_run_before(
 
 
 def parse_metrics_cu(output: str) -> Tuple[float, float, float, float, int]:
-    """Extract metrics from G-HUIM stdout."""
-    metrics = {
-        "read": 0,
-        "twu": 0,
-        "parse_temp": 0,
-        "build": 0,
-        "mining": 0,
-        "patterns": 0,
-    }
-    iteration_total_ms = 0
-
-    for line in output.splitlines():
-        if not line.strip():
-            continue
-        parts = [p.strip() for p in line.split()]
-        try:
-            if "Read" in line:
-                metrics["read"] = int(parts[2])
-            elif "CalcTWU" in line:
-                metrics["twu"] = int(parts[1])
-            elif "Parse" in line:
-                metrics["parse_temp"] = int(parts[1])
-            elif "Build" in line:
-                metrics["build"] = int(parts[1])
-            elif "Mining Completed" in line:
-                metrics["mining"] = int(parts[2])
-            elif "Iteration" in line:
-                iteration_total_ms += int(parts[2])
-            elif "Number of patterns:" in line:
-                metrics["patterns"] = int(parts[-1])
-        except (IndexError, ValueError) as e:
-            logging.warning(f"Could not parse line '{line}': {e}")
-
-    parse_time = metrics["read"] + metrics["parse_temp"]
-    search_time = iteration_total_ms + metrics["mining"]
-    return (
-        parse_time,
-        metrics["twu"],
-        metrics["build"],
-        search_time,
-        metrics["patterns"],
-    )
+    """Extract (parse, twu, build, search) milliseconds and the pattern count from G-HUIM's log."""
+    loaded = re.search(r"first-level tasks \(([\d.]+) s\)", output)
+    kernels = re.search(r"kernels ([\d.]+) s", output)
+    patterns = re.search(r"Number of patterns: (\d+)", output)
+    if not (loaded and kernels and patterns):
+        logging.warning("Could not parse G-HUIM output")
+        return 0, 0, 0, 0, 0
+    # Loading (parse, TWU and database build) is one stage now; report it as parse time.
+    return float(loaded.group(1)) * 1000, 0, 0, float(kernels.group(1)) * 1000, int(patterns.group(1))
 
 
 def parse_metrics_dphim(output: str) -> Tuple[float, float, float, float, int]:
@@ -227,9 +194,7 @@ def run_all_experiments(
                     "--minutil",
                     str(min_util),
                     "--method",
-                    "SP",
-                    "--adaptive",
-                    "true",
+                    "adaptive",
                     "--total_memory",
                     gpu_memory,
                     "--output",
@@ -256,9 +221,7 @@ def run_all_experiments(
                         "--minutil",
                         str(min_util),
                         "--method",
-                        "SP",
-                        "--adaptive",
-                        "false",
+                        "static",
                         "--pattern_memory",
                         "2G",
                         "--block_size",
