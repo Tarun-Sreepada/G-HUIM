@@ -31,6 +31,7 @@ struct AutoTune
     uint32_t packed_block_warps;  // block size (in warps) for the one-task-per-warp kernel
     uint32_t subwarp_block_warps; // block size (in warps) for the lane-group-per-task kernel
     uint32_t max_slices;          // blocks one huge task may use
+    uint32_t fixed_bin;           // static method: the one bin every task runs in; kNone = adaptive
 };
 
 struct Placement
@@ -53,6 +54,8 @@ __host__ __device__ inline uint32_t size_class(uint32_t warps)
 // enough warps for its share, rounded up to a power of two.
 __host__ __device__ inline Placement place_task(const Task& task, const AutoTune& tune, uint64_t batch_work)
 {
+    if (tune.fixed_bin != kNone)
+        return {tune.fixed_bin, 1};
     if (task.n_trans <= kWarpSize)
         return {kOptSubBin + size_class(task.n_trans), 1};
     const uint64_t share    = batch_work / tune.resident_warps;

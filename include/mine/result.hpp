@@ -1,11 +1,12 @@
 #pragma once
 
+#include <array>
 #include <cstdint>
 #include <vector>
 
 namespace ghuim {
 
-// One iteration (static/adaptive) or level (BFS) of the search.
+// One level (BFS) or batch (DFS) of the search.
 struct IterationStats
 {
     uint64_t tasks        = 0; // tasks processed
@@ -22,6 +23,12 @@ struct MiningResult
     double                      kernel_ms  = 0;
     double                      setup_ms   = 0; // building and uploading the root database
     std::vector<IterationStats> iterations;
+
+    // Filled by the DFS search only.
+    uint64_t                 compactions = 0; // arena compactions
+    uint64_t                 deferrals   = 0; // tasks pushed back because their child did not fit
+    std::array<uint64_t, 64> depth_tasks{};    // tasks evaluated, by itemset length (last slot: 63+)
+    std::array<uint64_t, 64> depth_patterns{}; // high-utility itemsets, by itemset length
 };
 
 } // namespace ghuim

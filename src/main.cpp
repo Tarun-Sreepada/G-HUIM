@@ -20,6 +20,15 @@ void log_iterations(const ghuim::MiningResult& result)
         spdlog::debug("  {:>4} {:>12} / {:>12}", i + 1, result.iterations[i].tasks, result.iterations[i].patterns);
 }
 
+void log_depths(const ghuim::MiningResult& result)
+{
+    spdlog::debug("Itemset length: tasks evaluated / high-utility itemsets");
+    for (size_t d = 1; d < result.depth_tasks.size(); ++d)
+        if (result.depth_tasks[d] != 0)
+            spdlog::debug("  {:>3}{} {:>12} / {:>12}", d, d + 1 == result.depth_tasks.size() ? "+" : " ",
+                          result.depth_tasks[d], result.depth_patterns[d]);
+}
+
 } // namespace
 
 int main(int argc, char* argv[])
@@ -47,10 +56,17 @@ int main(int argc, char* argv[])
 
         const auto                mine_start = std::chrono::steady_clock::now();
         const ghuim::MiningResult result     = ghuim::mine(data, config.mining);
-        spdlog::info("Mined: {} tasks in {} iterations, kernels {:.3f} s, peak live arena {} MiB ({:.3f} s)",
-                     result.tasks, result.iterations.size(), result.kernel_ms / 1000, result.peak_arena >> 20,
+        spdlog::info("Mined with {} search, {} partitioning: {} tasks in {} iterations, kernels {:.3f} s, peak live arena "
+                     "{} MiB ({:.3f} s)",
+                     ghuim::search_name(config.mining.search), ghuim::method_name(config.mining.method), result.tasks,
+                     result.iterations.size(), result.kernel_ms / 1000, result.peak_arena >> 20,
                      seconds_since(mine_start));
+        if (result.setup_ms > 0)
+            spdlog::info("  {:<28} {:9.1f} ms", "build + upload GPU database", result.setup_ms);
+        if (result.compactions != 0 || result.deferrals != 0)
+            spdlog::info("  {} arena compactions, {} deferred tasks", result.compactions, result.deferrals);
         log_iterations(result);
+        log_depths(result);
 
         spdlog::info("Number of patterns: {}", result.patterns);
         spdlog::info("Total time: {:.3f} s", seconds_since(start));
