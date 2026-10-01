@@ -150,12 +150,14 @@ def parse_metrics_pha(output: str) -> Tuple[float, float, float, float, int]:
 
 def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
     """A generic function to run a command multiple times and return the best result."""
+    if parser_func is parse_metrics_cu and "--log-level" not in cmd:
+        cmd = [*cmd, "--log-level", "debug"]
     best_run = None
     for i in range(repeats):
         logging.info(f"Run {i + 1}/{repeats}: {' '.join(cmd)}")
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            p, t, b, s, patterns = parser_func(proc.stdout)
+            p, t, b, s, patterns = parser_func(proc.stdout + "\n" + proc.stderr)
             total_time = p + t + b + s
 
             if best_run is None or total_time < best_run["Total_Time"]:

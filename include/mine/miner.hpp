@@ -6,7 +6,7 @@
 
 namespace ghuim {
 
-// Runs the search selected by options.method on the GPU.
+// Runs the search selected by options.search with the work partitioning of options.method.
 MiningResult mine(const Dataset& data, const MiningOptions& options);
 
 } // namespace ghuim

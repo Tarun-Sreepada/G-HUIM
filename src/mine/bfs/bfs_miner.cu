@@ -15,6 +15,7 @@
 
 #include <algorithm>
 #include <array>
+#include <bit>
 #include <chrono>
 #include <memory>
 #include <spdlog/spdlog.h>
@@ -59,7 +60,7 @@ class Streams
 };
 
 // Device profile of the current GPU.
-AutoTune make_auto_tune()
+AutoTune make_auto_tune(const MiningOptions& options)
 {
     int device = 0;
     check_cuda(cudaGetDevice(&device), "get device");
@@ -70,6 +71,9 @@ AutoTune make_auto_tune()
     AutoTune tune{};
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
+    // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
+    tune.fixed_bin = options.method == Method::Static ? static_cast<uint32_t>(std::countr_zero(options.block_size / 32))
+                                                      : kNone;
     spdlog::info("Auto-tune: {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
                  "lane-group block {} threads, huge tasks up to {} blocks",
                  props.name, sms, tune.resident_warps, tune.max_block_warps * 32, tune.packed_block_warps * 32,
@@ -122,7 +126,7 @@ class LevelMiner
 {
   public:
     LevelMiner(const Dataset& data, const MiningOptions& options)
-        : data_(data), options_(options), tune_(make_auto_tune()), budget_(plan_budget(options, data.primary.size())),
+        : data_(data), options_(options), tune_(make_auto_tune(options)), budget_(plan_budget(options, data.primary.size())),
           collect_(!options.output.empty())
     {
         allocate();
