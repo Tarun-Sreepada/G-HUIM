@@ -118,17 +118,12 @@ def run_iteration_times(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
     ]
 
-    if not adaptive:
-        cmd[cmd.index("--method") + 1] = "static"
-        cmd += ["--block-size", str(block_size)]
 
     result = subprocess.run(
         cmd,
@@ -325,17 +320,12 @@ def run_iteration_times(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
     ]
 
-    if not adaptive:
-        cmd[cmd.index("--method") + 1] = "static"
-        cmd += ["--block-size", str(block_size)]
 
     result = subprocess.run(
         cmd,

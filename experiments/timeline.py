@@ -70,16 +70,11 @@ def run_and_parse_detailed(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
     ]
-    if not adaptive:
-        cmd[cmd.index("--method") + 1] = "static"
-        cmd += ["--block-size", str(block_size)]
 
     print(f"Executing: {' '.join(cmd)}")
     try:

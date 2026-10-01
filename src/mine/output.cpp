@@ -30,16 +30,4 @@ void ItemsetWriter::write(const uint32_t* names, size_t count, uint64_t utility)
     std::fwrite(line_.data(), 1, line_.size(), file_);
 }
 
-void ItemsetWriter::write_records(const uint32_t* words, size_t count)
-{
-    size_t begin = 0;
-    for (size_t i = 0; i < count; ++i) {
-        if (words[i] != 0)
-            continue;
-        if (i > begin + 1) // names..., utility
-            write(words + begin, i - begin - 1, words[i - 1]);
-        begin = i + 1;
-    }
-}
-
 } // namespace ghuim

@@ -18,8 +18,6 @@ class ItemsetWriter
     ItemsetWriter& operator=(const ItemsetWriter&) = delete;
 
     void write(const uint32_t* names, size_t count, uint64_t utility);
-    // Records "name... utility 0" as the depth-first miners collect them.
-    void write_records(const uint32_t* words, size_t count);
 
   private:
     std::FILE*                   file_;

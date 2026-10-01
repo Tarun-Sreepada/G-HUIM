@@ -5,31 +5,12 @@
 
 namespace ghuim {
 
-enum class Method
-{
-    Static,       // DFS: every task gets one block of a fixed size
-    Adaptive,     // DFS: block size follows the task sizes; tiny tasks run on single threads
-    BfsOptimized  // level-synchronous: every task of a level runs before any task of the next
-};
-
-inline const char* method_name(Method method)
-{
-    switch (method) {
-    case Method::Static: return "static";
-    case Method::Adaptive: return "adaptive";
-    default: return "bfs-optimized";
-    }
-}
-
 struct MiningOptions
 {
-    uint64_t minimum_utility = 0;
-    Method   method          = Method::Adaptive;
-    uint32_t block_size      = 1024; // DFS static: threads per block-sized task
-    uint64_t memory_bytes    = 0;    // projected-database arena; 0 = most of the free device memory
-    uint64_t pattern_bytes   = 1ull << 30; // DFS: device buffer collecting itemsets for --output
-    uint64_t stack_capacity  = 128ull << 20; // most tasks one stack (DFS) or level (BFS) may hold
-    std::string output;              // itemset file; empty = only count the itemsets
+    uint64_t    minimum_utility = 0;
+    uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
+    uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold
+    std::string output;                         // itemset file; empty = only count the itemsets
 };
 
 struct Config
