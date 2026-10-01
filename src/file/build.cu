@@ -134,7 +134,9 @@ built_file build(Parsed& pf, uint32_t minutil, ArgParser& parser, Item_mapping* 
     builder::launchBuilding(pf.db->data, pf.db->num_items, item_map, block_size);
 
     Utilities* utils;
-    cudaMallocManaged(&utils, sizeof(Utilities) * (pf.max_item));
+    // Item ids run up to pf.max_item inclusive.
+    cudaMallocManaged(&utils, sizeof(Utilities) * (pf.max_item + 1));
+    memset(utils, 0, sizeof(Utilities) * (pf.max_item + 1));
     for (uint32_t i = 0; i <= pf.max_item; ++i)
         utils[i].key = i;
 

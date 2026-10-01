@@ -24,7 +24,7 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
 # Find your architecture: https://developer.nvidia.com/cuda-gpus
 # Examples: 86 (Ampere), 89 (Ada Lovelace), 90 (Hopper)
-set(CMAKE_CUDA_ARCHITECTURES 86) #
+set(CMAKE_CUDA_ARCHITECTURES 90) #
 
 # 4. Find Source Files & Create Executable
 include_directories(${CMAKE_SOURCE_DIR}/include)

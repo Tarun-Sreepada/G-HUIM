@@ -3,6 +3,7 @@
 #include "file/parse.cuh"
 #include "file/save.cuh"
 #include "memory/memory.cuh"
+#include "mine/bfs/bfs_mining.cuh"
 #include "mine/static_parallelism.cuh"
 #include "patterns/patterns.cuh"
 #include "timer.hpp"
@@ -81,6 +82,7 @@ int main(int argc, char* argv[])
         parser.add_argument("--stack_capacity", "int+str",
                             "Maximum number of tasks per stack (e.g., 128M)", false, "128M");
         parser.add_argument("--adaptive", "bool", "Use adaptive thread block sizes", false, "true");
+        parser.add_argument("--optimized", "bool", "Use the optimized level-synchronous miner", false, "false");
         parser.parse(argc, argv);
 
         const uint64_t stack_capacity_value = parser.get_scaled_uint("--stack_capacity");
@@ -93,6 +95,7 @@ int main(int argc, char* argv[])
         std::cout << "Separator: '" << parser.get_separator("--separator") << "'\n";
         std::cout << "Output File: " << parser.get("--output") << "\n";
         std::cout << "Managed Memory: " << (parser.get_bool("--managed") ? "true" : "false") << "\n";
+        std::cout << "Optimized: " << (parser.get_bool("--optimized") ? "true" : "false") << "\n";
         std::cout << "Adaptive: " << (parser.get_bool("--adaptive") ? "true" : "false") << "\n";
         std::cout << "Pattern Memory: " << parser.get("--pattern_memory") << "\n";
         std::cout << "Total Memory: " << parser.get("--total_memory") << "\n";
@@ -134,6 +137,29 @@ int main(int argc, char* argv[])
 
     built_file bf = build(pf, parser.get_uint64("--minutil"), parser, item_map);
     timer.recordPoint("Build");
+
+    if (parser.get_bool("--optimized")) {
+        BfsOptions options{parser.get_uint64("--minutil"), parser.get_memory("--total_memory"),
+                           std::min<uint32_t>(stack_capacity, kBfsDefaultTaskCapacity), parser.get("--output")};
+        BfsResult  result;
+        try {
+            result = bfs_optimized_mining(bf, item_map, pf.max_item, options, timer);
+        }
+        catch (const std::exception& e) {
+            std::cerr << "Error: " << e.what() << "\n";
+            return 1;
+        }
+        timer.recordPoint("End");
+
+        timer.printRecords();
+        std::cout << "Number of patterns: " << result.patterns << "\n";
+        if (options.output == "/dev/null")
+            std::cout << "Output is directed to /dev/null, no file will be created.\n";
+        else
+            write_bfs_itemsets(options.output, result, item_map, pf.max_item, options.minimum_utility);
+        cudaFree(item_map);
+        return 0;
+    }
 
     init_global_allocator(parser.get_memory("--total_memory"), parser.get_bool("--managed"));
     timer.recordPoint("Allocator Initialized");
