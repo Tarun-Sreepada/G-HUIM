@@ -39,7 +39,8 @@ void configure_cli(CLI::App& app, Config& config)
                     std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
                                                   {"warp", Method::Warp},
                                                   {"staged", Method::Staged},
-                                                  {"stagedwarp", Method::StagedWarp}},
+                                                  {"stagedwarp", Method::StagedWarp},
+                                                  {"tile", Method::Tile}},
                     CLI::ignore_case))
             ->default_str("adaptive");
     app.add_option("--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
@@ -66,6 +67,14 @@ void configure_cli(CLI::App& app, Config& config)
             ->group("");
     app.add_flag("--bin-times", config.mining.bin_times, "BFS: run the bins one after another and log each bin's time per level")
             ->group("");
+    app.add_option("--index-min-trans", config.mining.index_min_trans,
+                   "BFS adaptive/static lanes: build occurrence indexes for databases with at least this many transactions (0 = off)");
+    app.add_option("--local-tail-items", config.mining.local_tail_items,
+                   "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally (0 = off)")
+            ->check(CLI::Range(0, 20));
+    app.add_option("--local-tail-trans", config.mining.local_tail_trans,
+                   "Maximum supporting transactions for local subtree processing")
+            ->check(CLI::Range(1, 32))->capture_default_str();
     app.add_option("--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
             ->check(CLI::Range(1, 48))
             ->group("");
@@ -95,11 +104,20 @@ void configure_cli(CLI::App& app, Config& config)
 
     app.callback([&config] {
         const MiningOptions& mining = config.mining;
+        if (mining.index_min_trans != 0 || mining.local_tail_items != 0) {
+            if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static) ||
+                (!mining.shape_modes.empty() && mining.shape_modes != "lane,lane,lane,lane"))
+                throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs BFS adaptive/static with lane modes");
+            if (mining.local_tail_items != 0 && !mining.output.empty() && mining.output != "/dev/null")
+                throw CLI::ValidationError("--local-tail-items", "only available for count-only mining (omit --output)");
+            if (mining.local_tail_items != 0 && mining.method != Method::Adaptive)
+                throw CLI::ValidationError("--local-tail-items", "needs --method adaptive");
+        }
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
         if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged ||
-                                              mining.method == Method::StagedWarp))
-            throw CLI::ValidationError("--method", "warp, staged and stagedwarp are only available with --search bfs");
+                                              mining.method == Method::StagedWarp || mining.method == Method::Tile))
+            throw CLI::ValidationError("--method", "warp, staged, stagedwarp and tile are only available with --search bfs");
         if (!mining.shape_modes.empty() && (mining.search != Search::Bfs || mining.method != Method::Adaptive))
             throw CLI::ValidationError("--shape-modes", "needs --search bfs with --method adaptive");
         if (mining.smem_tables && (mining.search != Search::Bfs ||

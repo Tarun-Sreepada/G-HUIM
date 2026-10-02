@@ -29,6 +29,10 @@ struct BatchView
     uint32_t        ring_bytes; // staged method: shared memory for the tile ring
     uint32_t        table_bytes;  // shared memory for per-item tables (0 = global)
     uint32_t        table_offset; // where the tables start in the dynamic shared memory
+    uint32_t        tiled;        // tile method: databases use the tile layout
+    uint32_t        index_min_trans;
+    uint32_t        local_tail_items;
+    uint32_t        local_tail_trans;
 };
 
 __device__ __forceinline__ uint32_t mix(uint32_t x)
@@ -81,6 +85,7 @@ __device__ inline bool same_kept_items(const uint32_t* ea, uint32_t a_length, ui
 struct Projection
 {
     const Tx*           txs;
+    const Occurrence*   occ; // this extension's occurrences, or null for a full database scan
     const uint32_t*     eitem;   // entry keys (local item names)
     const uint32_t*     eutil;   // entry utilities
     uint32_t            n_trans;
@@ -95,6 +100,15 @@ struct Projection
     uint32_t*           slot_of; // child transaction written by a representative
     uint32_t*           pos;     // pass 1: position after the extension item in each transaction (k + 1), 0 = absent
     uint32_t*           kept;    // pass 2: kept entries of each transaction behind the extension item
+    // Tile method only: tile widths of this database and of the child (set once pass 2 has sized it).
+    uint32_t            stride;
+    uint32_t            child_stride;
+    // Tile method only (null otherwise): the child's counting sort by length.
+    uint32_t*           hist;     // pass 2: representatives per length class
+    uint32_t*           base;     // first child slot of each class
+    uint32_t*           cursor;   // next free slot of each class, relative to base
+    uint32_t*           tile_len; // longest transaction of each child tile
+    uint32_t*           tile_off; // first entry of each child tile
 };
 
 struct TaskView
@@ -116,13 +130,15 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     v.index       = t;
     v.base        = b.src + v.task.db_offset();
     v.header      = *reinterpret_cast<const DbHeader*>(v.base);
-    v.layout      = DbLayout::of(v.header.n_trans, v.header.n_entries, v.header.n_items);
+    v.layout      = DbLayout::of(v.header.n_trans, v.header.n_entries, v.header.n_items, b.tiled != 0, v.header.indexed != 0);
     char* scratch = b.scratch + (b.scratch_prefix[t] - b.scratch_base);
     v.state       = reinterpret_cast<TaskState*>(scratch);
 
-    const uint32_t n = v.header.n_items, trans = v.header.n_trans;
+    const uint32_t n = v.header.n_items, trans = v.task.n_trans;
     Projection&    p = v.p;
     p.txs            = reinterpret_cast<const Tx*>(v.base + v.layout.tx);
+    p.occ            = v.header.indexed ? reinterpret_cast<const Occurrence*>(v.base + v.layout.occ) +
+                            reinterpret_cast<const uint32_t*>(v.base + v.layout.occ_begin)[v.task.item] : nullptr;
     p.eitem          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eitem);
     p.eutil          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eutil);
     p.n_trans        = trans;
@@ -137,6 +153,16 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.slot_of        = p.rep + trans;
     p.pos            = p.slot_of + trans;
     p.kept           = p.pos + trans;
+    p.hist = p.base = p.cursor = p.tile_len = p.tile_off = nullptr;
+    p.stride = p.child_stride = 1;
+    if (b.tiled) {
+        p.stride   = tile_stride(trans);
+        p.hist     = p.kept + trans;
+        p.base     = p.hist + kTileBuckets;
+        p.cursor   = p.base + kTileBuckets;
+        p.tile_len = p.cursor + kTileBuckets;
+        p.tile_off = p.tile_len + trans / kTile + 1;
+    }
     return v;
 }
 
@@ -152,6 +178,12 @@ __device__ __forceinline__ void clear_task(const TaskView& v, uint32_t rank, uin
         v.p.subtree[i] = 0;
     for (uint32_t i = rank; i < v.p.table_size; i += stride)
         v.p.table[i] = kNone;
+    if (v.p.hist != nullptr) {
+        for (uint32_t i = rank; i < kTileBuckets; i += stride)
+            v.p.hist[i] = v.p.cursor[i] = 0;
+        for (uint32_t i = rank; i < v.p.n_trans / kTile + 1; i += stride)
+            v.p.tile_len[i] = 0;
+    }
 }
 
 // Records the task's itemset; one thread per task calls it once the utility is complete.
@@ -162,6 +194,10 @@ __device__ inline void finish_task(const BatchView& b, const TaskView& v)
     b.nodes[v.index]        = Node{v.task.parent, globals[v.task.item], utility};
     if (utility >= b.minimum_utility)
         add(b.control->patterns, 1ull);
+#ifdef GHUIM_WORK_STATS
+    add(b.control->work_total, static_cast<unsigned long long>(v.header.n_trans));
+    add(b.control->work_present, static_cast<unsigned long long>(v.state->present));
+#endif
 }
 
 } // namespace ghuim::bfs

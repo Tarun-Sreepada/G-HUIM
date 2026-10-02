@@ -19,6 +19,7 @@ namespace ghuim::bfs {
 struct LocalAcc
 {
     uint64_t utility = 0;
+    uint64_t present = 0;
 };
 
 template <typename Src>
@@ -28,7 +29,8 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
     const Tx        tx     = i < p.n_trans ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
     const uint32_t* k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
-    const int       k      = find_item(k_item, tx.length, p.item);
+    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(p.occ[i].pos) : -1)
+                                  : find_item(k_item, tx.length, p.item);
     if (i < p.n_trans)
         p.pos[i] = static_cast<uint32_t>(k + 1);
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
@@ -42,10 +44,16 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
         if (d < rest)
             add(p.local[k_item[k + 1 + d]], prefix + after);
     acc.utility += prefix;
+    acc.present += k >= 0;
 }
 
 __device__ inline void local_finish(const Lanes& lanes, LocalAcc& acc, TaskState& state)
 {
+#ifdef GHUIM_WORK_STATS
+    const uint64_t present = lanes.sum(acc.present);
+    if (lanes.leader() && present != 0)
+        add(state.present, present);
+#endif
     const uint64_t utility = lanes.sum(acc.utility);
     if (lanes.leader() && utility != 0)
         add(state.utility, utility);
@@ -140,7 +148,7 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
                     size.entries += kept;
                     break;
                 }
-                const Tx o = p.txs[other];
+                const Tx o = p.txs[p.occ ? p.occ[other].tid : other];
                 if (same_kept_items(p.eitem + o.begin, o.length, p.pos[other], k_item, tx.length, pos, p.rename)) {
                     p.rep[i] = other;
                     break;

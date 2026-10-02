@@ -6,13 +6,19 @@
 // Input format (one transaction per line, items/utilities split by `sep`):
 //     a c d:8:5 1 2
 //
-// Usage: efim <inputFile> <outputFile> <minUtil> [sep] [threads]
-//     sep: "tab" (default) or "space", or the literal separator, e.g. ";" or ",".
-//     threads defaults to 1 and is capped at the hardware thread count.
+// Usage: efim -i <input> -m <minUtil> [-o <output>] [--separator tab|space|<literal>] [-t <threads>]
+//             [--numa on|off] [--simd auto|avx512|scalar] [--log-level L] [--log-file F]
+//        (legacy positional form: efim <input> <output> <minUtil> [sep] [threads])
+//     threads defaults to 1 (0 = all) and is capped at the hardware thread count.
+//
+// Limits: items are uint16 (at most 65535 after TWU pruning) and stored utilities int32 (no item's
+// total utility may exceed INT32_MAX); the reader fails with an error otherwise.
 //
 // Differences from efim.py: the search is depth-first instead of level-by-level
-// (same patterns, far less memory), and threads share a task stack that large
-// subtrees are split into.
+// (same patterns, far less memory). Workers are pinned one per core (spread over L3 groups and
+// both NUMA nodes), allocate their own memory after pinning (first touch = node-local, huge
+// pages for big arrays), and steal large subtrees from each other nearest-first. Input parsing,
+// sorting, the root build and the output are parallel.
 //
 // Optimizations (beyond EFIM's TWU pruning, local/subtree utility bounds and
 // utility-bin arrays):
@@ -27,14 +33,15 @@
 //   - Per-depth buffers are reused across the search, so the hot path does not
 //     allocate once they have grown.
 //   - The input is read in one block and parsed in place with std::from_chars.
-//   - Patterns are stored in flat arrays.
+//   - Patterns are counted; flat arrays are populated only when output is requested.
 
 #pragma once
 
-#include "level.hpp"
-#include "scheduler.hpp"
+#include "mine/level.hpp"
+#include "mine/scheduler.hpp"
 
 #include <algorithm>
+#include <memory>
 #include <stdexcept>
 #include <string>
 #include <thread>
@@ -55,8 +62,11 @@ public:
 		return hw ? static_cast<int>(hw) : 1;
 	}
 
+	// Pin workers to cores, place memory node-locally and steal nearest-first (default on).
+	void set_numa(bool on) { numa_ = on; }
 	int threads() const { return threads_; }
-	void mine();
+	// Count by default; collection must be enabled before mining to call save().
+	void mine(bool collect_patterns = false);
 	void save(const std::string& out_file) const;
 	std::size_t pattern_count() const;
 	void print_results() const;
@@ -68,6 +78,9 @@ private:
 	Utility min_util_;
 	std::string sep_;
 	int threads_;
+	bool numa_ = true;
+	bool collect_patterns_ = false;
+	std::size_t pattern_count_ = 0;
 	std::vector<std::string> rename_;  // rename_[id] = original item name; index 0 unused
 	std::vector<Patterns> results_;    // one per worker
 	double runtime_ = 0;

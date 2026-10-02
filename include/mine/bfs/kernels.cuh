@@ -24,12 +24,15 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 
 // Kernel handles for occupancy queries from another translation unit.
 // `group` is a ShapeTune::group value.
-const void* block_kernel(uint32_t group);
-const void* warp_kernel(uint32_t group);
-const void* subwarp_kernel();
+const void* block_kernel(uint32_t group, bool tiled = false);
+const void* warp_kernel(uint32_t group, bool tiled = false);
+const void* subwarp_kernel(bool tiled = false, bool local_tail = false);
 const void* block_kernel_staged(bool warp_mode);
 // The pass kernels of a huge task, in launch order.
-void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group);
+void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group, bool tiled = false);
+// The extra kernels of a huge task in the tile method (class starts, slot assignment).
+constexpr uint32_t kTileHugeKernels = 2;
+void tile_huge_kernels(const void* (&kernels)[kTileHugeKernels]);
 void huge_kernels_staged(const void* (&kernels)[kHugeKernels], bool warp_mode);
 void prepare_staged_block_kernel(uint32_t dynamic_bytes, bool warp_mode);
 // Raises the dynamic shared-memory limit of the staged kernels; call before querying occupancy or launching.
@@ -39,7 +42,18 @@ void prepare_staged_kernels(uint32_t dynamic_bytes, bool warp_mode);
 void measure_occupancy(AutoTune& tune, uint32_t sms);
 
 // Scheduling kernels of a chunk [begin, end) of the level.
-void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, cudaStream_t stream);
+// Return a bounded page of boundaries instead of downloading a whole level's scratch prefix.
+constexpr uint32_t kChunkPlanPage = 256;
+struct ChunkPlan
+{
+    uint32_t count;
+    uint32_t oversized;
+    uint32_t cuts[kChunkPlanPage + 1];
+    uint64_t bases[kChunkPlanPage];
+};
+void launch_plan_chunks(const uint64_t* prefix, uint32_t begin, uint32_t count, uint32_t max_tasks,
+                        uint64_t scratch_capacity, ChunkPlan* plan, cudaStream_t stream);
+void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, bool tiled, cudaStream_t stream);
 void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, uint32_t* order,
                       const AutoTune& tune, cudaStream_t stream);
 

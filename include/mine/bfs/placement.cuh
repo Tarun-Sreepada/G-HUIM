@@ -55,11 +55,13 @@ struct AutoTune
     uint32_t subwarp_block_warps; // block size (in warps) for the lane-group-per-task kernel
     uint32_t fixed_bin;           // static method: the one bin every task runs in; kNone = adaptive
     uint32_t warp_mode;           // staged method: lane groups own one transaction at a time (StagedWarpTx)
+    uint32_t tiled;               // tile method: databases are stored in tiles (layout.cuh), lane-per-transaction passes
     uint32_t staged;              // staged method: IO warps stage transactions in shared memory (StagedTx)
     uint32_t io_warps;            // staged method: IO warps per block
     uint32_t ring_bytes;          // staged method: shared memory for the tile ring
     uint32_t table_bytes;         // shared memory for the per-item tables of block-sized tasks (0 = global tables)
     uint32_t min_entries_per_warp; // size tasks by entries, not transactions: fewest entries worth a warp (0 = by transactions)
+    uint32_t local_tail;          // use the bounded local-subtree kernel for small tasks
 };
 
 // Work of a task for sizing: transactions, or entries when the tune sizes by entries.

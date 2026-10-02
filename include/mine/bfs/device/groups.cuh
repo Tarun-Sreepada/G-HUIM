@@ -41,6 +41,11 @@ struct WarpGroup
     {
         return __popc(__ballot_sync(kFullMask, flag));
     }
+    // The inclusive scan value of the group's last rank, on every rank.
+    __device__ uint32_t last(uint32_t inclusive) const
+    {
+        return __shfl_sync(kFullMask, inclusive, 31);
+    }
 };
 
 // `lanes` consecutive lanes of a warp (a power of two) form a group.
@@ -81,6 +86,10 @@ struct SubGroup
     {
         return __popc(__ballot_sync(mask(), flag));
     }
+    __device__ uint32_t last(uint32_t inclusive) const
+    {
+        return __shfl_sync(mask(), inclusive, n - 1, n);
+    }
 };
 
 struct BlockGroup
@@ -113,6 +122,16 @@ struct BlockGroup
     __device__ uint32_t count(bool flag) const
     {
         return static_cast<uint32_t>(__syncthreads_count(flag));
+    }
+    __device__ uint32_t last(uint32_t inclusive) const
+    {
+        __shared__ uint32_t value;
+        if (threadIdx.x == blockDim.x - 1)
+            value = inclusive;
+        __syncthreads();
+        const uint32_t result = value;
+        __syncthreads();
+        return result;
     }
 };
 

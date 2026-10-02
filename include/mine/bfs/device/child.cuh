@@ -5,6 +5,11 @@
 
 namespace ghuim::bfs {
 
+__device__ inline bool index_child(const BatchView& b, const TaskState& state)
+{
+    return b.index_min_trans != 0 && state.child_trans >= b.index_min_trans;
+}
+
 // ---------------------------------------------------------------------------------------------
 // Child database
 // ---------------------------------------------------------------------------------------------
@@ -22,7 +27,8 @@ __device__ void allocate_child(const Group& g, const BatchView& b, const TaskVie
     }
     if (g.rank() == 0) {
         if (primaries != 0) {
-            const DbLayout child = DbLayout::of(state.child_trans, state.child_entries, child_items);
+            const bool indexed = index_child(b, state);
+            const DbLayout child = DbLayout::of(state.child_trans, state.child_entries, child_items, b.tiled != 0, indexed);
             const uint64_t at    = fetch_add(b.control->arena_top, child.bytes);
             if (at + child.bytes > b.dst_capacity) {
                 fetch_or(b.control->error, kArenaFull);
@@ -30,7 +36,7 @@ __device__ void allocate_child(const Group& g, const BatchView& b, const TaskVie
             }
             else {
                 *reinterpret_cast<DbHeader*>(b.dst + at) =
-                        DbHeader{state.child_trans, state.child_entries, child_items, state.child_max_len, child.bytes};
+                        DbHeader{state.child_trans, state.child_entries, child_items, state.child_max_len, child.bytes, indexed};
                 state.child_db = at;
                 state.reserved = fetch_add(b.control->next_count, primaries);
                 if (uint64_t{state.reserved} + primaries > b.next_capacity)
@@ -50,18 +56,23 @@ struct ChildView
     Tx*       txs;
     uint32_t* eitem;
     uint32_t* eutil;
+    uint32_t* occ_begin;
+    Occurrence* occ;
 };
 
 __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskState& state, uint32_t child_items)
 {
     ChildView      c;
-    const DbLayout layout = DbLayout::of(state.child_trans, state.child_entries, child_items);
+    const bool indexed = index_child(b, state);
+    const DbLayout layout = DbLayout::of(state.child_trans, state.child_entries, child_items, b.tiled != 0, indexed);
     char*          at     = b.dst + state.child_db;
     c.bytes               = layout.bytes;
     c.global              = reinterpret_cast<uint32_t*>(at + layout.items);
     c.txs                 = reinterpret_cast<Tx*>(at + layout.tx);
     c.eitem               = reinterpret_cast<uint32_t*>(at + layout.eitem);
     c.eutil               = reinterpret_cast<uint32_t*>(at + layout.eutil);
+    c.occ_begin           = indexed ? reinterpret_cast<uint32_t*>(at + layout.occ_begin) : nullptr;
+    c.occ                 = indexed ? reinterpret_cast<Occurrence*>(at + layout.occ) : nullptr;
     return c;
 }
 
@@ -167,6 +178,47 @@ __device__ inline void merge_duplicates(const Projection& p, const Lanes& lanes,
 }
 
 // Writes one next-level task per promising extension into the reserved slots (group scan).
+// Build once per child database, then share the index among all its extensions. The local
+// utility table is dead after projection, so reuse it for scatter cursors.
+template <typename Group>
+__device__ void build_child_index(const Group& g, const TaskView& v, uint32_t child_items, const ChildView& c)
+{
+    if (!c.occ)
+        return;
+    for (uint32_t z = g.rank(); z < child_items; z += g.size())
+        c.occ_begin[z] = 0;
+    g.sync();
+    for (uint32_t t = g.rank(); t < v.state->child_trans; t += g.size()) {
+        const Tx tx = c.txs[t];
+        for (uint32_t pos = 0; pos < tx.length; ++pos)
+            add(c.occ_begin[c.eitem[tx.begin + pos]], 1u);
+    }
+    g.sync();
+    uint32_t total = 0;
+    for (uint32_t base = 0; base < child_items; base += g.size()) {
+        const uint32_t z = base + g.rank();
+        const uint32_t count = z < child_items ? c.occ_begin[z] : 0;
+        const uint32_t inclusive = g.scan(count);
+        if (z < child_items) {
+            c.occ_begin[z] = total + inclusive - count;
+            v.p.local[z] = 0;
+        }
+        total += g.last(inclusive);
+    }
+    if (g.rank() == 0)
+        c.occ_begin[child_items] = total;
+    g.sync();
+    for (uint32_t t = g.rank(); t < v.state->child_trans; t += g.size()) {
+        const Tx tx = c.txs[t];
+        for (uint32_t pos = 0; pos < tx.length; ++pos) {
+            const uint32_t z = c.eitem[tx.begin + pos];
+            const uint32_t slot = c.occ_begin[z] + static_cast<uint32_t>(fetch_add(v.p.local[z], 1ull));
+            c.occ[slot] = Occurrence{t, pos};
+        }
+    }
+    g.sync();
+}
+
 template <typename Group>
 __device__ void emit_children(const Group& g, const BatchView& b, const TaskView& v, uint32_t child_items,
                               const ChildView& c)
@@ -181,7 +233,7 @@ __device__ void emit_children(const Group& g, const BatchView& b, const TaskView
         if (emit && slot < b.next_capacity)
             b.next[slot] = Task{static_cast<uint32_t>(state.child_db / kArenaUnit),
                                 static_cast<uint32_t>(c.bytes / kArenaUnit),
-                                state.child_trans,
+                                c.occ ? c.occ_begin[z + 1] - c.occ_begin[z] : state.child_trans,
                                 child_items,
                                 z,
                                 v.index,

@@ -12,7 +12,7 @@ struct GlobalSource
     const Projection& p;
 
     // Transaction `i` (global index); `lane` is the lane's position inside the 32-transaction step.
-    __device__ Tx tx(uint32_t i, uint32_t) const { return p.txs[i]; }
+    __device__ Tx tx(uint32_t i, uint32_t) const { return p.txs[p.occ ? p.occ[i].tid : i]; }
     __device__ const uint32_t* keys(const Tx& t, uint32_t) const { return p.eitem + t.begin; }
     __device__ const uint32_t* utils(const Tx& t, uint32_t) const { return p.eutil + t.begin; }
 };

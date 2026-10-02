@@ -14,6 +14,13 @@
 // (ascending, so local order equals global order). Databases start on 16-byte boundaries and
 // tasks address them in 16-byte units.
 //
+// Tile method (--method tile): the entry arrays are stored in tiles of kTile transactions, column-major,
+// so entry k of the kTile transactions of a tile is one contiguous row. Transaction slot s sits in
+// tile s / kTile at lane s % kTile; Tx::begin is then tile_base + lane, and entry k of the transaction is
+// at begin + k * kTile. Transactions are sorted by length into tiles (counting sort by kept length), and
+// a tile is as long as its longest transaction. The Tx array is padded to whole tiles and n_entries
+// counts the padded entry slots (rows beyond a transaction's length are never read).
+//
 // Level L reads the databases written while mining level L-1 and writes its children into the
 // other of two arena regions, so a region is reused as soon as the level reading it finishes.
 
@@ -24,7 +31,16 @@
 namespace ghuim::bfs {
 
 constexpr uint64_t kArenaUnit = 16;
+constexpr uint32_t kTile        = 32; // transactions per tile (tile method)
+constexpr uint32_t kTileBuckets = 32; // length classes of the tile counting sort: 0..30 exact, 31 = 31 or longer
 constexpr uint32_t kNone      = 0xffffffffu;
+
+// Transactions per tile of a database with n_trans transactions: a small database is one narrow tile, so it
+// is not padded to kTile transactions. Readers derive it from the header's n_trans.
+__host__ __device__ inline uint32_t tile_stride(uint64_t n_trans)
+{
+    return n_trans >= kTile ? kTile : n_trans <= 1 ? 1u : cuda::std::bit_ceil(static_cast<uint32_t>(n_trans));
+}
 
 struct DbHeader
 {
@@ -33,6 +49,7 @@ struct DbHeader
     uint32_t n_items;
     uint32_t max_len; // longest transaction
     uint64_t bytes;
+    uint32_t indexed = 0; // occurrence offsets and (transaction, position) pairs follow the entry arrays
 };
 
 struct Tx
@@ -42,6 +59,12 @@ struct Tx
     uint32_t utility; // utility of the database's prefix itemset in this transaction
 };
 
+struct Occurrence
+{
+    uint32_t tid;
+    uint32_t pos;
+};
+
 __host__ __device__ inline uint64_t align_up(uint64_t value, uint64_t alignment = kArenaUnit)
 {
     return (value + alignment - 1) / alignment * alignment;
@@ -49,16 +72,24 @@ __host__ __device__ inline uint64_t align_up(uint64_t value, uint64_t alignment 
 
 struct DbLayout
 {
-    uint64_t items, tx, eitem, eutil, bytes;
+    uint64_t items, tx, eitem, eutil, bytes, occ_begin = 0, occ = 0;
 
-    __host__ __device__ static DbLayout of(uint64_t n_trans, uint64_t n_entries, uint64_t n_items)
+    __host__ __device__ static DbLayout of(uint64_t n_trans, uint64_t n_entries, uint64_t n_items, bool tiled = false,
+                                          bool indexed = false)
     {
         DbLayout l;
         l.items   = sizeof(DbHeader);
         l.tx      = align_up(l.items + n_items * sizeof(uint32_t), 8);
+        if (tiled)
+            n_trans = align_up(n_trans, tile_stride(n_trans));
         l.eitem   = align_up(l.tx + n_trans * sizeof(Tx), 16);
         l.eutil   = align_up(l.eitem + n_entries * sizeof(uint32_t), 16);
         l.bytes   = align_up(l.eutil + n_entries * sizeof(uint32_t));
+        if (indexed) {
+            l.occ_begin = l.bytes;
+            l.occ = align_up(l.occ_begin + (n_items + 1) * sizeof(uint32_t));
+            l.bytes = align_up(l.occ + n_entries * sizeof(Occurrence));
+        }
         return l;
     }
 };
@@ -69,7 +100,7 @@ struct Task
 {
     uint32_t db;       // offset of the parent database in the source region, in kArenaUnit units
     uint32_t db_units; // size of that database
-    uint32_t n_trans;  // parent transaction count
+    uint32_t n_trans;  // transactions visited: occurrence count when the parent has an index
     uint32_t n_items;  // parent item count
     uint32_t item;     // local name in the parent database
     uint32_t parent;   // index of the task (in the previous level) that built the parent database
@@ -95,6 +126,7 @@ struct Node
 struct TaskState
 {
     uint64_t utility;
+    uint64_t present; // GHUIM_WORK_STATS: transactions of the parent that contain the extension item
     uint64_t child_db;
     uint32_t child_trans;
     uint32_t child_entries;
@@ -106,10 +138,17 @@ struct TaskState
     uint32_t reserved; // first slot of this task's children in the next level
 };
 
-__host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_trans)
+// Tile method: hist[kTileBuckets], base[kTileBuckets], cursor[kTileBuckets], then tile_len[t / kTile + 1]
+// and tile_off[t / kTile + 1] (u32), after the arrays above (a child has at most that many tiles).
+__host__ __device__ inline uint64_t tile_scratch_words(uint32_t n_trans)
+{
+    return 3 * uint64_t{kTileBuckets} + 2 * (uint64_t{n_trans} / kTile + 1);
+}
+
+__host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_trans, bool tiled = false)
 {
     return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(uint64_t) + sizeof(uint32_t)) +
-                    uint64_t{n_trans} * 6 * sizeof(uint32_t));
+                    uint64_t{n_trans} * 6 * sizeof(uint32_t) + (tiled ? tile_scratch_words(n_trans) * sizeof(uint32_t) : 0));
 }
 
 // How a task shape maps transactions onto lanes (ShapeTune::group, placement.cuh).
@@ -137,6 +176,8 @@ struct Control
     unsigned long long arena_top;  // bump allocator for child databases in the destination region
     unsigned long long patterns;   // high-utility itemsets found so far
     unsigned long long batch_work; // sum of transactions over the chunk's tasks
+    unsigned long long work_total;   // GHUIM_WORK_STATS: transactions scanned by pass 1, over all tasks
+    unsigned long long work_present; // GHUIM_WORK_STATS: of those, the ones containing the extension item
     uint32_t           next_count; // tasks written to the next level
     uint32_t           error;      // ControlError bits
     uint32_t           cell_count[kMaxCells];

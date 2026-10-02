@@ -1,20 +1,25 @@
 #pragma once
 // Databases of the EFIM search: transactions, and the occurrence index used to project them.
 
+#include "sys/alloc.hpp"
+#include "sys/parallel.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <numeric>
 #include <vector>
 
-using Item = std::int32_t;  // renamed item id, 1..numItems (larger id = larger TWU)
-using Utility = std::int64_t;
+using Item = std::uint16_t;  // renamed item id, 1..numItems (larger id = larger TWU); numItems <= kMaxItems
+using Util = std::int32_t;   // stored per-item utility; the reader checks that no merged sum can overflow
+using Utility = std::int64_t;  // sums of utilities (prefix, patterns, bounds)
+constexpr std::size_t kMaxItems = 65535;
 
 // A transaction of a (projected) database, items sorted ascending. A view points into
 // an ancestor's storage; an owned transaction lives in its own Level's storage.
 struct Transaction {
 	const Item* items;
-	const Utility* utils;
+	const Util* utils;
 	std::uint32_t len;
 	Utility prefix;    // utility of the current prefix itemset in this transaction
 	std::int64_t own;  // offset into Level::items/utils, or -1 for a view
@@ -27,14 +32,14 @@ struct Occurrence {
 
 // A (projected) database plus the occurrence index used to project it further.
 struct Level {
-	std::vector<Item> items;  // storage for owned transactions
-	std::vector<Utility> utils;
-	std::vector<Transaction> txs;
+	HugeVector<Item> items;  // storage for owned transactions
+	HugeVector<Util> utils;
+	HugeVector<Transaction> txs;
 	std::vector<Item> primary;    // items to extend with (subtree utility >= minUtil), ascending
 	std::vector<Item> secondary;  // items kept in deeper projections (local utility >= minUtil)
 	std::vector<std::uint32_t> occ_begin;  // primary[k] occurs at occ[occ_begin[k], occ_begin[k + 1])
-	std::vector<Occurrence> occ;
-	std::vector<std::uint32_t> cursor;  // scratch for index()
+	HugeVector<Occurrence> occ;
+	std::vector<std::uint32_t> cursor;  // scratch for the serial index()
 
 	void clear() {
 		items.clear();
@@ -50,7 +55,7 @@ struct Level {
 
 	// Appends a transaction, merging it into the previous one when their items are
 	// equal. A view must point outside this Level; otherwise the data is copied.
-	void add(const Item* it, const Utility* ut, std::uint32_t n, Utility prefix, bool view) {
+	void add(const Item* it, const Util* ut, std::uint32_t n, Utility prefix, bool view) {
 		if (!txs.empty()) {
 			Transaction& last = txs.back();
 			if (last.len == n && std::equal(it, it + n, items_of(last))) {
@@ -59,7 +64,7 @@ struct Level {
 					items.insert(items.end(), last.items, last.items + n);
 					utils.insert(utils.end(), last.utils, last.utils + n);
 				}
-				Utility* dst = utils.data() + last.own;
+				Util* dst = utils.data() + last.own;
 				for (std::uint32_t i = 0; i < n; ++i) dst[i] += ut[i];
 				last.prefix += prefix;
 				return;
@@ -84,21 +89,56 @@ struct Level {
 	}
 
 	// Builds the occurrence index for `primary`. `slot` is indexed by item and must be
-	// all -1; it is left that way.
-	void index(std::vector<std::int32_t>& slot) {
+	// all -1; it is left that way. With threads > 1 the transactions are counted and
+	// placed in parallel ranges; occurrences stay in ascending transaction order.
+	void index(std::vector<std::int32_t>& slot, int threads = 1) {
 		for (std::size_t k = 0; k < primary.size(); ++k) slot[primary[k]] = static_cast<std::int32_t>(k);
-		occ_begin.assign(primary.size() + 1, 0);
-		for (const auto& t : txs)
-			for (std::uint32_t i = 0; i < t.len; ++i)
-				if (const std::int32_t s = slot[t.items[i]]; s >= 0) ++occ_begin[s + 1];
-		std::partial_sum(occ_begin.begin(), occ_begin.end(), occ_begin.begin());
-		occ.resize(occ_begin.back());
-		cursor.assign(occ_begin.begin(), occ_begin.end() - 1);
-		for (std::uint32_t tid = 0; tid < txs.size(); ++tid) {
-			const auto& t = txs[tid];
-			for (std::uint32_t i = 0; i < t.len; ++i)
-				if (const std::int32_t s = slot[t.items[i]]; s >= 0) occ[cursor[s]++] = {tid, i};
+		const std::size_t K = primary.size();
+		if (threads <= 1 || txs.size() < 4096) {
+			occ_begin.assign(K + 1, 0);
+			for (const auto& t : txs)
+				for (std::uint32_t i = 0; i < t.len; ++i)
+					if (const std::int32_t s = slot[t.items[i]]; s >= 0) ++occ_begin[s + 1];
+			std::partial_sum(occ_begin.begin(), occ_begin.end(), occ_begin.begin());
+			occ.resize(occ_begin.back());
+			cursor.assign(occ_begin.begin(), occ_begin.end() - 1);
+			for (std::uint32_t tid = 0; tid < txs.size(); ++tid) {
+				const auto& t = txs[tid];
+				for (std::uint32_t i = 0; i < t.len; ++i)
+					if (const std::int32_t s = slot[t.items[i]]; s >= 0) occ[cursor[s]++] = {tid, i};
+			}
+			for (const Item x : primary) slot[x] = -1;
+			return;
 		}
+		const int parts = threads;
+		std::vector<std::size_t> cut(static_cast<std::size_t>(parts) + 1);
+		for (int p = 0; p <= parts; ++p) cut[p] = txs.size() / parts * p;
+		cut[parts] = txs.size();
+		std::vector<std::vector<std::uint32_t>> count(parts, std::vector<std::uint32_t>(K, 0));
+		parallel_run(parts, [&](int p) {
+			for (std::size_t tid = cut[p]; tid < cut[p + 1]; ++tid)
+				for (std::uint32_t i = 0; i < txs[tid].len; ++i)
+					if (const std::int32_t s = slot[txs[tid].items[i]]; s >= 0) ++count[p][s];
+		});
+		occ_begin.assign(K + 1, 0);
+		for (std::size_t s = 0; s < K; ++s) {
+			std::uint32_t at = occ_begin[s];
+			for (int p = 0; p < parts; ++p) {
+				const std::uint32_t c = count[p][s];
+				count[p][s] = at;  // this part's first slot for item s
+				at += c;
+			}
+			occ_begin[s + 1] = at;
+		}
+		occ.resize(occ_begin.back());
+		parallel_run(parts, [&](int p) {
+			for (std::size_t tid = cut[p]; tid < cut[p + 1]; ++tid) {
+				const auto& t = txs[tid];
+				for (std::uint32_t i = 0; i < t.len; ++i)
+					if (const std::int32_t s = slot[t.items[i]]; s >= 0)
+						occ[count[p][s]++] = {static_cast<std::uint32_t>(tid), i};
+			}
+		});
 		for (const Item x : primary) slot[x] = -1;
 	}
 

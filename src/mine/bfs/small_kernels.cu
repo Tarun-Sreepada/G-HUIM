@@ -43,13 +43,14 @@ template <typename Mode> __global__ void warp_tasks(BatchView b, const uint32_t*
 }
 
 // Tiny tasks (at most a warp's worth of transactions): a group of `group` lanes per task.
+template <typename Mode, bool LocalTail = false>
 __global__ void subwarp_tasks(BatchView b, const uint32_t* order, uint32_t count, uint32_t group)
 {
     const SubGroup g(group);
     const uint32_t first  = (blockIdx.x * blockDim.x + threadIdx.x) / group;
     const uint32_t groups = gridDim.x * blockDim.x / group;
     for (uint32_t i = first; i < count; i += groups) {
-        process_task<LaneTx>(g, b, order[i], 0, 1);
+        process_task<Mode, LocalTail>(g, b, order[i], 0, 1);
         g.sync();
     }
 }
@@ -62,7 +63,7 @@ void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
     const ShapeTune& st     = tune.shape[shape];
     const uint32_t   warps  = st.packed_block_warps;
     const uint32_t   blocks = std::min(ceil_div(count, warps), kMaxGrid);
-    with_mode(st.group, [&](auto mode) {
+    with_mode(tune, st.group, [&](auto mode) {
         warp_tasks<decltype(mode)><<<blocks, warps * 32, 0, stream>>>(batch, order, count);
     });
     check_launch("launch warp-task kernel");
@@ -82,7 +83,7 @@ void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t 
     }
     else {
         const uint32_t group = tune.shape[shape].group;
-        with_mode(group, [&](auto mode) {
+        with_mode(tune, group, [&](auto mode) {
             block_tasks<decltype(mode)><<<std::min(count, kMaxGrid), 32u << bin, group == kLaneMode ? tune.table_bytes : 0,
                                           stream>>>(batch, order, count);
         });
@@ -95,14 +96,21 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
 {
     const uint32_t threads = tune.subwarp_block_warps * 32;
     const uint64_t blocks  = (uint64_t{count} * group + threads - 1) / threads;
-    subwarp_tasks<<<static_cast<uint32_t>(std::min<uint64_t>(blocks, 1u << 20)), threads, 0, stream>>>(batch, order,
-                                                                                                       count, group);
+    const uint32_t grid = static_cast<uint32_t>(std::min<uint64_t>(blocks, 1u << 20));
+    if (tune.tiled)
+        subwarp_tasks<TileTx><<<grid, threads, 0, stream>>>(batch, order, count, group);
+    else if (batch.local_tail_items != 0)
+        subwarp_tasks<LaneTx, true><<<grid, threads, 0, stream>>>(batch, order, count, group);
+    else
+        subwarp_tasks<LaneTx><<<grid, threads, 0, stream>>>(batch, order, count, group);
     check_launch("launch sub-warp kernel");
 }
 
-const void* block_kernel(uint32_t group)
+const void* block_kernel(uint32_t group, bool tiled)
 {
     const void* kernel = nullptr;
+    if (tiled)
+        return reinterpret_cast<const void*>(block_tasks<TileTx>);
     with_mode(group, [&](auto mode) { kernel = reinterpret_cast<const void*>(block_tasks<decltype(mode)>); });
     return kernel;
 }
@@ -120,16 +128,21 @@ void prepare_staged_block_kernel(uint32_t dynamic_bytes, bool warp_mode)
                "raise staged block kernel shared memory");
 }
 
-const void* warp_kernel(uint32_t group)
+const void* warp_kernel(uint32_t group, bool tiled)
 {
     const void* kernel = nullptr;
+    if (tiled)
+        return reinterpret_cast<const void*>(warp_tasks<TileTx>);
     with_mode(group, [&](auto mode) { kernel = reinterpret_cast<const void*>(warp_tasks<decltype(mode)>); });
     return kernel;
 }
 
-const void* subwarp_kernel()
+const void* subwarp_kernel(bool tiled, bool local_tail)
 {
-    return reinterpret_cast<const void*>(subwarp_tasks);
+    if (local_tail)
+        return reinterpret_cast<const void*>(subwarp_tasks<LaneTx, true>);
+    return tiled ? reinterpret_cast<const void*>(subwarp_tasks<TileTx>)
+                 : reinterpret_cast<const void*>(subwarp_tasks<LaneTx>);
 }
 
 } // namespace ghuim::bfs

@@ -15,10 +15,38 @@ uint32_t grid(uint64_t n, uint32_t block = 256)
     return static_cast<uint32_t>(blocks == 0 ? 1 : std::min<uint64_t>(blocks, 65535));
 }
 
-__global__ void scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes)
+__global__ void scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, bool tiled)
 {
     for (uint32_t i = blockIdx.x * blockDim.x + threadIdx.x; i <= count; i += gridDim.x * blockDim.x)
-        sizes[i] = i < count ? scratch_bytes(tasks[i].n_items, tasks[i].n_trans) : 0;
+        sizes[i] = i < count ? scratch_bytes(tasks[i].n_items, tasks[i].n_trans, tiled) : 0;
+}
+
+// Prefix sums are monotonic. Find exactly the same maximal fitting chunks as the host's
+// linear walk, reading only O(chunks * log(max_tasks)) offsets on the device.
+__global__ void plan_chunks(const uint64_t* prefix, uint32_t begin, uint32_t count, uint32_t max_tasks,
+                            uint64_t scratch_capacity, ChunkPlan* plan)
+{
+    plan->count = 0;
+    plan->oversized = 0;
+    plan->cuts[0] = begin;
+    while (begin < count && plan->count < kChunkPlanPage) {
+        const uint64_t base = prefix[begin];
+        uint32_t low = begin, high = begin + min(count - begin, max_tasks);
+        while (low < high) {
+            const uint32_t mid = low + (high - low + 1) / 2;
+            if (prefix[mid] - base <= scratch_capacity)
+                low = mid;
+            else
+                high = mid - 1;
+        }
+        if (low == begin) {
+            plan->oversized = 1;
+            return;
+        }
+        plan->bases[plan->count] = base;
+        plan->cuts[++plan->count] = low;
+        begin = low;
+    }
 }
 
 __global__ void begin_chunk(Control* control)
@@ -74,9 +102,16 @@ __global__ void scatter_bins(Control* control, const Task* tasks, uint32_t begin
 
 } // namespace
 
-void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, cudaStream_t stream)
+void launch_plan_chunks(const uint64_t* prefix, uint32_t begin, uint32_t count, uint32_t max_tasks,
+                        uint64_t scratch_capacity, ChunkPlan* plan, cudaStream_t stream)
 {
-    scratch_sizes<<<grid(count + 1), 256, 0, stream>>>(tasks, count, sizes);
+    plan_chunks<<<1, 1, 0, stream>>>(prefix, begin, count, max_tasks, scratch_capacity, plan);
+    check_launch("launch chunk planning");
+}
+
+void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, bool tiled, cudaStream_t stream)
+{
+    scratch_sizes<<<grid(count + 1), 256, 0, stream>>>(tasks, count, sizes, tiled);
     check_launch("launch scratch sizes");
 }
 
