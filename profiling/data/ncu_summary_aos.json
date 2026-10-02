@@ -1,0 +1,4716 @@
+[
+ {
+  "report": "ncu_bfs_adaptive_block",
+  "idx": 0,
+  "kernel": "block_tasks",
+  "grid": "(58, 1, 1)",
+  "block": "(64, 1, 1)",
+  "duration_ms": 8.658304,
+  "sm_pct": 0.975655,
+  "mem_pct": 1.832912,
+  "l1_pct": 1.469947,
+  "l2_pct": 1.832912,
+  "dram_pct": 0.033073,
+  "dram_read_gb": 0.005383,
+  "dram_write_gb": 0.000455936,
+  "dram_gbps": 0.6743741037505728,
+  "l1_hit": 75.275187,
+  "l2_hit": 98.391252,
+  "ld_sectors_per_req": 10.22072806792416,
+  "st_sectors_per_req": 5.371547727323144,
+  "ld_sectors_g": 0.038549888,
+  "red_sectors_m": 7.512627,
+  "atom_sectors_m": 0.628557,
+  "l1_traffic_gb": 1.280088064,
+  "l2_excess_pct": null,
+  "warps_active_pct": 3.124999,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 8.045204,
+  "ipc": 0.160398,
+  "active_threads_per_warp": 18.88,
+  "waves": 0.02,
+  "regs": 40.0,
+  "instr_m": 41.168652,
+  "stall_cycles_per_issue": 12.435288,
+  "stall_share": {
+   "long_scoreboard": 57.08191076877351,
+   "wait": 26.13904881012808,
+   "branch_resolving": 5.962563955092958,
+   "no_instruction": 1.3425422877218443,
+   "selected": 8.041188913356892
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 15.240912742808659,
+    "inst_m": 0.905848,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 8.833091807389943,
+    "inst_m": 2.183655,
+    "l1_req_m": 2.509134,
+    "l2_excess_m": 2.164068
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 7.018268371614569,
+    "inst_m": 1.32432,
+    "l1_req_m": 1.870308,
+    "l2_excess_m": 1.598679
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 5.17190890592502,
+    "inst_m": 1.844024,
+    "l1_req_m": 1.410779,
+    "l2_excess_m": 0.958909
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 4.905354367364714,
+    "inst_m": 2.350219,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 4.235589160616004,
+    "inst_m": 1.287283,
+    "l1_req_m": 2.340738,
+    "l2_excess_m": 2.162846
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 3.375856916527132,
+    "inst_m": 1.477408,
+    "l1_req_m": 2.048641,
+    "l2_excess_m": 1.725223
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 71,
+    "text": "if (ea[i].item != eb[j].item)",
+    "stall_pct": 2.6092310464705926,
+    "inst_m": 1.960608,
+    "l1_req_m": 3.022627,
+    "l2_excess_m": 2.58133
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 25.400019522304234,
+    "inst_m": 10.78461
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 24.95476081423026,
+    "inst_m": 8.708516
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 12.65420743199105,
+    "inst_m": 3.62785
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 12.439462085432607,
+    "inst_m": 6.11204
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 8.338276480879404,
+    "inst_m": 5.114796
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 7.3020926408421625,
+    "inst_m": 4.089579
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 4.752930222779526,
+    "inst_m": 2.349862
+   },
+   {
+    "fn": "max",
+    "stall_pct": 1.4288824982542554,
+    "inst_m": 0.377569
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_block",
+  "idx": 1,
+  "kernel": "block_tasks",
+  "grid": "(88, 1, 1)",
+  "block": "(128, 1, 1)",
+  "duration_ms": 16.845504,
+  "sm_pct": 2.290621,
+  "mem_pct": 4.379687,
+  "l1_pct": 3.675194,
+  "l2_pct": 4.379687,
+  "dram_pct": 0.486465,
+  "dram_read_gb": 0.12689,
+  "dram_write_gb": 0.040203776,
+  "dram_gbps": 9.919191257204298,
+  "l1_hit": 77.842908,
+  "l2_hit": 93.881041,
+  "ld_sectors_per_req": 10.45402147247008,
+  "st_sectors_per_req": 5.858364956635947,
+  "ld_sectors_g": 0.198348446,
+  "red_sectors_m": 37.534625,
+  "atom_sectors_m": 2.564838,
+  "l1_traffic_gb": 6.532849568,
+  "l2_excess_pct": null,
+  "warps_active_pct": 6.249997,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 7.445246,
+  "ipc": 0.297365,
+  "active_threads_per_warp": 18.86,
+  "waves": 0.06,
+  "regs": 40.0,
+  "instr_m": 198.361177,
+  "stall_cycles_per_issue": 13.438308,
+  "stall_share": {
+   "long_scoreboard": 59.93885539756939,
+   "wait": 24.22723902443671,
+   "branch_resolving": 5.7209806472660105,
+   "no_instruction": 1.2450897836245456,
+   "selected": 7.4406614285072195
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 15.289273069811662,
+    "inst_m": 3.742906,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 12.10257397329787,
+    "inst_m": 12.879895,
+    "l1_req_m": 17.26982,
+    "l2_excess_m": 14.004568
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 6.692155593273723,
+    "inst_m": 10.945324,
+    "l1_req_m": 8.93411,
+    "l2_excess_m": 5.919413
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 5.854870601410348,
+    "inst_m": 7.741277,
+    "l1_req_m": 16.200269,
+    "l2_excess_m": 13.988695
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 5.474869784831464,
+    "inst_m": 4.88392,
+    "l1_req_m": 7.317918,
+    "l2_excess_m": 5.917121
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 4.40340163432431,
+    "inst_m": 9.455181,
+    "l1_req_m": 15.170533,
+    "l2_excess_m": 12.035803
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 4.2240459150641305,
+    "inst_m": 10.203594,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 71,
+    "text": "if (ea[i].item != eb[j].item)",
+    "stall_pct": 2.76907732418765,
+    "inst_m": 11.539892,
+    "l1_req_m": 16.884581,
+    "l2_excess_m": 13.881153
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 28.810069584186365,
+    "inst_m": 58.457382
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 23.313618785980506,
+    "inst_m": 36.458541
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 15.11895804534346,
+    "inst_m": 35.724323
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 10.33059779407047,
+    "inst_m": 28.345102
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 9.119436327261486,
+    "inst_m": 12.414153
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 5.5165736350009045,
+    "inst_m": 14.396187
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 3.897997631921235,
+    "inst_m": 10.255199
+   },
+   {
+    "fn": "max",
+    "stall_pct": 1.0487205958692773,
+    "inst_m": 1.399247
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_block",
+  "idx": 2,
+  "kernel": "block_tasks",
+  "grid": "(514, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 28.117664,
+  "sm_pct": 19.194272,
+  "mem_pct": 39.573545,
+  "l1_pct": 32.793782,
+  "l2_pct": 39.573545,
+  "dram_pct": 15.375786,
+  "dram_read_gb": 7.970301,
+  "dram_write_gb": 0.845095424,
+  "dram_gbps": 313.5180939639936,
+  "l1_hit": 74.22165,
+  "l2_hit": 76.982061,
+  "ld_sectors_per_req": 10.118986497272717,
+  "st_sectors_per_req": 5.344608928822625,
+  "ld_sectors_g": 2.482202374,
+  "red_sectors_m": 495.619609,
+  "atom_sectors_m": 25.743806,
+  "l1_traffic_gb": 81.468166528,
+  "l2_excess_pct": null,
+  "warps_active_pct": 41.529199,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 25.457936,
+  "ipc": 1.01535,
+  "active_threads_per_warp": 18.35,
+  "waves": 0.75,
+  "regs": 40.0,
+  "instr_m": 2510.115313,
+  "stall_cycles_per_issue": 26.276868,
+  "stall_share": {
+   "long_scoreboard": 75.62547028055246,
+   "barrier": 1.93656641270946,
+   "wait": 12.702487982966616,
+   "branch_resolving": 3.221898439342162,
+   "selected": 3.8049245442797823
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 16.197634826899,
+    "inst_m": 44.164322,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 9.621334846262155,
+    "inst_m": 168.187132,
+    "l1_req_m": 217.228207,
+    "l2_excess_m": 172.781179
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 9.22825490194516,
+    "inst_m": 65.09187,
+    "l1_req_m": 105.989283,
+    "l2_excess_m": 83.992674
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 6.868500296025135,
+    "inst_m": 101.593225,
+    "l1_req_m": 203.133367,
+    "l2_excess_m": 172.339199
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 34,
+    "text": "add(p.local[e[k + 1 + d].item], prefix + after);",
+    "stall_pct": 6.699012957374771,
+    "inst_m": 122.59196,
+    "l1_req_m": 206.803476,
+    "l2_excess_m": 172.392676
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 6.161705423515153,
+    "inst_m": 145.875238,
+    "l1_req_m": 118.447577,
+    "l2_excess_m": 77.96765
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 5.063344597959618,
+    "inst_m": 125.976157,
+    "l1_req_m": 193.229129,
+    "l2_excess_m": 150.449691
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 2.974196010872051,
+    "inst_m": 124.360676,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 22.16578841892298,
+    "inst_m": 753.134063
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.289745259016016,
+    "inst_m": 434.848348
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 14.680296837909705,
+    "inst_m": 363.887774
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 14.30602225885904,
+    "inst_m": 472.034713
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 13.519703002722794,
+    "inst_m": 150.889543
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 6.299159894211852,
+    "inst_m": 176.163473
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.8664635793462905,
+    "inst_m": 129.560167
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 1.1986029844752148,
+    "inst_m": 0.103628
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_huge",
+  "idx": 0,
+  "kernel": "huge_local",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 10.359072,
+  "sm_pct": 14.965047,
+  "mem_pct": 41.72038,
+  "l1_pct": 23.947116,
+  "l2_pct": 41.72038,
+  "dram_pct": 13.794969,
+  "dram_read_gb": 2.910727,
+  "dram_write_gb": 0.003115776,
+  "dram_gbps": 281.28415132166276,
+  "l1_hit": 52.457347,
+  "l2_hit": 77.312448,
+  "ld_sectors_per_req": 9.335258371200997,
+  "st_sectors_per_req": null,
+  "ld_sectors_g": 0.569150212,
+  "red_sectors_m": 171.75019,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 18.212806784,
+  "l2_excess_pct": null,
+  "warps_active_pct": 87.803324,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 23.420029,
+  "ipc": 0.944847,
+  "active_threads_per_warp": 23.83,
+  "waves": 1.16,
+  "regs": 31.0,
+  "instr_m": 844.236672,
+  "stall_cycles_per_issue": 59.848072,
+  "stall_share": {
+   "long_scoreboard": 89.93338331767814,
+   "wait": 4.81742001647104,
+   "branch_resolving": 1.407280087485525,
+   "selected": 1.6708976021817377
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 34,
+    "text": "add(p.local[e[k + 1 + d].item], prefix + after);",
+    "stall_pct": 35.071998120118124,
+    "inst_m": 199.622174,
+    "l1_req_m": 180.577914,
+    "l2_excess_m": 140.738279
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 27.920086944536706,
+    "inst_m": 204.594188,
+    "l1_req_m": 172.232796,
+    "l2_excess_m": 136.758786
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 24.10609583330509,
+    "inst_m": 12.502002,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 3.511447622017213,
+    "inst_m": 30.151272,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp",
+    "line": 226,
+    "text": "return __ullAtomicAdd(address, val);",
+    "stall_pct": 2.1250347394036346,
+    "inst_m": 93.868919,
+    "l1_req_m": 34.720881,
+    "l2_excess_m": 15.905703
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 27,
+    "text": "const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0;",
+    "stall_pct": 1.6753995313852155,
+    "inst_m": 10.141974,
+    "l1_req_m": 10.279376,
+    "l2_excess_m": 8.499882
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 33,
+    "text": "if (d < rest)",
+    "stall_pct": 1.1159539157803882,
+    "inst_m": 70.24426,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/cuda/atomics.cuh",
+    "line": 42,
+    "text": "atomicAdd(reinterpret_cast<unsigned long long*>(&target), static_cast<unsigned long long>(value));",
+    "stall_pct": 0.6071205044952224,
+    "inst_m": 23.668265,
+    "l1_req_m": 8.353598,
+    "l2_excess_m": 3.979493
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_local",
+    "stall_pct": 67.87819630756856,
+    "inst_m": 651.930701
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 28.709321005646423,
+    "inst_m": 119.61829
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.4320971754322938,
+    "inst_m": 101.190103
+   },
+   {
+    "fn": "add",
+    "stall_pct": 0.6071205044952224,
+    "inst_m": 23.668265
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.2984764370815738,
+    "inst_m": 6.075578
+   },
+   {
+    "fn": "place_task",
+    "stall_pct": 0.021690944708426255,
+    "inst_m": 0.7208
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.015816313849894143,
+    "inst_m": 0.14416
+   },
+   {
+    "fn": "sum",
+    "stall_pct": 0.013104945761340862,
+    "inst_m": 0.09328
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_huge",
+  "idx": 1,
+  "kernel": "huge_subtree",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 14.174944,
+  "sm_pct": 37.644629,
+  "mem_pct": 37.555264,
+  "l1_pct": 37.555264,
+  "l2_pct": 32.851496,
+  "dram_pct": 8.890185,
+  "dram_read_gb": 2.244464,
+  "dram_write_gb": 0.32507904,
+  "dram_gbps": 181.2735937440035,
+  "l1_hit": 76.469486,
+  "l2_hit": 84.698154,
+  "ld_sectors_per_req": 5.002048638026091,
+  "st_sectors_per_req": 3.4839785287796183,
+  "ld_sectors_g": 1.441076502,
+  "red_sectors_m": 154.630203,
+  "atom_sectors_m": 15.567399,
+  "l1_traffic_gb": 46.411723744,
+  "l2_excess_pct": null,
+  "warps_active_pct": 60.572862,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 49.398347,
+  "ipc": 1.984157,
+  "active_threads_per_warp": 10.87,
+  "waves": 1.55,
+  "regs": 36.0,
+  "instr_m": 2690.386653,
+  "stall_cycles_per_issue": 19.488068000000002,
+  "stall_share": {
+   "long_scoreboard": 63.28440048546628,
+   "wait": 18.15996331704097,
+   "branch_resolving": 4.33780300848704,
+   "math_pipe_throttle": 2.281955296954013,
+   "no_instruction": 1.2169703020330183,
+   "not_selected": 4.484477373539542,
+   "selected": 5.130862638615588
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 18.56563640653001,
+    "inst_m": 327.264352,
+    "l1_req_m": 202.23727,
+    "l2_excess_m": 149.995577
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 14.75963771651801,
+    "inst_m": 38.698472,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 12.031521769392292,
+    "inst_m": 226.263227,
+    "l1_req_m": 104.255221,
+    "l2_excess_m": 58.994847
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 9.058259298497031,
+    "inst_m": 192.07427,
+    "l1_req_m": 128.100319,
+    "l2_excess_m": 82.276211
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 94,
+    "text": "const uint32_t z     = p.rename[entry.item];",
+    "stall_pct": 6.208522541611168,
+    "inst_m": 125.699535,
+    "l1_req_m": 202.23727,
+    "l2_excess_m": 149.995577
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 71,
+    "text": "if (ea[i].item != eb[j].item)",
+    "stall_pct": 5.458136798500694,
+    "inst_m": 240.552372,
+    "l1_req_m": 167.249889,
+    "l2_excess_m": 123.15664
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 84,
+    "text": "kept_sum += e[k + 1 + d].utility;",
+    "stall_pct": 4.870107509865206,
+    "inst_m": 134.094251,
+    "l1_req_m": 154.026548,
+    "l2_excess_m": 122.837346
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 99,
+    "text": "hash ^= mix(z * 0x9e3779b9u + index++);",
+    "stall_pct": 2.9772188104898683,
+    "inst_m": 176.532611,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 47.44662238496942,
+    "inst_m": 1402.375553
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 28.04414688863197,
+    "inst_m": 723.935713
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 20.542194361776485,
+    "inst_m": 400.441795
+   },
+   {
+    "fn": "mix",
+    "stall_pct": 2.106824099676313,
+    "inst_m": 149.404458
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 0.8262888508884914,
+    "inst_m": 43.231921
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.3672069268179747,
+    "inst_m": 7.761346
+   },
+   {
+    "fn": "Lanes",
+    "stall_pct": 0.27665070943030173,
+    "inst_m": 6.378304
+   },
+   {
+    "fn": "huge_subtree",
+    "stall_pct": 0.1301196133337436,
+    "inst_m": 15.242022
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_huge",
+  "idx": 2,
+  "kernel": "huge_write",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 6.417472,
+  "sm_pct": 22.409465,
+  "mem_pct": 41.956085,
+  "l1_pct": 32.757458,
+  "l2_pct": 41.956085,
+  "dram_pct": 8.21659,
+  "dram_read_gb": 0.57131,
+  "dram_write_gb": 0.503864064,
+  "dram_gbps": 167.53856721151257,
+  "l1_hit": 87.161241,
+  "l2_hit": 90.004375,
+  "ld_sectors_per_req": 3.2141689498662966,
+  "st_sectors_per_req": 3.947343312400617,
+  "ld_sectors_g": 0.239057843,
+  "red_sectors_m": 0.0,
+  "atom_sectors_m": 4.603042,
+  "l1_traffic_gb": 11.207110496,
+  "l2_excess_pct": null,
+  "warps_active_pct": 60.846682,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 40.291639,
+  "ipc": 1.578517,
+  "active_threads_per_warp": 18.04,
+  "waves": 1.16,
+  "regs": 32.0,
+  "instr_m": 629.205026,
+  "stall_cycles_per_issue": 25.205169,
+  "stall_share": {
+   "long_scoreboard": 74.56528857235593,
+   "wait": 13.36082690022828,
+   "branch_resolving": 3.1571341576801175,
+   "not_selected": 2.4145801204506903,
+   "selected": 3.9674401707046676
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 90,
+    "text": "kept += d < rest && p.rename[e[k + 1 + d].item] != kNone;",
+    "stall_pct": 39.92588248628777,
+    "inst_m": 174.252694,
+    "l1_req_m": 74.674548,
+    "l2_excess_m": 51.135795
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 102,
+    "text": "const uint32_t z = p.rename[e[k + 1 + d].item];",
+    "stall_pct": 14.274520626253567,
+    "inst_m": 111.321392,
+    "l1_req_m": 74.674548,
+    "l2_excess_m": 51.135795
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 104,
+    "text": "*out++ = Entry{z, e[k + 1 + d].utility};",
+    "stall_pct": 11.748907210195101,
+    "inst_m": 129.191075,
+    "l1_req_m": 158.450593,
+    "l2_excess_m": 116.13062
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 9.812192922368803,
+    "inst_m": 5.34883,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 103,
+    "text": "if (z != kNone)",
+    "stall_pct": 6.441915819456833,
+    "inst_m": 27.830348,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 82,
+    "text": "const bool     write = i < p.n_trans && p.rep[i] == i;",
+    "stall_pct": 4.402205784517127,
+    "inst_m": 9.440328,
+    "l1_req_m": 1.573369,
+    "l2_excess_m": 0.786694
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 83,
+    "text": "const Tx       tx    = write ? p.txs[i] : Tx{0, 0, 0};",
+    "stall_pct": 2.6281163605541074,
+    "inst_m": 6.667004,
+    "l1_req_m": 3.977499,
+    "l2_excess_m": 4.407922
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 97,
+    "text": "out                  = c.entries + begin;",
+    "stall_pct": 1.8760995658408937,
+    "inst_m": 1.863406,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "write_representatives",
+    "stall_pct": 86.05713553550396,
+    "inst_m": 582.7233
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 11.4547040473879,
+    "inst_m": 40.637216
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 1.5700691402072728,
+    "inst_m": 28.412149
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.46323446070145524,
+    "inst_m": 2.607896
+   },
+   {
+    "fn": "fetch_add",
+    "stall_pct": 0.21338353349332992,
+    "inst_m": 4.845204
+   },
+   {
+    "fn": "huge_write",
+    "stall_pct": 0.0891972738159185,
+    "inst_m": 0.37323
+   },
+   {
+    "fn": "place_task",
+    "stall_pct": 0.07441319528289335,
+    "inst_m": 0.7208
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.043859432981308,
+    "inst_m": 0.21696
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_huge",
+  "idx": 3,
+  "kernel": "huge_merge",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 8.998304,
+  "sm_pct": 8.724662,
+  "mem_pct": 26.297603,
+  "l1_pct": 14.225372,
+  "l2_pct": 26.297603,
+  "dram_pct": 9.154198,
+  "dram_read_gb": 1.388738,
+  "dram_write_gb": 0.2908544,
+  "dram_gbps": 186.65655216805305,
+  "l1_hit": 56.650531,
+  "l2_hit": 78.542229,
+  "ld_sectors_per_req": 5.546644009579745,
+  "st_sectors_per_req": null,
+  "ld_sectors_g": 0.252593253,
+  "red_sectors_m": 139.855821,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 8.082984096,
+  "l2_excess_pct": null,
+  "warps_active_pct": 70.138748,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 18.231963,
+  "ipc": 0.708452,
+  "active_threads_per_warp": 14.33,
+  "waves": 1.16,
+  "regs": 32.0,
+  "instr_m": 385.963204,
+  "stall_cycles_per_issue": 65.41927,
+  "stall_share": {
+   "long_scoreboard": 90.4287803884085,
+   "wait": 5.338061705671739,
+   "branch_resolving": 1.5493034391854268,
+   "selected": 1.5286015878807575
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 46.5267064636573,
+    "inst_m": 129.01924,
+    "l1_req_m": 102.898417,
+    "l2_excess_m": 72.527158
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 17.290078327035868,
+    "inst_m": 6.1302,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp",
+    "line": 112,
+    "text": "return __uAtomicAdd(address, val);",
+    "stall_pct": 10.22387670385524,
+    "inst_m": 72.089677,
+    "l1_req_m": 66.623439,
+    "l2_excess_m": 48.7887
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 126,
+    "text": "out = c.entries + c.txs[dst].begin;",
+    "stall_pct": 5.151250922261721,
+    "inst_m": 2.586977,
+    "l1_req_m": 3.333004,
+    "l2_excess_m": 2.636063
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 116,
+    "text": "const bool     merge = r != kNone && r != i;",
+    "stall_pct": 4.449214121224316,
+    "inst_m": 1.573388,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 125,
+    "text": "add(c.txs[dst].utility, tx.utility + e[k].utility);",
+    "stall_pct": 3.9603222512874403,
+    "inst_m": 5.463216,
+    "l1_req_m": 10.324819,
+    "l2_excess_m": 8.394644
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 113,
+    "text": "for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {",
+    "stall_pct": 3.3123169450220225,
+    "inst_m": 3.164536,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 132,
+    "text": "add((out++)->utility, e[k + 1 + d].utility);",
+    "stall_pct": 2.559602328198478,
+    "inst_m": 44.367616,
+    "l1_req_m": 102.522645,
+    "l2_excess_m": 80.035313
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 68.63117729037643,
+    "inst_m": 277.02127
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 18.453804935124943,
+    "inst_m": 46.613504
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 10.55738144744785,
+    "inst_m": 75.856504
+   },
+   {
+    "fn": "add",
+    "stall_pct": 1.868371826115471,
+    "inst_m": 8.839909
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.3148731936712351,
+    "inst_m": 2.980133
+   },
+   {
+    "fn": "huge_merge",
+    "stall_pct": 0.06297463873424702,
+    "inst_m": 0.27696
+   },
+   {
+    "fn": "place_task",
+    "stall_pct": 0.0532862327751321,
+    "inst_m": 0.7208
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.03055574187105477,
+    "inst_m": 0.19584
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_sub",
+  "idx": 0,
+  "kernel": "subwarp_tasks",
+  "grid": "(8, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.03136,
+  "sm_pct": 1.369634,
+  "mem_pct": 8.091364,
+  "l1_pct": 4.875028,
+  "l2_pct": 8.469545,
+  "dram_pct": 2.762774,
+  "dram_read_gb": 0.001755648,
+  "dram_write_gb": 9.472e-06,
+  "dram_gbps": 56.285714285714285,
+  "l1_hit": 60.063305,
+  "l2_hit": 76.542691,
+  "ld_sectors_per_req": 29.05328341013825,
+  "st_sectors_per_req": 31.08951612903226,
+  "ld_sectors_g": 0.000100873,
+  "red_sectors_m": 0.012135,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 0.0056952,
+  "l2_excess_pct": null,
+  "warps_active_pct": 46.790648,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 8.189712,
+  "ipc": 0.312163,
+  "active_threads_per_warp": 31.91,
+  "waves": 0.07,
+  "regs": 63.0,
+  "instr_m": 0.075136,
+  "stall_cycles_per_issue": 92.271978,
+  "stall_share": {
+   "long_scoreboard": 47.89302013228761,
+   "short_scoreboard": 10.572535900335852,
+   "wait": 2.8163566624744942,
+   "mio_throttle": 2.309547325407937,
+   "lg_throttle": 30.860938084582948,
+   "selected": 1.0835976660216387,
+   "imc_miss": 2.274002406234317
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 138,
+    "text": "*v.state = TaskState{};",
+    "stall_pct": 18.65671641791045,
+    "inst_m": 0.001736,
+    "l1_req_m": 0.044474,
+    "l2_excess_m": 0.035598
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 144,
+    "text": "v.p.table[i] = kNone;",
+    "stall_pct": 7.462686567164179,
+    "inst_m": 0.002728,
+    "l1_req_m": 0.014914,
+    "l2_excess_m": 0.013844
+   },
+   {
+    "file": "src/mine/bfs/small_kernels.cu",
+    "line": 37,
+    "text": "const uint32_t first  = (blockIdx.x * blockDim.x + threadIdx.x) / group;",
+    "stall_pct": 7.462686567164179,
+    "inst_m": 0.012368,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 139,
+    "text": "for (uint32_t i = first + rank; i < n; i += stride)",
+    "stall_pct": 5.970149253731344,
+    "inst_m": 0.001488,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/layout.cuh",
+    "line": 49,
+    "text": "return (value + alignment - 1) / alignment * alignment;",
+    "stall_pct": 5.970149253731344,
+    "inst_m": 0.003472,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/layout.cuh",
+    "line": 61,
+    "text": "l.entries = align_up(l.tx + n_trans * sizeof(Tx), 8);",
+    "stall_pct": 5.970149253731344,
+    "inst_m": 0.001488,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 5.223880597014926,
+    "inst_m": 0.00124,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 22,
+    "text": "const Tx       tx     = i < p.n_trans ? p.txs[i] : Tx{0, 0, 0};",
+    "stall_pct": 4.477611940298507,
+    "inst_m": 0.002728,
+    "l1_req_m": 0.022902,
+    "l2_excess_m": 0.020766
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "clear_task",
+    "stall_pct": 32.83582089552239,
+    "inst_m": 0.010912
+   },
+   {
+    "fn": "finish_task",
+    "stall_pct": 11.194029850746269,
+    "inst_m": 0.007688
+   },
+   {
+    "fn": "subwarp_tasks",
+    "stall_pct": 8.955223880597014,
+    "inst_m": 0.019584
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 8.208955223880597,
+    "inst_m": 0.004464
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 8.208955223880597,
+    "inst_m": 0.005456
+   },
+   {
+    "fn": "process_task",
+    "stall_pct": 7.462686567164179,
+    "inst_m": 0.013144
+   },
+   {
+    "fn": "align_up",
+    "stall_pct": 5.970149253731344,
+    "inst_m": 0.003472
+   },
+   {
+    "fn": "of",
+    "stall_pct": 5.970149253731344,
+    "inst_m": 0.002232
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_sub",
+  "idx": 1,
+  "kernel": "subwarp_tasks",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.030144,
+  "sm_pct": 0.051794,
+  "mem_pct": 1.676978,
+  "l1_pct": 0.055641,
+  "l2_pct": 1.77939,
+  "dram_pct": 0.100914,
+  "dram_read_gb": 6.1952e-05,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 2.0552016985138004,
+  "l1_hit": 65.39431,
+  "l2_hit": 95.035604,
+  "ld_sectors_per_req": 8.952380952380953,
+  "st_sectors_per_req": 9.083333333333334,
+  "ld_sectors_g": 1.504e-06,
+  "red_sectors_m": 0.000222,
+  "atom_sectors_m": 0.000248,
+  "l1_traffic_gb": 7.952e-05,
+  "l2_excess_pct": null,
+  "warps_active_pct": 5.979669,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 7.000304,
+  "ipc": 0.188525,
+  "active_threads_per_warp": 16.89,
+  "waves": 0.01,
+  "regs": 63.0,
+  "instr_m": 0.005566,
+  "stall_cycles_per_issue": 19.513274,
+  "stall_share": {
+   "long_scoreboard": 30.856790100933342,
+   "short_scoreboard": 10.787426036245892,
+   "wait": 14.585389412355918,
+   "branch_resolving": 10.818548440410359,
+   "mio_throttle": 1.6824495981555943,
+   "no_instruction": 5.2705507030752505,
+   "not_selected": 1.6708882374121328,
+   "selected": 5.13360802497828,
+   "imc_miss": 18.14148153713211
+  },
+  "hot_lines": [
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_80_rt.hpp",
+    "line": 111,
+    "text": "return __reduce_max_sync_unsigned_impl(mask, value);",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.000512,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/sm_30_intrinsics.hpp",
+    "line": 134,
+    "text": "return __nvvm_vote_ballot_sync(mask, pred);",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.000258,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 41,
+    "text": "state.child_primaries = primaries;",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 2.4e-05,
+    "l1_req_m": 2.5e-05,
+    "l2_excess_m": 2e-05
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 82,
+    "text": "const bool     write = i < p.n_trans && p.rep[i] == i;",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 3.9e-05,
+    "l1_req_m": 2.5e-05,
+    "l2_excess_m": 1.7e-05
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 95,
+    "text": "p.slot_of[i]         = slot;",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 1.5e-05,
+    "l1_req_m": 2.5e-05,
+    "l2_excess_m": 2e-05
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 144,
+    "text": "for (uint32_t z0 = 0; z0 < child_items; z0 += g.size()) {",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 2.7e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 148,
+    "text": "const uint32_t slot = state.reserved + emitted + scan - 1;",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 1.8e-05,
+    "l1_req_m": 2.5e-05,
+    "l2_excess_m": 1.7e-05
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 20,
+    "text": "for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 3.3e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "(library)",
+    "stall_pct": 28.571428571428573,
+    "inst_m": 0.001235
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.000441
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.000168
+   },
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.000666
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 0.000222
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 0.00036
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 0.000162
+   },
+   {
+    "fn": "clear_task",
+    "stall_pct": 7.142857142857143,
+    "inst_m": 0.000198
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_sub",
+  "idx": 2,
+  "kernel": "subwarp_tasks",
+  "grid": "(80, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.08768000000000001,
+  "sm_pct": 11.808819,
+  "mem_pct": 16.388174,
+  "l1_pct": 11.045114,
+  "l2_pct": 16.388174,
+  "dram_pct": 3.112675,
+  "dram_read_gb": 0.005046528,
+  "dram_write_gb": 0.0005137920000000001,
+  "dram_gbps": 63.41605839416058,
+  "l1_hit": 70.76674,
+  "l2_hit": 85.995331,
+  "ld_sectors_per_req": 4.650288459852351,
+  "st_sectors_per_req": 4.604462681865779,
+  "ld_sectors_g": 0.001060768,
+  "red_sectors_m": 0.146436,
+  "atom_sectors_m": 0.129659,
+  "l1_traffic_gb": 0.051251904,
+  "l2_excess_pct": null,
+  "warps_active_pct": 39.422331,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 20.832071,
+  "ipc": 0.804522,
+  "active_threads_per_warp": 12.69,
+  "waves": 0.7,
+  "regs": 63.0,
+  "instr_m": 5.185558,
+  "stall_cycles_per_issue": 32.003272,
+  "stall_share": {
+   "long_scoreboard": 68.66848177273874,
+   "short_scoreboard": 5.994662045805815,
+   "wait": 9.475087422311068,
+   "branch_resolving": 6.3333836615206085,
+   "lg_throttle": 1.6014143803796062,
+   "no_instruction": 1.2358580085186288,
+   "not_selected": 1.321258651302904,
+   "selected": 3.124824236721795
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 36,
+    "text": "if (uint64_t{state.reserved} + primaries > b.next_capacity)",
+    "stall_pct": 12.3888729566963,
+    "inst_m": 0.024717,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 27,
+    "text": "if (at + child.bytes > b.dst_capacity) {",
+    "stall_pct": 9.320332664181244,
+    "inst_m": 0.021186,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 152,
+    "text": "b.nodes[v.index]        = Node{v.task.parent, globals[v.task.item], utility};",
+    "stall_pct": 3.64209922569544,
+    "inst_m": 0.031893,
+    "l1_req_m": 0.060987,
+    "l2_excess_m": 0.040422
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/crt/sm_80_rt.hpp",
+    "line": 111,
+    "text": "return __reduce_max_sync_unsigned_impl(mask, value);",
+    "stall_pct": 3.4126756524232866,
+    "inst_m": 0.268023,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 2.781760825924864,
+    "inst_m": 0.122303,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 32,
+    "text": "*reinterpret_cast<DbHeader*>(b.dst + at) =",
+    "stall_pct": 2.7530828792658446,
+    "inst_m": 0.021186,
+    "l1_req_m": 0.02642,
+    "l2_excess_m": 0.023109
+   },
+   {
+    "file": "include/mine/bfs/layout.cuh",
+    "line": 49,
+    "text": "return (value + alignment - 1) / alignment * alignment;",
+    "stall_pct": 2.7244049326068254,
+    "inst_m": 0.138127,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/layout.cuh",
+    "line": 61,
+    "text": "l.entries = align_up(l.tx + n_trans * sizeof(Tx), 8);",
+    "stall_pct": 2.581015199311729,
+    "inst_m": 0.036498,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "allocate_child",
+    "stall_pct": 27.07198164611414,
+    "inst_m": 0.261976
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 8.43131631775165,
+    "inst_m": 1.00824
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 8.316604531115573,
+    "inst_m": 0.602552
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 7.370232291367938,
+    "inst_m": 0.216903
+   },
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 5.678233438485805,
+    "inst_m": 0.823023
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 5.13335245196444,
+    "inst_m": 0.391735
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 4.73186119873817,
+    "inst_m": 0.267601
+   },
+   {
+    "fn": "finish_task",
+    "stall_pct": 4.043590478921709,
+    "inst_m": 0.154666
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_warp",
+  "idx": 0,
+  "kernel": "warp_tasks",
+  "grid": "(4, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 6.950432,
+  "sm_pct": 0.373964,
+  "mem_pct": 0.506305,
+  "l1_pct": 0.445329,
+  "l2_pct": 0.506305,
+  "dram_pct": 0.009903,
+  "dram_read_gb": 0.0013888,
+  "dram_write_gb": 1.4592e-05,
+  "dram_gbps": 0.20191435582709102,
+  "l1_hit": 81.380958,
+  "l2_hit": 97.795707,
+  "ld_sectors_per_req": 8.247842214289914,
+  "st_sectors_per_req": 5.138243139180608,
+  "ld_sectors_g": 0.009679181,
+  "red_sectors_m": 1.986093,
+  "atom_sectors_m": 0.212508,
+  "l1_traffic_gb": 0.324466656,
+  "l2_excess_pct": null,
+  "warps_active_pct": 20.001994,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 27.6027,
+  "ipc": 0.996115,
+  "active_threads_per_warp": 15.46,
+  "waves": 0.04,
+  "regs": 60.0,
+  "instr_m": 13.357306,
+  "stall_cycles_per_issue": 12.762715,
+  "stall_share": {
+   "long_scoreboard": 51.7581172971425,
+   "wait": 26.33273562874357,
+   "branch_resolving": 6.852013854418907,
+   "math_pipe_throttle": 1.238654941366316,
+   "no_instruction": 2.3656408530630046,
+   "not_selected": 2.2816070091669367,
+   "selected": 7.83531560486934
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 11.50103214391035,
+    "inst_m": 0.265716,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 9.96756119138897,
+    "inst_m": 0.33154,
+    "l1_req_m": 0.414886,
+    "l2_excess_m": 0.379225
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 6.605721026245945,
+    "inst_m": 0.965456,
+    "l1_req_m": 0.595205,
+    "l2_excess_m": 0.499641
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 4.01061633736361,
+    "inst_m": 0.470505,
+    "l1_req_m": 0.321448,
+    "l2_excess_m": 0.215107
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp",
+    "line": 112,
+    "text": "return __uAtomicAdd(address, val);",
+    "stall_pct": 3.435564730168092,
+    "inst_m": 0.193446,
+    "l1_req_m": 0.261426,
+    "l2_excess_m": 0.235894
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 3.2438808611029195,
+    "inst_m": 0.802386,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 95,
+    "text": "if (z == kNone)",
+    "stall_pct": 3.2291359480979063,
+    "inst_m": 0.127992,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 2.7867885579475082,
+    "inst_m": 0.373811,
+    "l1_req_m": 0.424352,
+    "l2_excess_m": 0.379001
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 25.847832497788264,
+    "inst_m": 4.709447
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 20.141551164848128,
+    "inst_m": 0.973818
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 19.1094072544972,
+    "inst_m": 2.668058
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 12.208787968150988,
+    "inst_m": 1.270767
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 9.628428192273665,
+    "inst_m": 1.585129
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 5.249189029784724,
+    "inst_m": 0.659654
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 4.659392509584193,
+    "inst_m": 1.337167
+   },
+   {
+    "fn": "mix",
+    "stall_pct": 1.0616337363609554,
+    "inst_m": 0.447972
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_warp",
+  "idx": 1,
+  "kernel": "subwarp_tasks",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.018944,
+  "sm_pct": 0.024644,
+  "mem_pct": 2.580393,
+  "l1_pct": 0.037334,
+  "l2_pct": 2.943016,
+  "dram_pct": 0.13428,
+  "dram_read_gb": 5.1712e-05,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 2.72972972972973,
+  "l1_hit": 64.423077,
+  "l2_hit": 94.254611,
+  "ld_sectors_per_req": 1.1132075471698113,
+  "st_sectors_per_req": 1.0,
+  "ld_sectors_g": 5.9e-08,
+  "red_sectors_m": 1e-05,
+  "atom_sectors_m": 1.2e-05,
+  "l1_traffic_gb": 2.976e-06,
+  "l2_excess_pct": null,
+  "warps_active_pct": 4.037279,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 11.21983,
+  "ipc": 0.125064,
+  "active_threads_per_warp": 15.72,
+  "waves": 0.01,
+  "regs": 63.0,
+  "instr_m": 0.002202,
+  "stall_cycles_per_issue": 18.855897,
+  "stall_share": {
+   "long_scoreboard": 18.654333973080146,
+   "short_scoreboard": 5.468559782650488,
+   "wait": 15.324304115577213,
+   "branch_resolving": 2.3807936583446545,
+   "mio_throttle": 6.120472550311449,
+   "math_pipe_throttle": 2.0129936008878286,
+   "no_instruction": 9.188414637606474,
+   "not_selected": 3.801341299223262,
+   "selected": 5.287963760090544,
+   "imc_miss": 30.811586423069667
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 36,
+    "text": "if (uint64_t{state.reserved} + primaries > b.next_capacity)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 7e-06,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 82,
+    "text": "const bool     write = i < p.n_trans && p.rep[i] == i;",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1.3e-05,
+    "l1_req_m": 1e-06,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 104,
+    "text": "*out++ = Entry{z, e[k + 1 + d].utility};",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1e-05,
+    "l1_req_m": 3e-06,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 150,
+    "text": "b.next[slot] = Task{static_cast<uint32_t>(state.child_db / kArenaUnit),",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1.5e-05,
+    "l1_req_m": 7e-06,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/groups.cuh",
+    "line": 138,
+    "text": "value += __shfl_xor_sync(mask, value, offset, count);",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1.4e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 91,
+    "text": "if (d >= rest)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1.5e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 124,
+    "text": "for (uint32_t offset = lanes.count >> 1; offset > 0; offset >>= 1)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 2e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 143,
+    "text": "for (uint32_t i = rank; i < v.p.table_size; i += stride)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 1.6e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "write_representatives",
+    "stall_pct": 22.22222222222222,
+    "inst_m": 0.000148
+   },
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 22.22222222222222,
+    "inst_m": 0.000244
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 7.5e-05
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 6e-05
+   },
+   {
+    "fn": "sum",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 7.6e-05
+   },
+   {
+    "fn": "clear_task",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 6.7e-05
+   },
+   {
+    "fn": "subwarp_tasks",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.001016
+   },
+   {
+    "fn": "fetch_add",
+    "stall_pct": 0.0,
+    "inst_m": 4e-06
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_adaptive_warp",
+  "idx": 2,
+  "kernel": "subwarp_tasks",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.034656,
+  "sm_pct": 0.020787,
+  "mem_pct": 1.408484,
+  "l1_pct": 0.020821,
+  "l2_pct": 1.582228,
+  "dram_pct": 0.074733,
+  "dram_read_gb": 5.2736e-05,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 1.5216989843028623,
+  "l1_hit": 71.565495,
+  "l2_hit": 95.472314,
+  "ld_sectors_per_req": 1.4830508474576272,
+  "st_sectors_per_req": 1.6166666666666667,
+  "ld_sectors_g": 1.75e-07,
+  "red_sectors_m": 4.6e-05,
+  "atom_sectors_m": 3.6e-05,
+  "l1_traffic_gb": 8.704e-06,
+  "l2_excess_pct": null,
+  "warps_active_pct": 3.148089,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 9.660734,
+  "ipc": 0.09943,
+  "active_threads_per_warp": 14.75,
+  "waves": 0.01,
+  "regs": 63.0,
+  "instr_m": 0.003472,
+  "stall_cycles_per_issue": 18.632346000000002,
+  "stall_share": {
+   "long_scoreboard": 23.694718850755564,
+   "short_scoreboard": 6.062569898605361,
+   "wait": 16.193870594717374,
+   "branch_resolving": 4.499036245891956,
+   "mio_throttle": 2.791081702754983,
+   "math_pipe_throttle": 1.1494419435963672,
+   "no_instruction": 7.499372328100819,
+   "not_selected": 2.7350823133061177,
+   "selected": 5.423010070766183,
+   "imc_miss": 29.332881645714394
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 152,
+    "text": "b.nodes[v.index]        = Node{v.task.parent, globals[v.task.item], utility};",
+    "stall_pct": 11.764705882352942,
+    "inst_m": 1.5e-05,
+    "l1_req_m": 9e-06,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 21,
+    "text": "primaries += g.count(z < child_items && v.p.subtree[z] >= b.minimum_utility);",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 3e-05,
+    "l1_req_m": 3e-06,
+    "l2_excess_m": 1e-06
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 36,
+    "text": "if (uint64_t{state.reserved} + primaries > b.next_capacity)",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 1.4e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 95,
+    "text": "p.slot_of[i]         = slot;",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 1e-05,
+    "l1_req_m": 2e-06,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 120,
+    "text": "const uint32_t rest  = k >= 0 ? tx.length - k - 1 : 0;",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 1.4e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 146,
+    "text": "const bool     emit = z < child_items && v.p.subtree[z] >= b.minimum_utility;",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 2.6e-05,
+    "l1_req_m": 3e-06,
+    "l2_excess_m": 1e-06
+   },
+   {
+    "file": "include/mine/bfs/device/groups.cuh",
+    "line": 73,
+    "text": "for (uint32_t offset = 1; offset < n; offset <<= 1) {",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 3e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/groups.cuh",
+    "line": 133,
+    "text": "return count == 1 ? value : __reduce_max_sync(mask, value);",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 2.6e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 17.647058823529413,
+    "inst_m": 0.000433
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 11.764705882352942,
+    "inst_m": 0.00015
+   },
+   {
+    "fn": "finish_task",
+    "stall_pct": 11.764705882352942,
+    "inst_m": 7.5e-05
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 0.000341
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 0.000159
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 0.000134
+   },
+   {
+    "fn": "scan",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 6.6e-05
+   },
+   {
+    "fn": "max",
+    "stall_pct": 5.882352941176471,
+    "inst_m": 2.6e-05
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_static_block",
+  "idx": 0,
+  "kernel": "block_tasks",
+  "grid": "(106, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 106.484384,
+  "sm_pct": 8.118496,
+  "mem_pct": 11.138333,
+  "l1_pct": 8.611663,
+  "l2_pct": 11.138333,
+  "dram_pct": 3.081951,
+  "dram_read_gb": 5.366515,
+  "dram_write_gb": 1.325198,
+  "dram_gbps": 62.84220041128284,
+  "l1_hit": 73.97679,
+  "l2_hit": 86.33503,
+  "ld_sectors_per_req": 5.334798400671441,
+  "st_sectors_per_req": 3.9798366558111846,
+  "ld_sectors_g": 2.501724598,
+  "red_sectors_m": 477.34753,
+  "atom_sectors_m": 19.944034,
+  "l1_traffic_gb": 84.269185664,
+  "l2_excess_pct": null,
+  "warps_active_pct": 12.499998,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 14.577326,
+  "ipc": 0.581824,
+  "active_threads_per_warp": 14.49,
+  "waves": 0.15,
+  "regs": 40.0,
+  "instr_m": 4609.300802,
+  "stall_cycles_per_issue": 13.670734,
+  "stall_share": {
+   "long_scoreboard": 59.850692727983734,
+   "barrier": 1.5303713758163975,
+   "wait": 23.496053686656474,
+   "branch_resolving": 5.730072723234905,
+   "selected": 7.315320450240638
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 15.158495329016066,
+    "inst_m": 62.748688,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 14.384686418873043,
+    "inst_m": 334.167834,
+    "l1_req_m": 202.23727,
+    "l2_excess_m": 149.995577
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 8.857976461716783,
+    "inst_m": 227.072154,
+    "l1_req_m": 104.43064,
+    "l2_excess_m": 58.993406
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 6.494221470767137,
+    "inst_m": 204.594188,
+    "l1_req_m": 172.232796,
+    "l2_excess_m": 136.758786
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 4.302165457252728,
+    "inst_m": 192.27956,
+    "l1_req_m": 128.127886,
+    "l2_excess_m": 82.254087
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 34,
+    "text": "add(p.local[e[k + 1 + d].item], prefix + after);",
+    "stall_pct": 3.497604491449662,
+    "inst_m": 249.901988,
+    "l1_req_m": 180.577914,
+    "l2_excess_m": 140.738279
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 44,
+    "text": "while (low <= high) {",
+    "stall_pct": 3.214031656354615,
+    "inst_m": 176.826635,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 71,
+    "text": "if (ea[i].item != eb[j].item)",
+    "stall_pct": 2.8526950023491153,
+    "inst_m": 241.100054,
+    "l1_req_m": 167.252449,
+    "l2_excess_m": 123.118778
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 32.464951051505274,
+    "inst_m": 1399.752104
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.317654890651994,
+    "inst_m": 618.363615
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 17.125949403442522,
+    "inst_m": 725.572377
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 11.876007947226645,
+    "inst_m": 701.840467
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 7.1698535595357145,
+    "inst_m": 581.517656
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.8331362236534563,
+    "inst_m": 235.416187
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 2.716078111399616,
+    "inst_m": 280.418915
+   },
+   {
+    "fn": "mix",
+    "stall_pct": 1.2634264093587577,
+    "inst_m": 149.404458
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_static_block",
+  "idx": 1,
+  "kernel": "block_tasks",
+  "grid": "(1202, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 51.977824,
+  "sm_pct": 21.726055,
+  "mem_pct": 54.418754,
+  "l1_pct": 38.338524,
+  "l2_pct": 54.418754,
+  "dram_pct": 24.994105,
+  "dram_read_gb": 24.171943,
+  "dram_write_gb": 2.318002,
+  "dram_gbps": 509.63936081664366,
+  "l1_hit": 70.944158,
+  "l2_hit": 72.092539,
+  "ld_sectors_per_req": 9.846670063391086,
+  "st_sectors_per_req": 4.836568865478401,
+  "ld_sectors_g": 5.494329151,
+  "red_sectors_m": 1105.820174,
+  "atom_sectors_m": 55.103326,
+  "l1_traffic_gb": 180.110431456,
+  "l2_excess_pct": null,
+  "warps_active_pct": 62.029435,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 27.761821,
+  "ipc": 1.090735,
+  "active_threads_per_warp": 18.1,
+  "waves": 1.76,
+  "regs": 40.0,
+  "instr_m": 5679.96801,
+  "stall_cycles_per_issue": 35.939693,
+  "stall_share": {
+   "long_scoreboard": 80.90103885973652,
+   "barrier": 2.3864505464751744,
+   "wait": 9.300282559453137,
+   "branch_resolving": 2.3580279330711034,
+   "selected": 2.782469510799661
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 16.672973219614285,
+    "inst_m": 98.707002,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 10.059912889385098,
+    "inst_m": 374.41934,
+    "l1_req_m": 465.566085,
+    "l2_excess_m": 369.909348
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 8.181158310770384,
+    "inst_m": 161.36922,
+    "l1_req_m": 258.258834,
+    "l2_excess_m": 204.764876
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 34,
+    "text": "add(p.local[e[k + 1 + d].item], prefix + after);",
+    "stall_pct": 6.7706032411991135,
+    "inst_m": 273.180512,
+    "l1_req_m": 442.277319,
+    "l2_excess_m": 368.353449
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 6.712488769435606,
+    "inst_m": 282.449599,
+    "l1_req_m": 415.567195,
+    "l2_excess_m": 322.618623
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 6.345359567066277,
+    "inst_m": 330.288077,
+    "l1_req_m": 268.734226,
+    "l2_excess_m": 179.30302
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 6.0112586288726595,
+    "inst_m": 226.266106,
+    "l1_req_m": 434.045803,
+    "l2_excess_m": 368.078229
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 94,
+    "text": "const uint32_t z     = p.rename[entry.item];",
+    "stall_pct": 3.608595596205988,
+    "inst_m": 137.853725,
+    "l1_req_m": 465.566085,
+    "l2_excess_m": 369.909348
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 23.84121385171035,
+    "inst_m": 1673.471137
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.128314233578177,
+    "inst_m": 972.100181
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 16.66044920730257,
+    "inst_m": 1067.779158
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 13.791572179739433,
+    "inst_m": 809.261324
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 12.114080006292552,
+    "inst_m": 373.382541
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 5.171958889165928,
+    "inst_m": 419.159791
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.5789537791398067,
+    "inst_m": 299.200751
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 1.3790159410057927,
+    "inst_m": 0.244872
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_static_block",
+  "idx": 2,
+  "kernel": "block_tasks",
+  "grid": "(6201, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 26.824832,
+  "sm_pct": 25.683804,
+  "mem_pct": 59.604708,
+  "l1_pct": 44.946584,
+  "l2_pct": 59.604708,
+  "dram_pct": 21.772835,
+  "dram_read_gb": 10.527,
+  "dram_write_gb": 1.382052,
+  "dram_gbps": 443.9562566505543,
+  "l1_hit": 72.559636,
+  "l2_hit": 78.949372,
+  "ld_sectors_per_req": 10.235437058525179,
+  "st_sectors_per_req": 4.992959006528249,
+  "ld_sectors_g": 3.356493241,
+  "red_sectors_m": 674.748402,
+  "atom_sectors_m": 40.823665,
+  "l1_traffic_gb": 110.37241136,
+  "l2_excess_pct": null,
+  "warps_active_pct": 66.351705,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 30.958146,
+  "ipc": 1.231165,
+  "active_threads_per_warp": 18.65,
+  "waves": 9.07,
+  "regs": 40.0,
+  "instr_m": 3429.906313,
+  "stall_cycles_per_issue": 34.310548,
+  "stall_share": {
+   "long_scoreboard": 76.56866045975134,
+   "barrier": 5.541534923895708,
+   "wait": 9.751004268424976,
+   "branch_resolving": 2.4335868957849347,
+   "selected": 2.91401641267869
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 47,
+    "text": "if (key == item)",
+    "stall_pct": 16.926279789986086,
+    "inst_m": 64.094768,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 82,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 9.759470035049542,
+    "inst_m": 214.360892,
+    "l1_req_m": 276.73589,
+    "l2_excess_m": 225.437969
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 131,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 6.835298317791964,
+    "inst_m": 91.25386,
+    "l1_req_m": 143.467797,
+    "l2_excess_m": 115.933668
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 67,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 6.460152041912113,
+    "inst_m": 158.765763,
+    "l1_req_m": 244.627146,
+    "l2_excess_m": 194.490486
+   },
+   {
+    "file": "include/mine/bfs/device/task_view.cuh",
+    "line": 65,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 6.1872217924851745,
+    "inst_m": 188.472748,
+    "l1_req_m": 153.113632,
+    "l2_excess_m": 101.062981
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 31,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 4.918907202298479,
+    "inst_m": 128.427346,
+    "l1_req_m": 259.354265,
+    "l2_excess_m": 225.192777
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 34,
+    "text": "add(p.local[e[k + 1 + d].item], prefix + after);",
+    "stall_pct": 4.337557979083612,
+    "inst_m": 153.75931,
+    "l1_req_m": 263.72768,
+    "l2_excess_m": 225.202551
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 94,
+    "text": "const uint32_t z     = p.rename[entry.item];",
+    "stall_pct": 3.223311204236546,
+    "inst_m": 77.76899,
+    "l1_req_m": 276.73589,
+    "l2_excess_m": 225.437969
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 24.275987521569494,
+    "inst_m": 987.773241
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.860841699038616,
+    "inst_m": 626.494026
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 16.34287632923336,
+    "inst_m": 611.592943
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 11.083249038758504,
+    "inst_m": 222.379172
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 10.302709610148217,
+    "inst_m": 473.566978
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 5.297453595482377,
+    "inst_m": 270.976816
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 2.96986079353071,
+    "inst_m": 1.25136
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.6467079780919107,
+    "inst_m": 185.445183
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_static_block_late",
+  "idx": 0,
+  "kernel": "block_tasks",
+  "grid": "(65535, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 13.070592,
+  "sm_pct": 34.724896,
+  "mem_pct": 23.844154,
+  "l1_pct": 23.844154,
+  "l2_pct": 6.620394,
+  "dram_pct": 1.775803,
+  "dram_read_gb": 0.236069376,
+  "dram_write_gb": 0.237205504,
+  "dram_gbps": 36.20913880564859,
+  "l1_hit": 81.298764,
+  "l2_hit": 87.823295,
+  "ld_sectors_per_req": 1.9455467063194998,
+  "st_sectors_per_req": 1.5156599272676519,
+  "ld_sectors_g": 0.182663888,
+  "red_sectors_m": 22.135333,
+  "atom_sectors_m": 7.744811,
+  "l1_traffic_gb": 6.754299264,
+  "l2_excess_pct": null,
+  "warps_active_pct": 74.598671,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 34.894067,
+  "ipc": 1.387713,
+  "active_threads_per_warp": 27.62,
+  "waves": 95.81,
+  "regs": 40.0,
+  "instr_m": 2284.213972,
+  "stall_cycles_per_issue": 34.192648999999996,
+  "stall_share": {
+   "long_scoreboard": 14.379903703863368,
+   "short_scoreboard": 3.52261388112983,
+   "barrier": 66.61268625311833,
+   "wait": 7.314762304611147,
+   "branch_resolving": 1.5876921381551925,
+   "no_instruction": 1.5403164580784603,
+   "not_selected": 1.4663531918805122,
+   "selected": 2.9245759812291823
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 21,
+    "text": "primaries += g.count(z < child_items && v.p.subtree[z] >= b.minimum_utility);",
+    "stall_pct": 17.37183721227609,
+    "inst_m": 46.313176,
+    "l1_req_m": 0.484311,
+    "l2_excess_m": 0.122531
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 113,
+    "text": "for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {",
+    "stall_pct": 9.646736909709904,
+    "inst_m": 5.304796,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 41,
+    "text": "merge_duplicates(v.p, lanes, from, step, c);",
+    "stall_pct": 9.63183453946388,
+    "inst_m": 3.495536,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 48,
+    "text": "for (uint32_t chunk = first; chunk < n; chunk += g.size()) {",
+    "stall_pct": 9.377148224743127,
+    "inst_m": 28.313976,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 23,
+    "text": "const uint32_t child_items = rename_items(g, v.p, first, n, b.minimum_utility);",
+    "stall_pct": 9.321192228077411,
+    "inst_m": 17.624016,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 34,
+    "text": "if (v.state->child_primaries == 0)",
+    "stall_pct": 5.702319866397847,
+    "inst_m": 10.687656,
+    "l1_req_m": 3.562552,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 150,
+    "text": "b.next[slot] = Task{static_cast<uint32_t>(state.child_db / kArenaUnit),",
+    "stall_pct": 2.9941265432365833,
+    "inst_m": 11.797434,
+    "l1_req_m": 3.43156,
+    "l2_excess_m": 1.48654
+   },
+   {
+    "file": "src/mine/bfs/small_kernels.cu",
+    "line": 18,
+    "text": "process_task(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);",
+    "stall_pct": 2.4744664711091113,
+    "inst_m": 115.000892,
+    "l1_req_m": 5.874672,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "process_task",
+    "stall_pct": 26.36431199602347,
+    "inst_m": 350.417493
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 18.072344758163375,
+    "inst_m": 95.483898
+   },
+   {
+    "fn": "rename_items",
+    "stall_pct": 10.107556655446624,
+    "inst_m": 99.580376
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 9.974685199446593,
+    "inst_m": 34.53867
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 5.005850382125616,
+    "inst_m": 133.39472
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 4.76683559224423,
+    "inst_m": 196.561572
+   },
+   {
+    "fn": "block_tasks",
+    "stall_pct": 4.090844849019761,
+    "inst_m": 171.307635
+   },
+   {
+    "fn": "block_inclusive_scan",
+    "stall_pct": 3.803854041378594,
+    "inst_m": 111.855987
+   }
+  ]
+ },
+ {
+  "report": "ncu_bfs_static_block_late",
+  "idx": 1,
+  "kernel": "block_tasks",
+  "grid": "(65535, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 11.846624,
+  "sm_pct": 36.045957,
+  "mem_pct": 24.312201,
+  "l1_pct": 24.312201,
+  "l2_pct": 5.543063,
+  "dram_pct": 1.662805,
+  "dram_read_gb": 0.209951744,
+  "dram_write_gb": 0.191708928,
+  "dram_gbps": 33.90507472846273,
+  "l1_hit": 81.091806,
+  "l2_hit": 85.770606,
+  "ld_sectors_per_req": 1.4918391855299806,
+  "st_sectors_per_req": 1.3105753574432153,
+  "ld_sectors_g": 0.129397278,
+  "red_sectors_m": 12.808768,
+  "atom_sectors_m": 5.681657,
+  "l1_traffic_gb": 4.878098496,
+  "l2_excess_pct": null,
+  "warps_active_pct": 74.567604,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 36.195826,
+  "ipc": 1.440291,
+  "active_threads_per_warp": 28.09,
+  "waves": 95.81,
+  "regs": 40.0,
+  "instr_m": 2149.850106,
+  "stall_cycles_per_issue": 32.958332,
+  "stall_share": {
+   "long_scoreboard": 15.384637790528963,
+   "short_scoreboard": 3.6649215136251434,
+   "barrier": 64.9033664689099,
+   "wait": 7.50418437437914,
+   "branch_resolving": 1.570331289823769,
+   "no_instruction": 1.6040708613530563,
+   "not_selected": 1.625816500665143,
+   "selected": 3.0341462668681167
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 21,
+    "text": "primaries += g.count(z < child_items && v.p.subtree[z] >= b.minimum_utility);",
+    "stall_pct": 15.21655318288305,
+    "inst_m": 42.383952,
+    "l1_req_m": 0.435645,
+    "l2_excess_m": 0.097764
+   },
+   {
+    "file": "include/mine/bfs/device/passes.cuh",
+    "line": 48,
+    "text": "for (uint32_t chunk = first; chunk < n; chunk += g.size()) {",
+    "stall_pct": 9.865820875398176,
+    "inst_m": 28.198968,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 23,
+    "text": "const uint32_t child_items = rename_items(g, v.p, first, n, b.minimum_utility);",
+    "stall_pct": 9.810518598419092,
+    "inst_m": 18.41616,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 113,
+    "text": "for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {",
+    "stall_pct": 9.507040769891965,
+    "inst_m": 4.852192,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 41,
+    "text": "merge_duplicates(v.p, lanes, from, step, c);",
+    "stall_pct": 9.493662885746549,
+    "inst_m": 3.226496,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/process.cuh",
+    "line": 34,
+    "text": "if (v.state->child_primaries == 0)",
+    "stall_pct": 5.721942258102573,
+    "inst_m": 9.780912,
+    "l1_req_m": 3.260304,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/bfs/small_kernels.cu",
+    "line": 18,
+    "text": "process_task(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);",
+    "stall_pct": 2.7724874858847524,
+    "inst_m": 113.755181,
+    "l1_req_m": 6.13872,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/bfs/device/child.cuh",
+    "line": 150,
+    "text": "b.next[slot] = Task{static_cast<uint32_t>(state.child_db / kArenaUnit),",
+    "stall_pct": 2.681370400957309,
+    "inst_m": 10.889424,
+    "l1_req_m": 3.097072,
+    "l2_excess_m": 1.094748
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "process_task",
+    "stall_pct": 26.913037432794567,
+    "inst_m": 352.267736
+   },
+   {
+    "fn": "allocate_child",
+    "stall_pct": 15.929267861055399,
+    "inst_m": 87.489664
+   },
+   {
+    "fn": "rename_items",
+    "stall_pct": 10.591492087034197,
+    "inst_m": 93.417688
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 9.801670234102438,
+    "inst_m": 27.763188
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 5.429419547300827,
+    "inst_m": 202.424809
+   },
+   {
+    "fn": "block_tasks",
+    "stall_pct": 4.83068022854061,
+    "inst_m": 172.509143
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 4.733348221057422,
+    "inst_m": 123.872016
+   },
+   {
+    "fn": "block_inclusive_scan",
+    "stall_pct": 3.8246001382030235,
+    "inst_m": 102.884663
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_adaptive_huge",
+  "idx": 0,
+  "kernel": "huge_local",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 9.931776,
+  "sm_pct": 14.09771,
+  "mem_pct": 43.187278,
+  "l1_pct": 23.445784,
+  "l2_pct": 43.187278,
+  "dram_pct": 13.198716,
+  "dram_read_gb": 2.669873,
+  "dram_write_gb": 0.003029248,
+  "dram_gbps": 269.126312152026,
+  "l1_hit": 52.606189,
+  "l2_hit": 79.556068,
+  "ld_sectors_per_req": 9.298291778751096,
+  "st_sectors_per_req": null,
+  "ld_sectors_g": 0.56689644,
+  "red_sectors_m": 179.69767,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 18.14068608,
+  "l2_excess_pct": null,
+  "warps_active_pct": 89.60887,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 26.761132,
+  "ipc": 1.051002,
+  "active_threads_per_warp": 23.62,
+  "waves": 1.16,
+  "regs": 32.0,
+  "instr_m": 820.780406,
+  "stall_cycles_per_issue": 54.098993,
+  "stall_share": {
+   "long_scoreboard": 87.52998045638299,
+   "wait": 5.2158900628704865,
+   "branch_resolving": 1.6199081561462705,
+   "lg_throttle": 1.7344666655810026,
+   "selected": 1.8484650906533509
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 31,
+    "text": "add(p.local[e[k + 1 + d].item], static_cast<uint32_t>(prefix + after));",
+    "stall_pct": 37.22582805590301,
+    "inst_m": 199.622174,
+    "l1_req_m": 180.57057,
+    "l2_excess_m": 140.738279
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 26.978667034363212,
+    "inst_m": 12.502002,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 28,
+    "text": "after += e[k + 1 + d].utility;",
+    "stall_pct": 21.14090985196931,
+    "inst_m": 179.203338,
+    "l1_req_m": 172.232797,
+    "l2_excess_m": 136.758786
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 19,
+    "text": "while (low <= high) {",
+    "stall_pct": 3.5872573449026426,
+    "inst_m": 31.278158,
+    "l1_req_m": 4.507438,
+    "l2_excess_m": 9.014876
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp",
+    "line": 226,
+    "text": "return __ullAtomicAdd(address, val);",
+    "stall_pct": 2.558773994661834,
+    "inst_m": 93.868919,
+    "l1_req_m": 34.523726,
+    "l2_excess_m": 15.905703
+   },
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 24,
+    "text": "const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0;",
+    "stall_pct": 1.9227738764736588,
+    "inst_m": 10.141974,
+    "l1_req_m": 10.279377,
+    "l2_excess_m": 8.499882
+   },
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 30,
+    "text": "if (d < rest)",
+    "stall_pct": 1.3781233687569558,
+    "inst_m": 70.24426,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/cuda/atomics.cuh",
+    "line": 42,
+    "text": "atomicAdd(reinterpret_cast<unsigned long long*>(&target), static_cast<unsigned long long>(value));",
+    "stall_pct": 0.72094786916569,
+    "inst_m": 23.668265,
+    "l1_req_m": 8.346253,
+    "l2_excess_m": 3.979493
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_local",
+    "stall_pct": 64.17839520156008,
+    "inst_m": 628.516835
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 31.815764332778507,
+    "inst_m": 120.745176
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.8892084346961084,
+    "inst_m": 101.190103
+   },
+   {
+    "fn": "add",
+    "stall_pct": 0.72094786916569,
+    "inst_m": 23.668265
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.31615336885544604,
+    "inst_m": 6.075578
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 0.024868761880373867,
+    "inst_m": 0.98368
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.016497099465198506,
+    "inst_m": 0.14416
+   },
+   {
+    "fn": "sum",
+    "stall_pct": 0.013542395083371909,
+    "inst_m": 0.09328
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_adaptive_huge",
+  "idx": 1,
+  "kernel": "huge_subtree",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 14.180768,
+  "sm_pct": 33.298912,
+  "mem_pct": 34.221598,
+  "l1_pct": 34.123392,
+  "l2_pct": 34.221598,
+  "dram_pct": 9.454785,
+  "dram_read_gb": 2.401731,
+  "dram_write_gb": 0.332118528,
+  "dram_gbps": 192.78571710643598,
+  "l1_hit": 76.014795,
+  "l2_hit": 83.563058,
+  "ld_sectors_per_req": 4.996078150278054,
+  "st_sectors_per_req": 3.4825190853153263,
+  "ld_sectors_g": 1.438830099,
+  "red_sectors_m": 150.333724,
+  "atom_sectors_m": 15.556459,
+  "l1_traffic_gb": 46.339640768,
+  "l2_excess_pct": null,
+  "warps_active_pct": 62.485884,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 47.658034,
+  "ipc": 1.846362,
+  "active_threads_per_warp": 10.85,
+  "waves": 1.55,
+  "regs": 35.0,
+  "instr_m": 2639.605335,
+  "stall_cycles_per_issue": 21.262623,
+  "stall_share": {
+   "long_scoreboard": 67.20756418434357,
+   "wait": 16.651440417299405,
+   "branch_resolving": 4.04425644004505,
+   "math_pipe_throttle": 1.6959102364745873,
+   "no_instruction": 1.250894586241782,
+   "not_selected": 3.4674931686462203,
+   "selected": 4.70579758668533
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 78,
+    "text": "if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {",
+    "stall_pct": 18.630957461943378,
+    "inst_m": 321.375924,
+    "l1_req_m": 204.047473,
+    "l2_excess_m": 149.995577
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 15.93028880352824,
+    "inst_m": 38.676102,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 40,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 11.683027457675346,
+    "inst_m": 226.209903,
+    "l1_req_m": 105.228025,
+    "l2_excess_m": 58.955429
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 42,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 9.41371461089771,
+    "inst_m": 192.053454,
+    "l1_req_m": 129.094957,
+    "l2_excess_m": 82.273308
+   },
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 90,
+    "text": "const uint32_t z     = p.rename[entry.item];",
+    "stall_pct": 6.519135012092758,
+    "inst_m": 125.699535,
+    "l1_req_m": 204.047473,
+    "l2_excess_m": 149.995577
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 46,
+    "text": "if (ea[i].item != eb[j].item)",
+    "stall_pct": 5.44857020913359,
+    "inst_m": 240.505396,
+    "l1_req_m": 167.249069,
+    "l2_excess_m": 123.159412
+   },
+   {
+    "file": "include/mine/dfs/optimized/passes.cuh",
+    "line": 80,
+    "text": "kept_sum += e[k + 1 + d].utility;",
+    "stall_pct": 4.516147389386826,
+    "inst_m": 112.750757,
+    "l1_req_m": 154.026549,
+    "l2_excess_m": 122.837346
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 19,
+    "text": "while (low <= high) {",
+    "stall_pct": 3.0106700810926164,
+    "inst_m": 128.011535,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 46.65243989187651,
+    "inst_m": 1351.022606
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 27.931569213259355,
+    "inst_m": 723.799282
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.60734101579172,
+    "inst_m": 400.237158
+   },
+   {
+    "fn": "mix",
+    "stall_pct": 1.9277279840660122,
+    "inst_m": 149.404458
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 0.8245838668373879,
+    "inst_m": 64.49666
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.33134158486271165,
+    "inst_m": 7.760999
+   },
+   {
+    "fn": "Lanes",
+    "stall_pct": 0.26660975956750604,
+    "inst_m": 6.377806
+   },
+   {
+    "fn": "add",
+    "stall_pct": 0.13771517996870108,
+    "inst_m": 26.784773
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_adaptive_huge",
+  "idx": 2,
+  "kernel": "huge_write",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 6.340672,
+  "sm_pct": 20.754408,
+  "mem_pct": 42.837319,
+  "l1_pct": 30.750125,
+  "l2_pct": 42.837319,
+  "dram_pct": 8.226831,
+  "dram_read_gb": 0.559811,
+  "dram_write_gb": 0.503817984,
+  "dram_gbps": 167.74704384645668,
+  "l1_hit": 87.220915,
+  "l2_hit": 90.433118,
+  "ld_sectors_per_req": 3.214041898487274,
+  "st_sectors_per_req": 3.9348099615221774,
+  "ld_sectors_g": 0.239004631,
+  "red_sectors_m": 0.0,
+  "atom_sectors_m": 4.622616,
+  "l1_traffic_gb": 11.193408064,
+  "l2_excess_pct": null,
+  "warps_active_pct": 65.981479,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 40.248155,
+  "ipc": 1.595213,
+  "active_threads_per_warp": 18.04,
+  "waves": 1.16,
+  "regs": 32.0,
+  "instr_m": 629.044407,
+  "stall_cycles_per_issue": 28.003943999999997,
+  "stall_share": {
+   "long_scoreboard": 77.11007778047265,
+   "wait": 11.99407840552745,
+   "branch_resolving": 2.837082519519394,
+   "not_selected": 2.2485618454314866,
+   "selected": 3.570925581053869
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 91,
+    "text": "kept += d < rest && p.rename[e[k + 1 + d].item] != kNone;",
+    "stall_pct": 39.578504658551935,
+    "inst_m": 174.221366,
+    "l1_req_m": 75.482272,
+    "l2_excess_m": 51.138025
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 103,
+    "text": "const uint32_t z = p.rename[e[k + 1 + d].item];",
+    "stall_pct": 14.91964573516094,
+    "inst_m": 111.302016,
+    "l1_req_m": 75.482272,
+    "l2_excess_m": 51.138025
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 105,
+    "text": "*out++ = Entry{z, e[k + 1 + d].utility};",
+    "stall_pct": 11.692683950124586,
+    "inst_m": 129.167845,
+    "l1_req_m": 158.449549,
+    "l2_excess_m": 116.134304
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 9.643023428346304,
+    "inst_m": 5.34732,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 104,
+    "text": "if (z != kNone)",
+    "stall_pct": 6.609464458395371,
+    "inst_m": 27.825504,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 83,
+    "text": "const bool     write = i < p.n_trans && p.rep[i] == i;",
+    "stall_pct": 4.310119879046494,
+    "inst_m": 9.440328,
+    "l1_req_m": 1.573388,
+    "l2_excess_m": 0.786694
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 84,
+    "text": "const Tx       tx    = write ? p.txs[i] : Tx{0, 0, 0};",
+    "stall_pct": 2.6037749364277785,
+    "inst_m": 6.665508,
+    "l1_req_m": 3.931716,
+    "l2_excess_m": 4.3549
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 98,
+    "text": "out                  = c.entries + begin;",
+    "stall_pct": 1.8342568573577491,
+    "inst_m": 1.863032,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "write_representatives",
+    "stall_pct": 86.19216462775074,
+    "inst_m": 582.617251
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 11.233736000040931,
+    "inst_m": 40.625884
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 1.6643898345843118,
+    "inst_m": 28.403471
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.43848204372540894,
+    "inst_m": 2.607855
+   },
+   {
+    "fn": "fetch_add",
+    "stall_pct": 0.2384278090735596,
+    "inst_m": 4.843521
+   },
+   {
+    "fn": "huge_write",
+    "stall_pct": 0.0828869207508941,
+    "inst_m": 0.373102
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 0.06088607141578024,
+    "inst_m": 1.02736
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.04451334632918387,
+    "inst_m": 0.21696
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_adaptive_huge",
+  "idx": 3,
+  "kernel": "huge_merge",
+  "grid": "(106, 5, 1)",
+  "block": "(512, 1, 1)",
+  "duration_ms": 8.904832,
+  "sm_pct": 8.922721,
+  "mem_pct": 26.5885,
+  "l1_pct": 14.690369,
+  "l2_pct": 26.5885,
+  "dram_pct": 8.2692,
+  "dram_read_gb": 1.222425,
+  "dram_write_gb": 0.2790336,
+  "dram_gbps": 168.61167060759817,
+  "l1_hit": 55.989643,
+  "l2_hit": 81.040519,
+  "ld_sectors_per_req": 5.536286461949542,
+  "st_sectors_per_req": null,
+  "ld_sectors_g": 0.252234324,
+  "red_sectors_m": 139.366054,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 8.071498368,
+  "l2_excess_pct": null,
+  "warps_active_pct": 70.423415,
+  "theo_occ_pct": 100.0,
+  "issue_active_pct": 19.670994,
+  "ipc": 0.751952,
+  "active_threads_per_warp": 14.36,
+  "waves": 1.16,
+  "regs": 32.0,
+  "instr_m": 386.862098,
+  "stall_cycles_per_issue": 59.337909,
+  "stall_share": {
+   "long_scoreboard": 89.28298265447809,
+   "wait": 5.922807290024324,
+   "branch_resolving": 1.6991835691412718,
+   "selected": 1.6852632943301051
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 132,
+    "text": "if (p.rename[e[k + 1 + d].item] != kNone)",
+    "stall_pct": 45.197185267179066,
+    "inst_m": 129.08373,
+    "l1_req_m": 103.76029,
+    "l2_excess_m": 72.515183
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 16.337435031022817,
+    "inst_m": 6.132106,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/device_atomic_functions.hpp",
+    "line": 112,
+    "text": "return __uAtomicAdd(address, val);",
+    "stall_pct": 12.53771217650755,
+    "inst_m": 72.122948,
+    "l1_req_m": 66.661226,
+    "l2_excess_m": 48.801342
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 127,
+    "text": "out = c.entries + c.txs[dst].begin;",
+    "stall_pct": 4.493834969434931,
+    "inst_m": 2.587627,
+    "l1_req_m": 3.323775,
+    "l2_excess_m": 2.62038
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 117,
+    "text": "const bool     merge = r != kNone && r != i;",
+    "stall_pct": 4.004044825993417,
+    "inst_m": 1.573388,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 126,
+    "text": "add(c.txs[dst].utility, tx.utility + e[k].utility);",
+    "stall_pct": 3.7497867311397504,
+    "inst_m": 5.465151,
+    "l1_req_m": 10.311939,
+    "l2_excess_m": 8.414726
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 133,
+    "text": "add((out++)->utility, e[k + 1 + d].utility);",
+    "stall_pct": 3.206315255069557,
+    "inst_m": 44.386042,
+    "l1_req_m": 102.547024,
+    "l2_excess_m": 80.025856
+   },
+   {
+    "file": "include/mine/dfs/optimized/child.cuh",
+    "line": 114,
+    "text": "for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {",
+    "stall_pct": 2.9137727989613285,
+    "inst_m": 3.158616,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 66.5419650696817,
+    "inst_m": 277.919523
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 17.626619282834042,
+    "inst_m": 46.627892
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 12.894339324281024,
+    "inst_m": 75.890135
+   },
+   {
+    "fn": "add",
+    "stall_pct": 2.4123308933988605,
+    "inst_m": 8.843049
+   },
+   {
+    "fn": "max",
+    "stall_pct": 0.33831723586911744,
+    "inst_m": 2.980493
+   },
+   {
+    "fn": "huge_merge",
+    "stall_pct": 0.06907830400279642,
+    "inst_m": 0.31344
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 0.04619091412235182,
+    "inst_m": 1.05696
+   },
+   {
+    "fn": "open_task",
+    "stall_pct": 0.03911662997748713,
+    "inst_m": 0.1704
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_select",
+  "idx": 0,
+  "kernel": "select_kernel",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.01008,
+  "sm_pct": 0.20203,
+  "mem_pct": 4.498975,
+  "l1_pct": 0.126832,
+  "l2_pct": 7.674863,
+  "dram_pct": 0.096289,
+  "dram_read_gb": 1.9712e-05,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 1.9555555555555555,
+  "l1_hit": 75.281873,
+  "l2_hit": 96.887472,
+  "ld_sectors_per_req": 6.2272727272727275,
+  "st_sectors_per_req": 4.7265625,
+  "ld_sectors_g": 5.48e-07,
+  "red_sectors_m": 0.0,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 3.6896e-05,
+  "l2_excess_pct": null,
+  "warps_active_pct": 46.707409,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 35.182644,
+  "ipc": 1.358902,
+  "active_threads_per_warp": 31.41,
+  "waves": 0.01,
+  "regs": 38.0,
+  "instr_m": 0.010541,
+  "stall_cycles_per_issue": 22.141994,
+  "stall_share": {
+   "long_scoreboard": 8.633323629299149,
+   "short_scoreboard": 11.563384941753663,
+   "barrier": 26.504771882785263,
+   "wait": 8.649681686301603,
+   "branch_resolving": 2.0253731439002287,
+   "mio_throttle": 6.188110248787892,
+   "math_pipe_throttle": 8.45464956769476,
+   "no_instruction": 9.538011797853436,
+   "not_selected": 9.382407022601488,
+   "selected": 4.51504503162633,
+   "imc_miss": 3.9765117811882704
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 30,
+    "text": "shared[warp] = value;",
+    "stall_pct": 25.0,
+    "inst_m": 0.000288,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 20,
+    "text": "const uint64_t arena_top  = control.arena_top < a.arena_capacity ? control.arena_top : a.arena_capacity;",
+    "stall_pct": 25.0,
+    "inst_m": 0.000192,
+    "l1_req_m": 3.2e-05,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 32,
+    "text": "for (uint32_t base = 0; !done; base += kSelectBlock) {",
+    "stall_pct": 25.0,
+    "inst_m": 0.000352,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 78,
+    "text": "control.stack_top   = top - taken;",
+    "stall_pct": 25.0,
+    "inst_m": 1e-06,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/layout.cuh",
+    "line": 77,
+    "text": "return (value + alignment - 1) / alignment * alignment;",
+    "stall_pct": 0.0,
+    "inst_m": 1.6e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/layout.cuh",
+    "line": 107,
+    "text": "GHUIM_HD uint64_t db_bytes() const { return uint64_t{db_units} * kArenaUnit; }",
+    "stall_pct": 0.0,
+    "inst_m": 4e-06,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/layout.cuh",
+    "line": 110,
+    "text": "GHUIM_HD uint64_t arena_bound() const { return item + 1 < n_items ? db_bytes() : 0; }",
+    "stall_pct": 0.0,
+    "inst_m": 0.000112,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/layout.cuh",
+    "line": 111,
+    "text": "GHUIM_HD uint32_t child_bound() const { return n_items - item - 1; }",
+    "stall_pct": 0.0,
+    "inst_m": 8e-06,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "select_kernel",
+    "stall_pct": 75.0,
+    "inst_m": 0.003425
+   },
+   {
+    "fn": "block_inclusive_scan",
+    "stall_pct": 25.0,
+    "inst_m": 0.001781
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 0.0,
+    "inst_m": 0.000152
+   },
+   {
+    "fn": "warp_inclusive_scan",
+    "stall_pct": 0.0,
+    "inst_m": 0.002335
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 0.0,
+    "inst_m": 0.003719
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_select",
+  "idx": 1,
+  "kernel": "select_kernel",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.018591999999999997,
+  "sm_pct": 0.202157,
+  "mem_pct": 2.578541,
+  "l1_pct": 0.248594,
+  "l2_pct": 2.923812,
+  "dram_pct": 0.121103,
+  "dram_read_gb": 4.5824e-05,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 2.464716006884682,
+  "l1_hit": 79.302756,
+  "l2_hit": 97.707189,
+  "ld_sectors_per_req": 19.0,
+  "st_sectors_per_req": 16.139344262295083,
+  "ld_sectors_g": 5.548e-06,
+  "red_sectors_m": 0.0,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 0.00036656,
+  "l2_excess_pct": null,
+  "warps_active_pct": 48.522737,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 28.492754,
+  "ipc": 1.121015,
+  "active_threads_per_warp": 31.68,
+  "waves": 0.01,
+  "regs": 38.0,
+  "instr_m": 0.019481,
+  "stall_cycles_per_issue": 28.470039,
+  "stall_share": {
+   "long_scoreboard": 12.308989109568834,
+   "short_scoreboard": 11.029247272896255,
+   "barrier": 28.613901793390585,
+   "wait": 7.2382478998360344,
+   "branch_resolving": 1.1553970825259494,
+   "mio_throttle": 10.653343326997199,
+   "lg_throttle": 8.12833449227098,
+   "math_pipe_throttle": 4.651602338865782,
+   "no_instruction": 4.4747286788051115,
+   "not_selected": 6.045692455848059,
+   "selected": 3.511927047237273,
+   "imc_miss": 1.7312199677703286
+  },
+  "hot_lines": [
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 32,
+    "text": "for (uint32_t base = 0; !done; base += kSelectBlock) {",
+    "stall_pct": 22.22222222222222,
+    "inst_m": 0.000512,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 32,
+    "text": "if (warp == 0) {",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.000198,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 38,
+    "text": "value += shared[warp - 1];",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.000704,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 39,
+    "text": "__syncthreads();",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.000256,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 11,
+    "text": "__global__ void select_kernel(SelectArgs a)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 9.6e-05,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 51,
+    "text": "a.batch[taken + threadIdx.x]          = task;",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.000456,
+    "l1_req_m": 0.001356,
+    "l2_excess_m": 0.004504
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 55,
+    "text": "if (count != 0 && threadIdx.x == count - 1) {",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.00032,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "/usr/local/cuda-12.8/targets/x86_64-linux/include/sm_30_intrinsics.hpp",
+    "line": 385,
+    "text": "ret = __nvvm_shfl_up_sync(mask, var, delta, c);",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.004348,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "select_kernel",
+    "stall_pct": 55.55555555555556,
+    "inst_m": 0.006657
+   },
+   {
+    "fn": "block_inclusive_scan",
+    "stall_pct": 33.333333333333336,
+    "inst_m": 0.003306
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 11.11111111111111,
+    "inst_m": 0.005198
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 0.0,
+    "inst_m": 0.001444
+   },
+   {
+    "fn": "warp_inclusive_scan",
+    "stall_pct": 0.0,
+    "inst_m": 0.00467
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_select",
+  "idx": 2,
+  "kernel": "select_kernel",
+  "grid": "(1, 1, 1)",
+  "block": "(1024, 1, 1)",
+  "duration_ms": 0.061888,
+  "sm_pct": 0.2009,
+  "mem_pct": 1.040173,
+  "l1_pct": 0.422204,
+  "l2_pct": 1.940678,
+  "dram_pct": 0.131494,
+  "dram_read_gb": 0.000165888,
+  "dram_write_gb": 0.0,
+  "dram_gbps": 2.6804550155118925,
+  "l1_hit": 79.37596,
+  "l2_hit": 90.855042,
+  "ld_sectors_per_req": 23.091205211726383,
+  "st_sectors_per_req": 20.502743484224965,
+  "ld_sectors_g": 2.8356e-05,
+  "red_sectors_m": 0.0,
+  "atom_sectors_m": 0.0,
+  "l1_traffic_gb": 0.001863968,
+  "l2_excess_pct": null,
+  "warps_active_pct": 49.605987,
+  "theo_occ_pct": 50.0,
+  "issue_active_pct": 24.328308,
+  "ipc": 0.968556,
+  "active_threads_per_warp": 31.86,
+  "waves": 0.01,
+  "regs": 38.0,
+  "instr_m": 0.062991,
+  "stall_cycles_per_issue": 32.455149,
+  "stall_share": {
+   "long_scoreboard": 15.880540249561019,
+   "short_scoreboard": 11.508050694821954,
+   "barrier": 29.93241842765843,
+   "wait": 6.61288598613428,
+   "mio_throttle": 10.38592674462841,
+   "lg_throttle": 11.971798373194959,
+   "math_pipe_throttle": 2.365378140768973,
+   "no_instruction": 1.8698974390781569,
+   "not_selected": 4.670164971357858,
+   "selected": 3.081175193495491
+  },
+  "hot_lines": [
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 51,
+    "text": "a.batch[taken + threadIdx.x]          = task;",
+    "stall_pct": 20.0,
+    "inst_m": 0.002328,
+    "l1_req_m": 0.006978,
+    "l2_excess_m": 0.02325
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 55,
+    "text": "if (count != 0 && threadIdx.x == count - 1) {",
+    "stall_pct": 17.142857142857142,
+    "inst_m": 0.00112,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/layout.cuh",
+    "line": 110,
+    "text": "GHUIM_HD uint64_t arena_bound() const { return item + 1 < n_items ? db_bytes() : 0; }",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.005432,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 39,
+    "text": "arena    = task.arena_bound() / a.arena_divisor;",
+    "stall_pct": 11.428571428571429,
+    "inst_m": 0.000388,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 32,
+    "text": "if (warp == 0) {",
+    "stall_pct": 8.571428571428571,
+    "inst_m": 0.000693,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/primitives.cuh",
+    "line": 30,
+    "text": "shared[warp] = value;",
+    "stall_pct": 5.714285714285714,
+    "inst_m": 0.002016,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 48,
+    "text": "used_children + children_sum <= child_free;",
+    "stall_pct": 5.714285714285714,
+    "inst_m": 0.001389,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "src/mine/dfs/schedule.cu",
+    "line": 52,
+    "text": "a.scratch_offset[taken + threadIdx.x] = used_scratch + scratch_sum - scratch;",
+    "stall_pct": 5.714285714285714,
+    "inst_m": 0.001583,
+    "l1_req_m": 0.000388,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "select_kernel",
+    "stall_pct": 62.857142857142854,
+    "inst_m": 0.022075
+   },
+   {
+    "fn": "block_inclusive_scan",
+    "stall_pct": 17.142857142857142,
+    "inst_m": 0.010931
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 14.285714285714286,
+    "inst_m": 0.007372
+   },
+   {
+    "fn": "warp_inclusive_scan",
+    "stall_pct": 2.857142857142857,
+    "inst_m": 0.016345
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 2.857142857142857,
+    "inst_m": 0.012593
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_static_block",
+  "idx": 0,
+  "kernel": "block_tasks",
+  "grid": "(106, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 100.729856,
+  "sm_pct": 7.298996,
+  "mem_pct": 13.992116,
+  "l1_pct": 9.915307,
+  "l2_pct": 13.992116,
+  "dram_pct": 4.752144,
+  "dram_read_gb": 7.930483,
+  "dram_write_gb": 1.830042,
+  "dram_gbps": 96.89803388580243,
+  "l1_hit": 71.618043,
+  "l2_hit": 79.292031,
+  "ld_sectors_per_req": 5.1958617925083574,
+  "st_sectors_per_req": 4.732358722766977,
+  "ld_sectors_g": 2.570666739,
+  "red_sectors_m": 524.946183,
+  "atom_sectors_m": 22.120425,
+  "l1_traffic_gb": 87.501802048,
+  "l2_excess_pct": null,
+  "warps_active_pct": 12.499862,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 13.183986,
+  "ipc": 0.53032,
+  "active_threads_per_warp": 7.73,
+  "waves": 0.15,
+  "regs": 40.0,
+  "instr_m": 3942.844983,
+  "stall_cycles_per_issue": 15.048788,
+  "stall_share": {
+   "long_scoreboard": 68.65128274781996,
+   "barrier": 1.934321886918734,
+   "wait": 18.317335588753057,
+   "branch_resolving": 2.8172102630457685,
+   "selected": 6.643598142255708
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 18.086583632717357,
+    "inst_m": 52.931622,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 75,
+    "text": "if (f.rename[e[j].item] != kNone) {",
+    "stall_pct": 15.209270376984051,
+    "inst_m": 284.135933,
+    "l1_req_m": 211.700398,
+    "l2_excess_m": 147.397178
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 40,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 5.185692704234941,
+    "inst_m": 160.986786,
+    "l1_req_m": 96.213595,
+    "l2_excess_m": 66.506243
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 87,
+    "text": "const uint32_t z = f.rename[e[j].item];",
+    "stall_pct": 4.84099532603378,
+    "inst_m": 251.988911,
+    "l1_req_m": 211.700398,
+    "l2_excess_m": 147.397178
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 19,
+    "text": "while (low <= high) {",
+    "stall_pct": 4.755126203483077,
+    "inst_m": 149.38791,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 185,
+    "text": "kept += f.rename[e[j].item] != kNone;",
+    "stall_pct": 4.085788892767954,
+    "inst_m": 146.921467,
+    "l1_req_m": 75.586633,
+    "l2_excess_m": 50.387274
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 33,
+    "text": "rest += e[j].utility;",
+    "stall_pct": 3.706412481661245,
+    "inst_m": 187.42023,
+    "l1_req_m": 172.232757,
+    "l2_excess_m": 133.181166
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 91,
+    "text": "before += e[j].utility;",
+    "stall_pct": 3.651763209354095,
+    "inst_m": 117.696459,
+    "l1_req_m": 151.412807,
+    "l2_excess_m": 116.42646
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 36.74381612961645,
+    "inst_m": 1386.252783
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 25.50403052917646,
+    "inst_m": 522.446588
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 10.350601243736046,
+    "inst_m": 460.727142
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 8.700658320249968,
+    "inst_m": 464.616214
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 7.7593827422830435,
+    "inst_m": 508.437327
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 4.671698856929077,
+    "inst_m": 231.76955
+   },
+   {
+    "fn": "process_task",
+    "stall_pct": 2.135885415591728,
+    "inst_m": 36.519109
+   },
+   {
+    "fn": "(library)",
+    "stall_pct": 1.716510388158084,
+    "inst_m": 191.725491
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_static_block",
+  "idx": 1,
+  "kernel": "block_tasks",
+  "grid": "(1202, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 58.884,
+  "sm_pct": 17.149899,
+  "mem_pct": 57.985792,
+  "l1_pct": 37.040704,
+  "l2_pct": 57.985792,
+  "dram_pct": 29.534656,
+  "dram_read_gb": 31.567123,
+  "dram_write_gb": 3.894165,
+  "dram_gbps": 602.222810950343,
+  "l1_hit": 67.170322,
+  "l2_hit": 69.499071,
+  "ld_sectors_per_req": 8.873917473967882,
+  "st_sectors_per_req": 6.374475339329997,
+  "ld_sectors_g": 5.607445259,
+  "red_sectors_m": 1265.497086,
+  "atom_sectors_m": 59.136554,
+  "l1_traffic_gb": 185.456242976,
+  "l2_excess_pct": null,
+  "warps_active_pct": 63.6531,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 20.963724,
+  "ipc": 0.845644,
+  "active_threads_per_warp": 13.09,
+  "waves": 1.76,
+  "regs": 40.0,
+  "instr_m": 5269.887999,
+  "stall_cycles_per_issue": 48.249215,
+  "stall_share": {
+   "long_scoreboard": 86.97434352040753,
+   "barrier": 2.279684757565486,
+   "wait": 6.1391195690955795,
+   "branch_resolving": 1.1679361001002815,
+   "selected": 2.0724026287267057
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 16.730725892891144,
+    "inst_m": 84.148724,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 75,
+    "text": "if (f.rename[e[j].item] != kNone) {",
+    "stall_pct": 10.257924481070328,
+    "inst_m": 425.521291,
+    "l1_req_m": 486.867122,
+    "l2_excess_m": 364.527258
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 35,
+    "text": "add(f.local[e[j].item], prefix + rest);",
+    "stall_pct": 7.815485706687609,
+    "inst_m": 180.968569,
+    "l1_req_m": 435.774434,
+    "l2_excess_m": 366.989885
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 211,
+    "text": "if (f.rename[e[j].item] != kNone)",
+    "stall_pct": 7.5778620802882575,
+    "inst_m": 181.154383,
+    "l1_req_m": 260.041412,
+    "l2_excess_m": 204.377043
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 42,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 7.421423144847098,
+    "inst_m": 203.737252,
+    "l1_req_m": 407.002863,
+    "l2_excess_m": 326.453492
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 87,
+    "text": "const uint32_t z = f.rename[e[j].item];",
+    "stall_pct": 6.58123494368885,
+    "inst_m": 362.160043,
+    "l1_req_m": 486.866977,
+    "l2_excess_m": 364.527149
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 40,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 5.279751645386768,
+    "inst_m": 279.238484,
+    "l1_req_m": 250.980951,
+    "l2_excess_m": 174.647308
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 19,
+    "text": "while (low <= high) {",
+    "stall_pct": 4.13427030225925,
+    "inst_m": 247.515263,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 27.649832730196522,
+    "inst_m": 2131.406624
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 22.180025881716933,
+    "inst_m": 839.525637
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 16.56089663356645,
+    "inst_m": 813.354891
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 12.66602909164912,
+    "inst_m": 656.78078
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 10.558691755992717,
+    "inst_m": 322.521758
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 3.864778329274619,
+    "inst_m": 336.509708
+   },
+   {
+    "fn": "process_task",
+    "stall_pct": 2.4400665957926293,
+    "inst_m": 51.229093
+   },
+   {
+    "fn": "sync",
+    "stall_pct": 1.5801830697614025,
+    "inst_m": 0.269112
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_static_block",
+  "idx": 2,
+  "kernel": "block_tasks",
+  "grid": "(6201, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 32.118528,
+  "sm_pct": 20.987162,
+  "mem_pct": 60.384078,
+  "l1_pct": 43.099046,
+  "l2_pct": 60.384078,
+  "dram_pct": 24.735495,
+  "dram_read_gb": 14.090689,
+  "dram_write_gb": 2.108814,
+  "dram_gbps": 504.3662959896543,
+  "l1_hit": 68.948627,
+  "l2_hit": 75.74677,
+  "ld_sectors_per_req": 8.819706611676,
+  "st_sectors_per_req": 6.098598845782384,
+  "ld_sectors_g": 3.432126111,
+  "red_sectors_m": 765.447181,
+  "atom_sectors_m": 43.480887,
+  "l1_traffic_gb": 113.759011264,
+  "l2_excess_pct": null,
+  "warps_active_pct": 68.061413,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 24.885031,
+  "ipc": 0.9925,
+  "active_threads_per_warp": 13.16,
+  "waves": 9.07,
+  "regs": 40.0,
+  "instr_m": 3343.315994,
+  "stall_cycles_per_issue": 43.714771999999996,
+  "stall_share": {
+   "long_scoreboard": 81.38271429163579,
+   "barrier": 6.335460242135085,
+   "wait": 6.845615024596263,
+   "branch_resolving": 1.3429327733883643,
+   "selected": 2.2880206260712055
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 22,
+    "text": "if (key == item)",
+    "stall_pct": 15.97610167011279,
+    "inst_m": 56.751354,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 75,
+    "text": "if (f.rename[e[j].item] != kNone) {",
+    "stall_pct": 9.857474623244405,
+    "inst_m": 268.97086,
+    "l1_req_m": 294.95409,
+    "l2_excess_m": 220.816412
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 42,
+    "text": "while (j < b.length && rename[eb[j].item] == kNone)",
+    "stall_pct": 6.737476946724173,
+    "inst_m": 120.379325,
+    "l1_req_m": 243.099542,
+    "l2_excess_m": 196.731937
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 211,
+    "text": "if (f.rename[e[j].item] != kNone)",
+    "stall_pct": 6.083886556100308,
+    "inst_m": 104.937478,
+    "l1_req_m": 144.498962,
+    "l2_excess_m": 115.615579
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 87,
+    "text": "const uint32_t z = f.rename[e[j].item];",
+    "stall_pct": 5.889295125495834,
+    "inst_m": 223.133676,
+    "l1_req_m": 294.953886,
+    "l2_excess_m": 220.816238
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 40,
+    "text": "while (i < a.length && rename[ea[i].item] == kNone)",
+    "stall_pct": 4.980903900653367,
+    "inst_m": 167.244041,
+    "l1_req_m": 142.886735,
+    "l2_excess_m": 97.641962
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 35,
+    "text": "add(f.local[e[j].item], prefix + rest);",
+    "stall_pct": 4.906172748486666,
+    "inst_m": 104.171022,
+    "l1_req_m": 260.418887,
+    "l2_excess_m": 224.436915
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 19,
+    "text": "while (low <= high) {",
+    "stall_pct": 4.136520075200316,
+    "inst_m": 166.696984,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 27.946769972151756,
+    "inst_m": 1370.198285
+   },
+   {
+    "fn": "find_item",
+    "stall_pct": 21.569823359684722,
+    "inst_m": 565.651487
+   },
+   {
+    "fn": "same_kept_items",
+    "stall_pct": 15.366635053937125,
+    "inst_m": 489.818285
+   },
+   {
+    "fn": "scan_local",
+    "stall_pct": 9.056153367537636,
+    "inst_m": 400.066316
+   },
+   {
+    "fn": "merge_duplicates",
+    "stall_pct": 8.871001073492335,
+    "inst_m": 194.142514
+   },
+   {
+    "fn": "process_task",
+    "stall_pct": 5.656276914106091,
+    "inst_m": 39.922341
+   },
+   {
+    "fn": "write_representatives",
+    "stall_pct": 4.2821285308793815,
+    "inst_m": 222.153708
+   },
+   {
+    "fn": "sync",
+    "stall_pct": 3.719019804313853,
+    "inst_m": 0.924953
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_static_block_late",
+  "idx": 0,
+  "kernel": "block_tasks",
+  "grid": "(734334, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 12.131776,
+  "sm_pct": 25.885489,
+  "mem_pct": 19.495234,
+  "l1_pct": 19.495234,
+  "l2_pct": 7.761065,
+  "dram_pct": 1.7962,
+  "dram_read_gb": 0.210703872,
+  "dram_write_gb": 0.233624064,
+  "dram_gbps": 36.62513518218602,
+  "l1_hit": 81.728358,
+  "l2_hit": 89.748246,
+  "ld_sectors_per_req": 1.6746974963746037,
+  "st_sectors_per_req": 1.4261358833872186,
+  "ld_sectors_g": 0.217227253,
+  "red_sectors_m": 31.131034,
+  "atom_sectors_m": 8.025793,
+  "l1_traffic_gb": 7.938790784,
+  "l2_excess_pct": null,
+  "warps_active_pct": 70.036263,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 25.928397,
+  "ipc": 1.034862,
+  "active_threads_per_warp": 21.2,
+  "waves": 1073.59,
+  "regs": 40.0,
+  "instr_m": 1581.360541,
+  "stall_cycles_per_issue": 43.159979,
+  "stall_share": {
+   "long_scoreboard": 17.60514758359822,
+   "barrier": 68.11231071266276,
+   "wait": 6.1800261765651,
+   "branch_resolving": 1.8711061003991685,
+   "no_instruction": 1.4614835655967304,
+   "selected": 2.316931155133324
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/baseline/groups.cuh",
+    "line": 13,
+    "text": "__device__ void     sync() const { __syncthreads(); }",
+    "stall_pct": 24.999086621192582,
+    "inst_m": 50.426028,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 33,
+    "text": "g.sync();",
+    "stall_pct": 15.706644648148215,
+    "inst_m": 15.1903,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 15,
+    "text": "const Frame f = open_frame(b, t);",
+    "stall_pct": 12.867589301046001,
+    "inst_m": 218.799449,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 43,
+    "text": "g.sync();",
+    "stall_pct": 8.927729815241735,
+    "inst_m": 6.991072,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 37,
+    "text": "if (f.state->child_primaries == 0)",
+    "stall_pct": 7.328586199211571,
+    "inst_m": 10.687656,
+    "l1_req_m": 3.562552,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/frame.cuh",
+    "line": 34,
+    "text": "f.task    = b.tasks[t];",
+    "stall_pct": 4.189851265395,
+    "inst_m": 58.74672,
+    "l1_req_m": 35.248032,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 223,
+    "text": "push_task(b, Task{static_cast<uint32_t>(state.child_db / kArenaUnit), static_cast<uint32_t>(c.bytes / kArenaUn",
+    "stall_pct": 2.5968272873745475,
+    "inst_m": 6.117188,
+    "l1_req_m": 0.436942,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/device/common.cuh",
+    "line": 67,
+    "text": "if (slot < b.stack_capacity)",
+    "stall_pct": 2.5805691446024794,
+    "inst_m": 4.36942,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "process_task",
+    "stall_pct": 48.82557752941993,
+    "inst_m": 363.233062
+   },
+   {
+    "fn": "sync",
+    "stall_pct": 24.999086621192582,
+    "inst_m": 50.426028
+   },
+   {
+    "fn": "open_frame",
+    "stall_pct": 5.182328677537092,
+    "inst_m": 158.229108
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 4.017131332911961,
+    "inst_m": 34.081476
+   },
+   {
+    "fn": "clear_state",
+    "stall_pct": 2.6608551417746584,
+    "inst_m": 146.856032
+   },
+   {
+    "fn": "push_task",
+    "stall_pct": 2.6294349107994255,
+    "inst_m": 11.360492
+   },
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 1.8931602541385193,
+    "inst_m": 148.156883
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 1.6052632540398744,
+    "inst_m": 182.68072
+   }
+  ]
+ },
+ {
+  "report": "ncu_dfs_static_block_late",
+  "idx": 1,
+  "kernel": "block_tasks",
+  "grid": "(767340, 1, 1)",
+  "block": "(256, 1, 1)",
+  "duration_ms": 10.972384,
+  "sm_pct": 26.911442,
+  "mem_pct": 19.760424,
+  "l1_pct": 19.760424,
+  "l2_pct": 6.48933,
+  "dram_pct": 1.65973,
+  "dram_read_gb": 0.184570368,
+  "dram_write_gb": 0.186761216,
+  "dram_gbps": 33.8423795594467,
+  "l1_hit": 82.427069,
+  "l2_hit": 87.992111,
+  "ld_sectors_per_req": 1.345277519590855,
+  "st_sectors_per_req": 1.2544605240281461,
+  "ld_sectors_g": 0.162736283,
+  "red_sectors_m": 19.097897,
+  "atom_sectors_m": 5.889707,
+  "l1_traffic_gb": 6.0168304,
+  "l2_excess_pct": null,
+  "warps_active_pct": 69.37787,
+  "theo_occ_pct": 75.0,
+  "issue_active_pct": 26.948428,
+  "ipc": 1.075792,
+  "active_threads_per_warp": 22.19,
+  "waves": 1121.84,
+  "regs": 40.0,
+  "instr_m": 1487.027063,
+  "stall_cycles_per_issue": 41.118252,
+  "stall_share": {
+   "long_scoreboard": 19.225311426176386,
+   "short_scoreboard": 1.0057042308121464,
+   "barrier": 65.69776117914739,
+   "wait": 6.41704807879479,
+   "branch_resolving": 1.9588843416787272,
+   "no_instruction": 1.5068515072090127,
+   "selected": 2.4320172948986256
+  },
+  "hot_lines": [
+   {
+    "file": "include/mine/dfs/baseline/groups.cuh",
+    "line": 13,
+    "text": "__device__ void     sync() const { __syncthreads(); }",
+    "stall_pct": 23.796238101932634,
+    "inst_m": 48.420899,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 33,
+    "text": "g.sync();",
+    "stall_pct": 14.207284801071756,
+    "inst_m": 13.804643,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 15,
+    "text": "const Frame f = open_frame(b, t);",
+    "stall_pct": 13.750795961066133,
+    "inst_m": 222.743259,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 43,
+    "text": "g.sync();",
+    "stall_pct": 9.180118753256204,
+    "inst_m": 6.452992,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/process.cuh",
+    "line": 37,
+    "text": "if (f.state->child_primaries == 0)",
+    "stall_pct": 7.567935793852286,
+    "inst_m": 9.780912,
+    "l1_req_m": 3.260304,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/frame.cuh",
+    "line": 34,
+    "text": "f.task    = b.tasks[t];",
+    "stall_pct": 5.073889996113229,
+    "inst_m": 61.3872,
+    "l1_req_m": 36.83232,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 13,
+    "text": "for (uint32_t i = f.first + g.rank(); i < f.n; i += g.size())",
+    "stall_pct": 2.5397360303664316,
+    "inst_m": 48.142276,
+    "l1_req_m": 0.0,
+    "l2_excess_m": 0.0
+   },
+   {
+    "file": "include/mine/dfs/baseline/phases.cuh",
+    "line": 223,
+    "text": "push_task(b, Task{static_cast<uint32_t>(state.child_db / kArenaUnit), static_cast<uint32_t>(c.bytes / kArenaUn",
+    "stall_pct": 2.318830991622768,
+    "inst_m": 5.646368,
+    "l1_req_m": 0.403312,
+    "l2_excess_m": 0.0
+   }
+  ],
+  "by_function": [
+   {
+    "fn": "process_task",
+    "stall_pct": 48.643041439593794,
+    "inst_m": 363.067773
+   },
+   {
+    "fn": "sync",
+    "stall_pct": 23.796238101932634,
+    "inst_m": 48.420899
+   },
+   {
+    "fn": "open_frame",
+    "stall_pct": 6.243022419225458,
+    "inst_m": 162.424154
+   },
+   {
+    "fn": "emit_children",
+    "stall_pct": 3.790635362999595,
+    "inst_m": 31.458336
+   },
+   {
+    "fn": "clear_state",
+    "stall_pct": 3.1783655714793713,
+    "inst_m": 151.2532
+   },
+   {
+    "fn": "push_task",
+    "stall_pct": 2.3560447557536612,
+    "inst_m": 10.486112
+   },
+   {
+    "fn": "(outside a device function)",
+    "stall_pct": 1.755869437575978,
+    "inst_m": 177.417158
+   },
+   {
+    "fn": "scan_subtree",
+    "stall_pct": 1.7527682905650703,
+    "inst_m": 120.0983
+   }
+  ]
+ }
+]

@@ -14,7 +14,7 @@ void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
                        cudaStream_t stream);
 // Bins 1..kOptHugeBin-1: one block of (32 << bin) threads per task.
 void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin,
-                        cudaStream_t stream);
+                        const AutoTune& tune, cudaStream_t stream);
 // Sub-warp bins: `group` lanes (a power of two <= 32) per task.
 void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group,
                           const AutoTune& tune, cudaStream_t stream);
@@ -23,11 +23,11 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
                        const AutoTune& tune, cudaStream_t stream);
 
 // Kernel handles for occupancy queries from another translation unit.
-const void* block_kernel();
-const void* warp_kernel();
+const void* block_kernel(bool warp_mode);
+const void* warp_kernel(bool warp_mode);
 const void* subwarp_kernel();
 // The pass kernels of a huge task, in launch order.
-void huge_kernels(const void* (&kernels)[kHugeKernels]);
+void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode);
 
 // Fills the block-size fields of `tune` for a device with `sms` multiprocessors from kernel occupancy.
 void measure_occupancy(AutoTune& tune, uint32_t sms);

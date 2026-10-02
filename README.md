@@ -32,7 +32,7 @@ The GPU architecture is auto-detected (`native`, sm_80 or newer); pass
 | `--input` | SPMF utility dataset (required) |
 | `--minutil` | Minimum itemset utility (required) |
 | `--search` | `bfs` (default, level by level) or `dfs` (task stack) |
-| `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task) or `static` (one block of `--block-size` threads per task) |
+| `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task), `static` (one block of `--block-size` threads per task) or `warp` (BFS only: a lane group of 4, 8, 16 or 32 lanes per transaction, sized from the task's longest transaction; experimental) |
 | `--block-size` | Threads per task for `--method static`: a power of two, 32-1024 (default 256) |
 | `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
 | `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |

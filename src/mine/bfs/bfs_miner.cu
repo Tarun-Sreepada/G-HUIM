@@ -70,14 +70,16 @@ AutoTune make_auto_tune(const MiningOptions& options)
     const uint32_t sms = static_cast<uint32_t>(props.multiProcessorCount);
 
     AutoTune tune{};
+    tune.warp_mode = options.method == Method::Warp;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
     // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
     tune.fixed_bin = options.method == Method::Static ? static_cast<uint32_t>(std::countr_zero(options.block_size / 32))
                                                       : kNone;
-    spdlog::info("Auto-tune: {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
+    spdlog::info("Auto-tune ({}): {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
                  "lane-group block {} threads, huge tasks up to {} blocks",
-                 props.name, sms, tune.resident_warps, tune.max_block_warps * 32, tune.packed_block_warps * 32,
+                 options.method == Method::Warp ? "lane group per transaction" : "lane per transaction", props.name, sms,
+                 tune.resident_warps, tune.max_block_warps * 32, tune.packed_block_warps * 32,
                  tune.subwarp_block_warps * 32, tune.max_slices);
     return tune;
 }
@@ -299,7 +301,7 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
         if (bin == 0)
             launch_warp_tasks(view, tasks, count, tune_, stream);
         else if (bin < kOptHugeBin)
-            launch_block_tasks(view, tasks, count, bin, stream);
+            launch_block_tasks(view, tasks, count, bin, tune_, stream);
         else if (bin == kOptHugeBin)
             launch_huge_tasks(view, tasks, count, host_.bin_max_slices[bin], tune_, stream);
         else

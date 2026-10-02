@@ -2,7 +2,7 @@
 // transactions. Passes that need the whole task finished are separate launches.
 
 #include "cuda/buffer.cuh"
-#include "mine/bfs/device/child.cuh"
+#include "mine/bfs/device/warp_passes.cuh"
 #include "mine/bfs/kernels.cuh"
 
 #include <algorithm>
@@ -17,11 +17,15 @@ __device__ __forceinline__ uint32_t slices_of(const BatchView& b, const AutoTune
     return place_task(v.task, tune, b.control->batch_work).slices;
 }
 
-__device__ __forceinline__ void slice_range(uint32_t slices, uint32_t& from, uint32_t& step)
+// The transactions of a slice: warp w of block y starts at (y * warps + w) units, `unit` transactions
+// per warp step (32 for lane per transaction, 32 / group size for lane groups).
+template <typename Mode>
+__device__ __forceinline__ void slice_range(const Projection& p, uint32_t slices, uint32_t& from, uint32_t& step)
 {
     const uint32_t warps = blockDim.x / 32;
-    from                 = (blockIdx.y * warps + threadIdx.x / 32) * 32;
-    step                 = slices * warps * 32;
+    const uint32_t unit  = Mode::unit(p, Lanes(WarpGroup{}));
+    from                 = (blockIdx.y * warps + threadIdx.x / 32) * unit;
+    step                 = slices * warps * unit;
 }
 
 __global__ void huge_init(BatchView b, AutoTune tune, const uint32_t* order)
@@ -33,7 +37,7 @@ __global__ void huge_init(BatchView b, AutoTune tune, const uint32_t* order)
     clear_task(v, blockIdx.y * blockDim.x + threadIdx.x, slices * blockDim.x);
 }
 
-__global__ void huge_local(BatchView b, AutoTune tune, const uint32_t* order)
+template <typename Mode> __global__ void huge_local(BatchView b, AutoTune tune, const uint32_t* order)
 {
     const TaskView v      = open_task(b, order[blockIdx.x]);
     const uint32_t slices = slices_of(b, tune, v);
@@ -41,8 +45,8 @@ __global__ void huge_local(BatchView b, AutoTune tune, const uint32_t* order)
         return;
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
-    slice_range(slices, from, step);
-    scan_local(v.p, lanes, from, step, *v.state);
+    slice_range<Mode>(v.p, slices, from, step);
+    Mode::scan_local(v.p, lanes, from, step, *v.state);
 }
 
 __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
@@ -56,7 +60,7 @@ __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
     }
 }
 
-__global__ void huge_subtree(BatchView b, AutoTune tune, const uint32_t* order)
+template <typename Mode> __global__ void huge_subtree(BatchView b, AutoTune tune, const uint32_t* order)
 {
     const TaskView v      = open_task(b, order[blockIdx.x]);
     const uint32_t slices = slices_of(b, tune, v);
@@ -64,8 +68,8 @@ __global__ void huge_subtree(BatchView b, AutoTune tune, const uint32_t* order)
         return;
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
-    slice_range(slices, from, step);
-    scan_subtree(v.p, lanes, from, step, *v.state);
+    slice_range<Mode>(v.p, slices, from, step);
+    Mode::scan_subtree(v.p, lanes, from, step, *v.state);
 }
 
 __global__ void huge_allocate(BatchView b, AutoTune, const uint32_t* order)
@@ -76,7 +80,7 @@ __global__ void huge_allocate(BatchView b, AutoTune, const uint32_t* order)
     allocate_child(BlockGroup{}, b, v, v.state->child_items);
 }
 
-__global__ void huge_write(BatchView b, AutoTune tune, const uint32_t* order)
+template <typename Mode> __global__ void huge_write(BatchView b, AutoTune tune, const uint32_t* order)
 {
     const TaskView v      = open_task(b, order[blockIdx.x]);
     const uint32_t slices = slices_of(b, tune, v);
@@ -86,11 +90,11 @@ __global__ void huge_write(BatchView b, AutoTune tune, const uint32_t* order)
     copy_child_items(v, c, blockIdx.y * blockDim.x + threadIdx.x, slices * blockDim.x);
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
-    slice_range(slices, from, step);
-    write_representatives(v.p, lanes, from, step, *v.state, c);
+    slice_range<Mode>(v.p, slices, from, step);
+    Mode::write_representatives(v.p, lanes, from, step, *v.state, c);
 }
 
-__global__ void huge_merge(BatchView b, AutoTune tune, const uint32_t* order)
+template <typename Mode> __global__ void huge_merge(BatchView b, AutoTune tune, const uint32_t* order)
 {
     const TaskView v      = open_task(b, order[blockIdx.x]);
     const uint32_t slices = slices_of(b, tune, v);
@@ -99,8 +103,8 @@ __global__ void huge_merge(BatchView b, AutoTune tune, const uint32_t* order)
     const ChildView c = child_view(b, *v.state, v.state->child_items);
     const Lanes     lanes(WarpGroup{});
     uint32_t        from, step;
-    slice_range(slices, from, step);
-    merge_duplicates(v.p, lanes, from, step, c);
+    slice_range<Mode>(v.p, slices, from, step);
+    Mode::merge_duplicates(v.p, lanes, from, step, c);
 }
 
 __global__ void huge_emit(BatchView b, AutoTune, const uint32_t* order)
@@ -110,6 +114,19 @@ __global__ void huge_emit(BatchView b, AutoTune, const uint32_t* order)
         return;
     const ChildView c = child_view(b, *v.state, v.state->child_items);
     emit_children(BlockGroup{}, b, v, v.state->child_items, c);
+}
+
+// init is launched by the caller; passes local..merge run in this order, emit follows.
+template <typename Mode>
+void launch_huge_passes(const BatchView& batch, const AutoTune& tune, const uint32_t* part, dim3 sliced, dim3 single,
+                        uint32_t threads, cudaStream_t stream)
+{
+    huge_local<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_rename<<<single, threads, 0, stream>>>(batch, tune, part);
+    huge_subtree<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_allocate<<<single, threads, 0, stream>>>(batch, tune, part);
+    huge_write<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_merge<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
 }
 
 } // namespace
@@ -123,24 +140,26 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
         const uint32_t* part = order + done;
         const dim3      sliced(n, max_slices), single(n, 1);
         huge_init<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        huge_local<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        huge_rename<<<single, threads, 0, stream>>>(batch, tune, part);
-        huge_subtree<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        huge_allocate<<<single, threads, 0, stream>>>(batch, tune, part);
-        huge_write<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        huge_merge<<<sliced, threads, 0, stream>>>(batch, tune, part);
+        if (tune.warp_mode)
+            launch_huge_passes<WarpTx>(batch, tune, part, sliced, single, threads, stream);
+        else
+            launch_huge_passes<LaneTx>(batch, tune, part, sliced, single, threads, stream);
         huge_emit<<<single, threads, 0, stream>>>(batch, tune, part);
         check_launch("launch huge-task kernels");
     }
 }
 
-void huge_kernels(const void* (&kernels)[kHugeKernels])
+void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode)
 {
     const void* handles[kHugeKernels] = {
-            reinterpret_cast<const void*>(huge_init),     reinterpret_cast<const void*>(huge_local),
-            reinterpret_cast<const void*>(huge_rename),   reinterpret_cast<const void*>(huge_subtree),
-            reinterpret_cast<const void*>(huge_allocate), reinterpret_cast<const void*>(huge_write),
-            reinterpret_cast<const void*>(huge_merge),    reinterpret_cast<const void*>(huge_emit)};
+            reinterpret_cast<const void*>(huge_init),
+            warp_mode ? reinterpret_cast<const void*>(huge_local<WarpTx>) : reinterpret_cast<const void*>(huge_local<LaneTx>),
+            reinterpret_cast<const void*>(huge_rename),
+            warp_mode ? reinterpret_cast<const void*>(huge_subtree<WarpTx>) : reinterpret_cast<const void*>(huge_subtree<LaneTx>),
+            reinterpret_cast<const void*>(huge_allocate),
+            warp_mode ? reinterpret_cast<const void*>(huge_write<WarpTx>) : reinterpret_cast<const void*>(huge_write<LaneTx>),
+            warp_mode ? reinterpret_cast<const void*>(huge_merge<WarpTx>) : reinterpret_cast<const void*>(huge_merge<LaneTx>),
+            reinterpret_cast<const void*>(huge_emit)};
     std::copy(std::begin(handles), std::end(handles), kernels);
 }
 

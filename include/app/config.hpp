@@ -14,7 +14,8 @@ enum class Search
 enum class Method
 {
     Static,  // every task gets one block of --block-size threads
-    Adaptive // size-binned kernels: each task gets lanes, a warp, a block or several blocks to fit its work
+    Adaptive, // size-binned kernels: each task gets lanes, a warp, a block or several blocks to fit its work
+    Warp      // BFS only: a group of 4-32 lanes (from the longest transaction) owns one transaction at a time
 };
 
 inline const char* search_name(Search search)
@@ -24,7 +25,11 @@ inline const char* search_name(Search search)
 
 inline const char* method_name(Method method)
 {
-    return method == Method::Static ? "static" : "adaptive";
+    switch (method) {
+    case Method::Static: return "static";
+    case Method::Warp: return "warp";
+    default: return "adaptive";
+    }
 }
 
 struct MiningOptions

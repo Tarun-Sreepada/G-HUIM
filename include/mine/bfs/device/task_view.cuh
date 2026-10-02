@@ -82,6 +82,7 @@ struct Projection
     const uint32_t*     eitem;   // entry keys (local item names)
     const uint32_t*     eutil;   // entry utilities
     uint32_t            n_trans;
+    uint32_t            max_len; // longest transaction
     uint32_t            item;    // extension item (local name in the parent)
     unsigned long long* local;   // by parent item name
     unsigned long long* subtree; // by child item name
@@ -121,6 +122,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.eitem          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eitem);
     p.eutil          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eutil);
     p.n_trans        = trans;
+    p.max_len        = v.header.max_len;
     p.item           = v.task.item;
     p.local          = reinterpret_cast<unsigned long long*>(scratch + sizeof(TaskState));
     p.subtree        = p.local + n;

@@ -35,9 +35,10 @@ uint32_t warp_kernel_block(const void* kernel)
 void measure_occupancy(AutoTune& tune, uint32_t sms)
 {
     // Kernels launched with the same block size: a size is usable only if all of them fit.
-    const void* block_kernels[1 + kHugeKernels] = {block_kernel()};
+    const bool  warp_mode = tune.warp_mode != 0;
+    const void* block_kernels[1 + kHugeKernels] = {block_kernel(warp_mode)};
     const void* huge[kHugeKernels];
-    huge_kernels(huge);
+    huge_kernels(huge, warp_mode);
     std::copy(std::begin(huge), std::end(huge), block_kernels + 1);
     auto block_occupancy = [&](uint32_t threads) {
         uint32_t blocks = ~0u;
@@ -58,7 +59,7 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
     tune.max_block_warps = 1u << best_size;
     tune.max_slices      = sms * std::max(1u, block_occupancy(32u << best_size));
 
-    tune.packed_block_warps  = warp_kernel_block(warp_kernel());
+    tune.packed_block_warps  = warp_kernel_block(warp_kernel(warp_mode));
     tune.subwarp_block_warps = warp_kernel_block(subwarp_kernel());
 }
 

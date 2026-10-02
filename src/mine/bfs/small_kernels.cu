@@ -12,20 +12,20 @@ namespace {
 constexpr uint32_t kMaxGrid = 65535;
 
 // Block-sized tasks: one block per task; its warps split the transactions.
-__global__ void block_tasks(BatchView b, const uint32_t* order, uint32_t count)
+template <typename Mode> __global__ void block_tasks(BatchView b, const uint32_t* order, uint32_t count)
 {
     for (uint32_t i = blockIdx.x; i < count; i += gridDim.x) {
-        process_task(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);
+        process_task<Mode>(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);
         __syncthreads(); // the next task reuses the block
     }
 }
 
 // Warp-sized tasks: every warp of the block runs its own task.
-__global__ void warp_tasks(BatchView b, const uint32_t* order, uint32_t count)
+template <typename Mode> __global__ void warp_tasks(BatchView b, const uint32_t* order, uint32_t count)
 {
     const uint32_t warp = threadIdx.x / 32, warps = blockDim.x / 32;
     for (uint32_t i = blockIdx.x * warps + warp; i < count; i += gridDim.x * warps) {
-        process_task(WarpGroup{}, b, order[i], 0, 1);
+        process_task<Mode>(WarpGroup{}, b, order[i], 0, 1);
         __syncwarp();
     }
 }
@@ -37,7 +37,7 @@ __global__ void subwarp_tasks(BatchView b, const uint32_t* order, uint32_t count
     const uint32_t first  = (blockIdx.x * blockDim.x + threadIdx.x) / group;
     const uint32_t groups = gridDim.x * blockDim.x / group;
     for (uint32_t i = first; i < count; i += groups) {
-        process_task(g, b, order[i], 0, 1);
+        process_task<LaneTx>(g, b, order[i], 0, 1);
         g.sync();
     }
 }
@@ -48,14 +48,21 @@ void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
                        cudaStream_t stream)
 {
     const uint32_t warps = tune.packed_block_warps;
-    warp_tasks<<<std::min(ceil_div(count, warps), kMaxGrid), warps * 32, 0, stream>>>(batch, order, count);
+    const uint32_t blocks = std::min(ceil_div(count, warps), kMaxGrid);
+    if (tune.warp_mode)
+        warp_tasks<WarpTx><<<blocks, warps * 32, 0, stream>>>(batch, order, count);
+    else
+        warp_tasks<LaneTx><<<blocks, warps * 32, 0, stream>>>(batch, order, count);
     check_launch("launch warp-task kernel");
 }
 
 void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin,
-                        cudaStream_t stream)
+                        const AutoTune& tune, cudaStream_t stream)
 {
-    block_tasks<<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
+    if (tune.warp_mode)
+        block_tasks<WarpTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
+    else
+        block_tasks<LaneTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
     check_launch("launch block-task kernel");
 }
 
@@ -69,14 +76,16 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
     check_launch("launch sub-warp kernel");
 }
 
-const void* block_kernel()
+const void* block_kernel(bool warp_mode)
 {
-    return reinterpret_cast<const void*>(block_tasks);
+    return warp_mode ? reinterpret_cast<const void*>(block_tasks<WarpTx>)
+                     : reinterpret_cast<const void*>(block_tasks<LaneTx>);
 }
 
-const void* warp_kernel()
+const void* warp_kernel(bool warp_mode)
 {
-    return reinterpret_cast<const void*>(warp_tasks);
+    return warp_mode ? reinterpret_cast<const void*>(warp_tasks<WarpTx>)
+                     : reinterpret_cast<const void*>(warp_tasks<LaneTx>);
 }
 
 const void* subwarp_kernel()
