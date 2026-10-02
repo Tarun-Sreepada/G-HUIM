@@ -282,6 +282,42 @@ def sweep_chart():
         v = float(r[3]); out.append(f'<div class="hrow2"><span>{r[0].upper()} adaptive</span><span class="inl big"><i style="width:{100*v/mx:.0f}%;background:var(--c2)"></i></span><b>{v*1000:.0f} ms</b></div>')
     return "".join(out)
 
+AOS = {}
+for k in json.loads((HERE / "data/ncu_summary_aos.json").read_text()):
+    AOS.setdefault(k["report"][4:], []).append(k)
+BENCH = [l.split(",") for l in (HERE / "data/bench.csv").read_text().splitlines() if l.strip()]
+LEVELS = [l.split(",") for l in (HERE / "data/levels_warp.csv").read_text().splitlines()[1:] if l.strip()]
+
+def bench_table():
+    def get(label, s_, m, M):
+        r = next((x for x in BENCH if x[0] == label and x[1] == s_ and x[2] == m and x[3] == str(M)), None)
+        return f"{float(r[4]) * 1000:.0f} ms" if r and r[4] != "ERR" else "–"
+    rows = []
+    for M in (8000000, 6000000):
+        rows.append([f"{M/1e6:.0f}M", "BFS", get("aos", "bfs", "static", M), get("soa", "bfs", "static", M), get("aos", "bfs", "adaptive", M), get("soa", "bfs", "adaptive", M), get("soa", "bfs", "warp", M)])
+    return table(["minutil", "Search", "Static, interleaved", "Static, split", "Adaptive, interleaved", "Adaptive, split", "Warp (lane groups), split"], rows, "num")
+
+PAIRS = [("block bin, 514 blocks", nk("bfs_adaptive_block", 2), nk("bfs_warp_block", 2)),
+         ("huge_local", nk("bfs_adaptive_huge", 0), nk("bfs_warp_huge", 0)), ("huge_subtree", nk("bfs_adaptive_huge", 1), nk("bfs_warp_huge", 1)),
+         ("huge_write", nk("bfs_adaptive_huge", 2), nk("bfs_warp_huge", 2)), ("huge_merge", nk("bfs_adaptive_huge", 3), nk("bfs_warp_huge", 3))]
+
+def ncu_pair_table():
+    cols = [("ms", lambda k: f'{k["duration_ms"]:.1f}'), ("Instructions (M)", lambda k: f'{k["instr_m"]:,.0f}'), ("Sectors per load request", lambda k: f'{k["ld_sectors_per_req"]:.1f}'),
+            ("L1 traffic (GB)", lambda k: f'{k["l1_traffic_gb"]:.0f}'), ("L2 %", lambda k: f'{k["l2_pct"]:.0f}'), ("DRAM %", lambda k: f'{k["dram_pct"]:.0f}'),
+            ("Issue slots %", lambda k: f'{k["issue_active_pct"]:.0f}'), ("Load-wait stalls %", lambda k: f'{k["stall_share"].get("long_scoreboard", 0):.0f}')]
+    head = "<tr><th>Kernel</th><th>Method</th>" + "".join(f"<th>{c}</th>" for c, _ in cols) + "</tr>"
+    trs = []
+    for lab, a_, w_ in PAIRS:
+        for name, k in (("lane per tx", a_), ("lane group", w_)):
+            trs.append(f'<tr><td>{lab if name == "lane per tx" else ""}</td><td>{name}</td>' + "".join(f"<td class='r'>{f(k)}</td>" for _, f in cols) + "</tr>")
+    return f'<div class="tw"><table class="num"><thead>{head}</thead><tbody>{"".join(trs)}</tbody></table></div>'
+
+def level_rows():
+    rows = []
+    for lv, tasks, a_, w_ in LEVELS[:12]:
+        rows.append([lv, f"{int(tasks):,}", f"{float(a_):.1f}", f"{float(w_):.1f}", f"{float(w_) / max(float(a_), 0.05):.1f}×"])
+    return table(["Level", "Tasks", "Adaptive ms", "Warp ms", "Warp / adaptive"], rows, "num")
+
 d8 = {c: D[f"{c}_8000000"] for c in CFG}
 busy_min = min(100 * d8[c]["busy_frac_of_span"] for c in CFG)
 early_s = share_early("bfs_static", 8000000)
@@ -339,6 +375,20 @@ table.fn td:first-child {{ white-space:normal; min-width:230px; }}
 </section>
 
 <section>
+  <h2>Test: split keys from values, then a lane group per transaction</h2>
+  <p>Two changes were built in the BFS engine and checked against efim (all three methods return identical itemsets and counts). First, item ids and utilities were moved into separate arrays. Second, a new method <code>--method warp</code> gives each transaction a group of 4, 8, 16 or 32 lanes, chosen from the task's longest transaction, with lanes on consecutive entries.</p>
+  {bench_table()}
+  <p><b>The split alone changed nothing that matters.</b> Static and adaptive got 1–4% faster, but sectors per load request stayed at 9.8 and L1 traffic at 180 GB in the level-2 launch. The lanes still stride across transactions, so splitting the arrays does not make a warp's loads contiguous.</p>
+  <p><b>Lane groups fixed the loads and lost the race.</b> Sectors per request fall from about 10 to 1.7, L1 traffic halves (81 to 44 GB in the 514-block launch), and L2 throughput drops from 37% to 9%. But the same work takes 2.4 to 4.5 times as many instructions, because a group handles only 32 / group size transactions per step and each step runs ballots and scans. The kernels went from waiting on memory to being limited by instruction issue and by too few warps in flight.</p>
+  {ncu_pair_table()}
+  <p class="note">Warp is slower in every kernel except <code>huge_write</code> (5.6 ms against 6.0 ms), the one pass that is mostly contiguous stores. The packed one-warp bin for tasks under 32 transactions is the worst case: 37–62 ms per launch at 7–8% of warp slots resident, against 2–10 ms for the same kernel in adaptive.</p>
+  <h3>Per level at minutil 8M</h3>
+  {level_rows()}
+  <p>The gap grows from 1.8× at level 1 to 7× at level 7, where tasks have few short transactions (around 17 entries after the extension item on this dataset), and shrinks again at the deepest levels. A lane group only pays off when transactions are long enough to keep most of its lanes busy; this dataset's are not. Longer-transaction datasets (pumsb averages 74 items) were not available here, so the crossover is untested.</p>
+  <p class="note">Verdict: do not port lane groups to DFS, and do not make <code>warp</code> the default. The coalescing hypothesis is confirmed and the speedup is not, because instruction count rose faster than memory traffic fell. The next experiments should keep one lane per transaction and attack the redundant work instead: a stored extension-item position, and per-item tables in shared memory.</p>
+</section>
+
+<section>
   <h2>Speed of light: how much compute and bandwidth is used</h2>
   <p>Each row is one kernel launch, as a percentage of the hardware peak. SM throughput is the busiest compute pipe. Issue slots busy is how often a scheduler issued an instruction (100% would mean one every cycle). L1/TEX, L2 and DRAM are the memory levels. Warps resident is achieved occupancy.</p>
   {sol_table()}
@@ -377,7 +427,7 @@ table.fn td:first-child {{ white-space:normal; min-width:230px; }}
   <div class="fix">
     <div><span class="tag">1 · Largest, least risky</span><h3>Compute each transaction's extension-item position once</h3><p><code>find_item</code> plus <code>same_kept_items</code> are about 20% + 16–28% of stall samples in every kernel. Pass 1 already finds the position <code>k</code> for every transaction. Store it in the per-task scratch (4 bytes per transaction, which the scratch layout already budgets for) and have passes 2, 3a, 3b and the duplicate check read it.</p></div>
     <div><span class="tag">2 · Large</span><h3>Keep the per-item tables in shared memory</h3><p><code>local[]</code>, <code>subtree[]</code> and <code>rename[]</code> are indexed by item and hold 100 or fewer items at the first levels (fewer deeper). Accumulate with shared-memory atomics and flush once per block, and read <code>rename[]</code> from shared memory. That removes the global atomic traffic (35 GB through L2 in one launch) and one of the two dependent loads per entry. Fall back to the current path for tasks with too many items.</p></div>
-    <div><span class="tag">3 · Medium, more work</span><h3>Make entry scans coalesced</h3><p>Split <code>Entry</code> into separate item and utility arrays. Passes that only test <code>rename[item]</code> then read 4 bytes per entry instead of 8, and utilities are read only for kept entries. For the large-task kernels also let a warp scan one transaction with lanes on consecutive entries, instead of one transaction per lane.</p></div>
+    <div><span class="tag">3 · Tried, did not pay</span><h3>Separate item and utility arrays, and lane groups per transaction</h3><p>Both were built and measured (see the test section above). The split changes nothing about sectors per request. Lane groups cut sectors per request from about 10 to 1.7 but need 2.4 to 4.5 times the instructions and run 3.2 times slower end to end on this dataset. Items 1 and 2 are now the better bets.</p></div>
     <div><span class="tag">4 · Late levels</span><h3>Stop using a 256-thread block for tiny tasks</h3><p>Barriers are 65–67% of stall cycles at late levels. Adaptive already routes small tasks to warp and sub-warp kernels. For the static method, the sweep below shows 256 to 512 threads is the best fixed size, so static has no better setting to fall back on.</p></div>
     <div><span class="tag">5 · DFS only</span><h3>Replace the single-block selector</h3><p><code>select_kernel</code> is one block of 1,024 threads. It costs 22 ms of 318 ms of adaptive kernel time at 8M, with barriers about 30% of its stalls. The sampled launches were its first, smallest batches, so its large-batch behaviour is only known from nsys timing.</p></div>
   </div>
