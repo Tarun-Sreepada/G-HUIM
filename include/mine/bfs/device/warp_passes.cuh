@@ -279,25 +279,34 @@ __device__ inline void group_merge_duplicates(const Projection& p, uint32_t from
 // per step, so a warp starts at warp_index * unit and the whole group of warps strides by their sum.
 // ---------------------------------------------------------------------------------------------
 
+// No per-task context: the plain modes need none.
+struct NoCtx
+{
+};
+
 // Lane per transaction: a warp covers 32 consecutive transactions per step.
 struct LaneTx
 {
+    using Ctx = NoCtx;
+    static __device__ Ctx make_ctx(const BatchView&, const Projection&, uint32_t, uint32_t, uint32_t) { return {}; }
     static __device__ uint32_t unit(const Projection&, const Lanes& lanes) { return lanes.count; }
-    static __device__ void scan_local(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step, TaskState& s)
+    static __device__ void scan_local(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step, TaskState& s,
+                                      const Ctx&)
     {
         bfs::scan_local(p, lanes, from, step, s);
     }
-    static __device__ void scan_subtree(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step, TaskState& s)
+    static __device__ void scan_subtree(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step, TaskState& s,
+                                        const Ctx&)
     {
         bfs::scan_subtree(p, lanes, from, step, s);
     }
     static __device__ void write_representatives(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step,
-                                                 TaskState& s, const ChildView& c)
+                                                 TaskState& s, const ChildView& c, const Ctx&)
     {
         bfs::write_representatives(p, lanes, from, step, s, c);
     }
     static __device__ void merge_duplicates(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step,
-                                            const ChildView& c)
+                                            const ChildView& c, const Ctx&)
     {
         bfs::merge_duplicates(p, lanes, from, step, c);
     }
@@ -306,21 +315,25 @@ struct LaneTx
 // Lane group per transaction: a warp covers 32 / group-size transactions per step.
 struct WarpTx
 {
+    using Ctx = NoCtx;
+    static __device__ Ctx make_ctx(const BatchView&, const Projection&, uint32_t, uint32_t, uint32_t) { return {}; }
     static __device__ uint32_t unit(const Projection& p, const Lanes&) { return 32 / tx_group_size(p.max_len); }
-    static __device__ void scan_local(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s)
+    static __device__ void scan_local(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s, const Ctx&)
     {
         group_scan_local(p, from, step, s);
     }
-    static __device__ void scan_subtree(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s)
+    static __device__ void scan_subtree(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s,
+                                        const Ctx&)
     {
         group_scan_subtree(p, from, step, s);
     }
     static __device__ void write_representatives(const Projection& p, const Lanes&, uint32_t from, uint32_t step,
-                                                 TaskState& s, const ChildView& c)
+                                                 TaskState& s, const ChildView& c, const Ctx&)
     {
         group_write_representatives(p, from, step, s, c);
     }
-    static __device__ void merge_duplicates(const Projection& p, const Lanes&, uint32_t from, uint32_t step, const ChildView& c)
+    static __device__ void merge_duplicates(const Projection& p, const Lanes&, uint32_t from, uint32_t step,
+                                            const ChildView& c, const Ctx&)
     {
         group_merge_duplicates(p, from, step, c);
     }

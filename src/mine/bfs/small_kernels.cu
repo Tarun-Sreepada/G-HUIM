@@ -59,7 +59,13 @@ void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin,
                         const AutoTune& tune, cudaStream_t stream)
 {
-    if (tune.warp_mode)
+    if (tune.staged) {
+        // The block keeps the bin's compute warps and adds the IO warps (at most 32 warps in all).
+        const uint32_t warps = std::min((1u << bin) + tune.io_warps, 32u);
+        block_tasks<StagedTx><<<std::min(count, kMaxGrid), warps * 32, kStageBarrierBytes + tune.ring_bytes, stream>>>(
+                batch, order, count);
+    }
+    else if (tune.warp_mode)
         block_tasks<WarpTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
     else
         block_tasks<LaneTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
@@ -80,6 +86,18 @@ const void* block_kernel(bool warp_mode)
 {
     return warp_mode ? reinterpret_cast<const void*>(block_tasks<WarpTx>)
                      : reinterpret_cast<const void*>(block_tasks<LaneTx>);
+}
+
+const void* block_kernel_staged()
+{
+    return reinterpret_cast<const void*>(block_tasks<StagedTx>);
+}
+
+void prepare_staged_block_kernel(uint32_t dynamic_bytes)
+{
+    check_cuda(cudaFuncSetAttribute(block_tasks<StagedTx>, cudaFuncAttributeMaxDynamicSharedMemorySize,
+                                    static_cast<int>(dynamic_bytes)),
+               "raise staged block kernel shared memory");
 }
 
 const void* warp_kernel(bool warp_mode)

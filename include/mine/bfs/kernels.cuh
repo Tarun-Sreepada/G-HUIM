@@ -26,8 +26,13 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 const void* block_kernel(bool warp_mode);
 const void* warp_kernel(bool warp_mode);
 const void* subwarp_kernel();
+const void* block_kernel_staged();
 // The pass kernels of a huge task, in launch order.
 void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode);
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels]);
+void prepare_staged_block_kernel(uint32_t dynamic_bytes);
+// Raises the dynamic shared-memory limit of the staged kernels; call before querying occupancy or launching.
+void prepare_staged_kernels(uint32_t dynamic_bytes);
 
 // Fills the block-size fields of `tune` for a device with `sms` multiprocessors from kernel occupancy.
 void measure_occupancy(AutoTune& tune, uint32_t sms);
