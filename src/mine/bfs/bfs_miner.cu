@@ -82,6 +82,8 @@ AutoTune make_auto_tune(const MiningOptions& options)
 
     AutoTune tune{};
     tune.warp_mode  = options.method == Method::StagedWarp;
+    tune.tiled      = options.method == Method::Tile;
+    tune.local_tail = options.local_tail_items != 0;
     tune.staged     = options.method == Method::Staged || options.method == Method::StagedWarp;
     tune.io_warps   = options.io_warps;
     tune.min_entries_per_warp = options.min_entries_per_warp;
@@ -121,7 +123,8 @@ AutoTune make_auto_tune(const MiningOptions& options)
                                                       : kNone;
     spdlog::info("Auto-tune ({}): {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
                  "lane-group block {} threads, shapes: {}",
-                 options.method == Method::Warp ? "lane group per transaction"
+                 options.method == Method::Tile ? "tiled lanes"
+                 : options.method == Method::Warp ? "lane group per transaction"
                  : options.method == Method::Staged ? "staged lanes"
                  : options.method == Method::StagedWarp ? "staged lane groups" : "lane per transaction", props.name, sms,
                  tune.resident_warps, tune.shape[0].max_block_warps * 32, tune.shape[0].packed_block_warps * 32,
@@ -212,14 +215,16 @@ class LevelMiner
     DeviceBuffer<char>                scratch_;
     std::array<DeviceBuffer<char>, 2> regions_;
     DeviceBuffer<Control>             control_;
+    DeviceBuffer<ChunkPlan>           chunk_plan_;
 
     uint64_t                       root_bytes_ = 0;
     uint32_t                       root_trans_ = 0, root_items_ = 0, root_max_len_ = 0, root_entries_ = 0;
+    std::vector<uint32_t>           root_occ_counts_;
     Task*                          current_ = nullptr;
     Task*                          next_    = nullptr;
     uint32_t                       count_   = 0;
     Control                        host_{};
-    std::vector<uint64_t>          host_prefix_;
+    std::vector<uint64_t>          chunk_bases_;
     std::vector<std::vector<Node>> levels_;
     uint64_t                       peak_arena_ = 0, peak_scratch_ = 0, peak_tasks_ = 0;
     std::array<double, kMaxCells>  bin_ms_{};    // --bin-times: time and tasks of each cell in the current level
@@ -230,13 +235,21 @@ class LevelMiner
 void LevelMiner::allocate()
 {
     GHUIM_RANGE("bfs: build + upload root database");
-    const std::vector<char> root = root_image(data_);
+    const std::vector<char> root = root_image(data_, tune_.tiled != 0, options_.index_min_trans);
     root_bytes_                  = root.size();
     root_trans_                  = static_cast<uint32_t>(data_.transaction_count());
     root_items_                  = static_cast<uint32_t>(data_.original_item.size());
     const auto* root_header      = reinterpret_cast<const DbHeader*>(root.data());
     root_max_len_                = root_header->max_len;
     root_entries_                = root_header->n_entries;
+    if (root_header->indexed) {
+        const auto layout = DbLayout::of(root_header->n_trans, root_header->n_entries, root_header->n_items, false, true);
+        const auto* begin = reinterpret_cast<const uint32_t*>(root.data() + layout.occ_begin);
+        root_occ_counts_.resize(root_items_);
+        for (uint32_t z = 0; z < root_items_; ++z)
+            root_occ_counts_[z] = begin[z + 1] - begin[z];
+        spdlog::info("Occurrence indexes: databases with at least {} transactions", options_.index_min_trans);
+    }
     if (root_bytes_ / kArenaUnit > 0xffffffffull)
         throw std::runtime_error("the input database is too large for 32-bit arena offsets");
     root_ = DeviceBuffer<char>(root_bytes_);
@@ -253,6 +266,7 @@ void LevelMiner::allocate()
     scratch_                = DeviceBuffer<char>(budget_.scratch_capacity);
     regions_                = {DeviceBuffer<char>(budget_.region_bytes), DeviceBuffer<char>(budget_.region_bytes)};
     control_                = DeviceBuffer<Control>(1);
+    chunk_plan_             = DeviceBuffer<ChunkPlan>(1);
 }
 
 // Level 1: one task per primary item of the root.
@@ -262,7 +276,8 @@ void LevelMiner::seed_first_level()
     seeds.reserve(data_.primary.size());
     for (uint32_t item : data_.primary)
         seeds.push_back(
-                Task{0, static_cast<uint32_t>(root_bytes_ / kArenaUnit), root_trans_, root_items_, item, kNone, root_max_len_,
+                Task{0, static_cast<uint32_t>(root_bytes_ / kArenaUnit),
+                     root_occ_counts_.empty() ? root_trans_ : root_occ_counts_[item], root_items_, item, kNone, root_max_len_,
                      root_entries_});
     upload(level_a_.get(), seeds.data(), seeds.size());
     current_ = level_a_.get();
@@ -285,7 +300,7 @@ void LevelMiner::reset_control()
 void LevelMiner::plan_chunks(uint32_t count, std::vector<uint32_t>& cuts)
 {
     GHUIM_RANGE("bfs: plan chunks (scratch sizes + scan + sync)");
-    launch_scratch_sizes(current_, count, prefix_.get(), streams_[0]);
+    launch_scratch_sizes(current_, count, prefix_.get(), tune_.tiled != 0, streams_[0]);
     exclusive_scan(prefix_.get(), count + 1, scan_sums_.get(), scan_total_.get(), streams_[0]);
     uint64_t level_scratch = 0;
     check_cuda(cudaMemcpyAsync(&level_scratch, prefix_.get() + count, sizeof(uint64_t), cudaMemcpyDeviceToHost,
@@ -296,21 +311,23 @@ void LevelMiner::plan_chunks(uint32_t count, std::vector<uint32_t>& cuts)
     peak_scratch_ = std::max<uint64_t>(peak_scratch_, std::min<uint64_t>(level_scratch, budget_.scratch_capacity));
     peak_tasks_   = std::max<uint64_t>(peak_tasks_, count);
     cuts          = {0};
+    chunk_bases_.clear();
     if (level_scratch <= budget_.scratch_capacity && count <= kMaxChunkTasks) {
         cuts.push_back(count);
+        chunk_bases_.push_back(0);
         return;
     }
-    host_prefix_.resize(count + 1);
-    download(host_prefix_.data(), prefix_.get(), count + 1);
-    for (uint32_t begin = 0; begin < count;) {
-        uint32_t end = begin;
-        while (end < count && end - begin < kMaxChunkTasks &&
-               host_prefix_[end + 1] - host_prefix_[begin] <= budget_.scratch_capacity)
-            ++end;
-        if (end == begin)
+    ChunkPlan page{};
+    while (cuts.back() < count) {
+        launch_plan_chunks(prefix_.get(), cuts.back(), count, kMaxChunkTasks, budget_.scratch_capacity,
+                           chunk_plan_.get(), streams_[0]);
+        check_cuda(cudaMemcpyAsync(&page, chunk_plan_.get(), sizeof(page), cudaMemcpyDeviceToHost, streams_[0]),
+                   "read chunk boundaries");
+        check_cuda(cudaStreamSynchronize(streams_[0]), "chunk boundaries");
+        if (page.oversized)
             throw std::runtime_error("one task needs more scratch than available; raise --total-memory");
-        cuts.push_back(end);
-        begin = end;
+        cuts.insert(cuts.end(), page.cuts + 1, page.cuts + page.count + 1);
+        chunk_bases_.insert(chunk_bases_.end(), page.bases, page.bases + page.count);
     }
 }
 
@@ -344,7 +361,11 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          tune_.staged ? tune_.io_warps : 0,
                          tune_.ring_bytes,
                          tune_.table_bytes,
-                         tune_.staged ? kStageBarrierBytes + tune_.ring_bytes : 0};
+                         tune_.staged ? kStageBarrierBytes + tune_.ring_bytes : 0,
+                         tune_.tiled,
+                         options_.index_min_trans,
+                         options_.local_tail_items,
+                         options_.local_tail_trans};
     cudaEvent_t     start = nullptr, stop = nullptr;
     std::vector<std::pair<uint32_t, std::pair<cudaEvent_t, cudaEvent_t>>> timed;
     for (uint32_t cell = 0; cell < kCells; ++cell) {
@@ -404,7 +425,7 @@ uint32_t LevelMiner::mine_level(uint32_t level)
     std::vector<uint32_t> cuts;
     plan_chunks(count_, cuts);
     for (size_t c = 0; c + 1 < cuts.size(); ++c) {
-        const uint64_t base = cuts.size() > 2 ? host_prefix_[cuts[c]] : 0;
+        const uint64_t base = chunk_bases_[c];
         mine_chunk(level, cuts[c], cuts[c + 1], base);
     }
 
@@ -454,6 +475,11 @@ MiningResult LevelMiner::run()
         spdlog::info("Staging: compute warps waited {:.1f}% of their time for data, IO warps waited {:.1f} Mcycles for free slots",
                      100.0 * static_cast<double>(host_.stage_full_wait) / static_cast<double>(host_.stage_consumer_cycles),
                      static_cast<double>(host_.stage_empty_wait) / 1e6);
+#ifdef GHUIM_WORK_STATS
+    spdlog::info("Work: pass 1 scans {} transactions over all tasks, {} of them ({:.1f}%) contain the extension item",
+                 host_.work_total, host_.work_present,
+                 100.0 * static_cast<double>(host_.work_present) / static_cast<double>(std::max<uint64_t>(host_.work_total, 1)));
+#endif
     result_.patterns   = host_.patterns;
     result_.peak_arena = peak_arena_;
     return result_;

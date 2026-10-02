@@ -5,6 +5,7 @@
 #include "mine/miner.hpp"
 
 #include <chrono>
+#include <future>
 #include <spdlog/spdlog.h>
 
 namespace {
@@ -46,7 +47,16 @@ int main(int argc, char* argv[])
 
     try {
         ghuim::initialize_logging(config);
-        const auto start = std::chrono::steady_clock::now();
+
+        // The CUDA context is created on another thread while the dataset loads. It is a fixed cost of the
+        // process, not of mining: "Total time" leaves out any wait for it, "Wall time" includes everything.
+        const auto          start   = std::chrono::steady_clock::now();
+        std::future<double> context =std::async(std::launch::async, [] {
+            GHUIM_RANGE("create CUDA context");
+            const auto context_start = std::chrono::steady_clock::now();
+            ghuim::initialize_device();
+            return seconds_since(context_start);
+        });
 
         const ghuim::Dataset data = [&] {
             GHUIM_RANGE("load dataset");
@@ -57,6 +67,12 @@ int main(int argc, char* argv[])
             spdlog::debug("  {:<28} {:9.1f} ms", stage, ms);
         spdlog::info("Loaded {}: {} transactions, {} promising items, {} first-level tasks ({:.3f} s)", config.input,
                      data.input_transactions, data.original_item.size(), data.primary.size(), load_s);
+
+        const auto   wait_start = std::chrono::steady_clock::now();
+        const double context_s  = context.get();
+        const double wait_s     = seconds_since(wait_start);
+        spdlog::info("CUDA context created ({:.3f} s, overlapped with loading; {:.3f} s waited after it)", context_s,
+                     wait_s);
 
         const auto                mine_start = std::chrono::steady_clock::now();
         const ghuim::MiningResult result     = [&] {
@@ -76,7 +92,8 @@ int main(int argc, char* argv[])
         log_depths(result);
 
         spdlog::info("Number of patterns: {}", result.patterns);
-        spdlog::info("Total time: {:.3f} s", seconds_since(start));
+        spdlog::info("Total time: {:.3f} s", seconds_since(start) - wait_s);
+        spdlog::info("Wall time: {:.3f} s (including CUDA context creation)", seconds_since(start));
         return 0;
     }
     catch (const std::exception& error) {

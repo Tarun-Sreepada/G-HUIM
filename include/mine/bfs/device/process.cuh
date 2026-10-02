@@ -2,16 +2,21 @@
 // All passes of one task on one thread group.
 
 #include "mine/bfs/device/staging.cuh"
+#include "mine/bfs/device/tile_passes.cuh"
+#include "mine/bfs/device/local_tail.cuh"
 
 namespace ghuim::bfs {
 
 // One group (lanes of a warp, a warp, or a block whose warps split the transactions) processes one
 // whole task.
-template <typename Mode, typename Group>
+template <typename Mode, bool LocalTail = false, typename Group>
 __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uint32_t warp, uint32_t warps,
                              bool block_tables = false)
 {
     TaskView       v     = open_task(b, t);
+    if constexpr (LocalTail)
+        if (finish_local_tail(g, b, v))
+            return;
     const uint32_t first = v.task.item + 1, n = v.header.n_items;
     const Lanes    lanes(g);
     const uint32_t unit = Mode::unit(v.p, lanes);
@@ -42,6 +47,16 @@ __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uin
     Mode::scan_subtree(v.p, lanes, from, step, *v.state, ctx);
     g.sync();
 
+    if constexpr (TiledMode<Mode>) {
+        // Tile layout: order the child's transactions into length classes and tiles before sizing it.
+        v.p.child_stride = tile_stride(v.state->child_trans);
+        tile_class_bases(g, v.p, *v.state);
+        g.sync();
+        Mode::assign_slots(v.p, lanes, from, step, ctx);
+        g.sync();
+        tile_offsets(g, v.p, *v.state);
+        g.sync();
+    }
     allocate_child(g, b, v, child_items);
     if (v.state->child_primaries == 0)
         return;
@@ -52,6 +67,7 @@ __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uin
     g.sync();
     Mode::merge_duplicates(v.p, lanes, from, step, c, ctx);
     g.sync();
+    build_child_index(g, v, child_items, c);
     emit_children(g, b, v, child_items, c);
 }
 

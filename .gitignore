@@ -32,3 +32,4 @@ __pycache__/
 .venv/
 
 profiling/results/
+/build-pgo/
