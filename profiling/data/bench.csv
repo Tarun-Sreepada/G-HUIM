@@ -12,3 +12,7 @@ soa,bfs,warp,8000000,0.477,3030087
 soa,bfs,static,6000000,0.408,10079776
 soa,bfs,adaptive,6000000,0.356,10079776
 soa,bfs,warp,6000000,1.175,10079776
+refactor,bfs,static,8000000,0.207,3030087
+refactor,bfs,adaptive,8000000,0.146,3030087
+refactor,bfs,static,6000000,0.41,10079776
+refactor,bfs,adaptive,6000000,0.36,10079776
