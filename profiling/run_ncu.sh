@@ -44,4 +44,9 @@ run dfs_adaptive_warp  dfs adaptive '^warp_tasks$'                     4 3
 run dfs_adaptive_sub   dfs adaptive '^subwarp_tasks$'                  20 3
 run dfs_adaptive_huge  dfs adaptive 'huge_(local|subtree|merge|write)'  0 4
 run dfs_select         dfs adaptive 'select_kernel'                     0 3
+# Lane-group-per-transaction method (BFS only)
+run bfs_warp_block     bfs warp     '^block_tasks$'                    0 3
+run bfs_warp_block_mid bfs warp     '^block_tasks$'                    6 3
+run bfs_warp_warp      bfs warp     '^warp_tasks$'                     4 3
+run bfs_warp_huge      bfs warp     'huge_(local|subtree|merge|write)'  0 4
 echo finished

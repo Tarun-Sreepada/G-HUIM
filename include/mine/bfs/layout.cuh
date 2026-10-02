@@ -31,7 +31,7 @@ struct DbHeader
     uint32_t n_trans;
     uint32_t n_entries;
     uint32_t n_items;
-    uint32_t reserved;
+    uint32_t max_len; // longest transaction
     uint64_t bytes;
 };
 

@@ -20,6 +20,7 @@ constexpr uint32_t kBinCount        = kOptSubBin + kOptSubBins;
 constexpr uint32_t kWarpSize        = 32;
 constexpr uint32_t kMinTransPerWarp = 8; // below this, extra warps only add overhead
 constexpr uint32_t kHugeKernels     = 8;
+constexpr uint32_t kWarpMinTrans    = 2; // warp method: fewest transactions worth giving a warp
 
 static_assert(kBinCount <= kMaxBins);
 
@@ -32,6 +33,7 @@ struct AutoTune
     uint32_t subwarp_block_warps; // block size (in warps) for the lane-group-per-task kernel
     uint32_t max_slices;          // blocks one huge task may use
     uint32_t fixed_bin;           // static method: the one bin every task runs in; kNone = adaptive
+    uint32_t warp_mode;           // warp method: lane groups own one transaction at a time (WarpTx)
 };
 
 struct Placement
@@ -56,10 +58,15 @@ __host__ __device__ inline Placement place_task(const Task& task, const AutoTune
 {
     if (tune.fixed_bin != kNone)
         return {tune.fixed_bin, 1};
-    if (task.n_trans <= kWarpSize)
+    // Warp method: fewer than 32 transactions run on one warp (packed into small blocks); larger
+    // tasks get one warp per few transactions, up to full blocks and then slices.
+    if (tune.warp_mode && task.n_trans < kWarpSize)
+        return {0, 1};
+    if (!tune.warp_mode && task.n_trans <= kWarpSize)
         return {kOptSubBin + size_class(task.n_trans), 1};
+    const uint64_t floor    = tune.warp_mode ? kWarpMinTrans : kMinTransPerWarp;
     const uint64_t share    = batch_work / tune.resident_warps;
-    const uint64_t per_warp = share > kMinTransPerWarp ? share : kMinTransPerWarp;
+    const uint64_t per_warp = share > floor ? share : floor;
     const uint32_t warps    = ceil_div(task.n_trans, per_warp);
     if (warps > tune.max_block_warps) {
         const uint32_t slices = ceil_div(warps, tune.max_block_warps);

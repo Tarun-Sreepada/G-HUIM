@@ -36,7 +36,8 @@ void configure_cli(CLI::App& app, Config& config)
             ->default_str("bfs");
     app.add_option("--method", config.mining.method, "Work partitioning")
             ->transform(CLI::CheckedTransformer(
-                    std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive}},
+                    std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
+                                                  {"warp", Method::Warp}},
                     CLI::ignore_case))
             ->default_str("adaptive");
     app.add_option("--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
@@ -70,6 +71,8 @@ void configure_cli(CLI::App& app, Config& config)
         const MiningOptions& mining = config.mining;
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
+        if (mining.search == Search::Dfs && mining.method == Method::Warp)
+            throw CLI::ValidationError("--method", "warp is only available with --search bfs");
         if (mining.search == Search::Dfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });
