@@ -14,6 +14,7 @@
 // arena in address order, and the stack is re-pointed (databases use internal offsets only).
 
 #include "cuda/buffer.cuh"
+#include "cuda/nvtx.hpp"
 #include "mine/dfs/arena_gc.hpp"
 #include "mine/dfs/bins.hpp"
 #include "mine/host/transfer.hpp"
@@ -92,12 +93,19 @@ class Miner
     MiningResult run()
     {
         const auto              build_start = std::chrono::steady_clock::now();
-        const std::vector<char> root        = root_image(data_);
+        std::vector<char>       root;
+        {
+            GHUIM_RANGE("dfs: build root database");
+            root = root_image(data_);
+        }
         result_.setup_ms                    = ms_since(build_start);
         const auto              upload_start = std::chrono::steady_clock::now();
         if (root.size() > arena_.size())
             throw std::runtime_error("the input database does not fit in the arena; increase --memory");
-        upload(arena_.get(), root.data(), root.size());
+        {
+            GHUIM_RANGE("dfs: upload root database");
+            upload(arena_.get(), root.data(), root.size());
+        }
 
         std::vector<Task> tasks;
         const auto        n_trans = static_cast<uint32_t>(data_.transaction_count());
@@ -130,6 +138,7 @@ class Miner
   private:
     void run_batch()
     {
+        GHUIM_RANGE("dfs: batch");
         if (control_host_.arena_top > gc_threshold_ || control_host_.forced)
             collect_garbage();
 
@@ -139,6 +148,8 @@ class Miner
         cudaStream_t   stream   = streams_[0];
         const bool     cautious = control_host_.deferred != 0;
         const uint32_t optimism = cautious ? 1 : kOptimism, headroom = cautious ? 1 : kHeadroom;
+        PhaseRanges phase;
+        phase.next("dfs: select + bin batch");
         select_batch(SelectArgs{control_.get(), stack_.get(), batch_.get(), offsets_.get(), arena_.size(),
                                 kScratchBytes, kStackCapacity, kMaxBatchTasks, optimism, headroom},
                      stream);
@@ -150,6 +161,7 @@ class Miner
         const uint32_t count = control_host_.batch_count;
 
         lap = std::chrono::steady_clock::now();
+        phase.next("dfs: launch bins + sync");
         const BatchView view{arena_.get(),   arena_.size(), control_.get(), batch_.get(),
                              offsets_.get(), scratch_.get(), stack_.get(),  kStackCapacity,
                              options_.minimum_utility};
@@ -184,6 +196,7 @@ class Miner
         const double kernel_ms = ms_since(lap);
         result_.kernel_ms += kernel_ms;
 
+        phase.next("dfs: batch readback");
         download(&control_host_, control_.get(), 1);
         if (control_host_.error & kStackExhausted)
             throw std::runtime_error("task stack exhausted");
@@ -220,6 +233,7 @@ class Miner
     // Slides every database still referenced by the stack to the bottom of the arena.
     void collect_garbage()
     {
+        GHUIM_RANGE("dfs: arena compaction");
         const auto       start = std::chrono::steady_clock::now();
         const Compaction done  = compact_arena({arena_, scratch_, stack_, control_, bitmap_, counts_, block_sums_,
                                                 scan_total_, words_},

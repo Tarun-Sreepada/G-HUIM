@@ -1,5 +1,6 @@
 #include "data/dataset.hpp"
 
+#include "cuda/nvtx.hpp"
 #include "data/mapped_file.hpp"
 #include "data/parallel.hpp"
 #include "data/parse.hpp"
@@ -146,27 +147,36 @@ Dataset load_dataset(const std::string& path, char separator, uint64_t minimum_u
         lap = now;
     };
 
+    PhaseRanges phase;
+    phase.next("load: map file");
     const MappedFile file(path);
     stage("map file");
 
+    phase.next("load: parse");
     const RawInput input = parse_input(file.view(), separator);
     stage("parse");
+    phase.next("load: merge chunks");
     check_total_utility(input);
     stage("merge chunks");
 
+    phase.next("load: TWU");
     const std::vector<uint64_t> twu = transaction_weighted_utility(input);
     stage("TWU");
 
+    phase.next("load: prune + rename items");
     Dataset data;
     data.input_transactions = input.transactions.size();
     const std::vector<uint32_t> rename = rename_items(twu, minimum_utility, data);
     stage("prune + rename items");
 
+    phase.next("load: rebuild + sort transactions");
     rebuild_transactions(input, rename, data);
     stage("rebuild + sort transactions");
 
+    phase.next("load: subtree utilities");
     select_primary_items(data, minimum_utility);
     stage("subtree utilities");
+    phase.end();
     data.timings = std::move(timings);
     return data;
 }
