@@ -30,3 +30,5 @@ out.txt
 __pycache__/
 *.pyc
 .venv/
+
+profiling/results/

@@ -1,5 +1,6 @@
 #include "app/cli.hpp"
 #include "app/logging.hpp"
+#include "cuda/nvtx.hpp"
 #include "data/dataset.hpp"
 #include "mine/miner.hpp"
 
@@ -47,7 +48,10 @@ int main(int argc, char* argv[])
         ghuim::initialize_logging(config);
         const auto start = std::chrono::steady_clock::now();
 
-        const ghuim::Dataset data = ghuim::load_dataset(config.input, config.separator, config.mining.minimum_utility);
+        const ghuim::Dataset data = [&] {
+            GHUIM_RANGE("load dataset");
+            return ghuim::load_dataset(config.input, config.separator, config.mining.minimum_utility);
+        }();
         const double         load_s = seconds_since(start);
         for (const auto& [stage, ms] : data.timings)
             spdlog::debug("  {:<28} {:9.1f} ms", stage, ms);
@@ -55,7 +59,10 @@ int main(int argc, char* argv[])
                      data.input_transactions, data.original_item.size(), data.primary.size(), load_s);
 
         const auto                mine_start = std::chrono::steady_clock::now();
-        const ghuim::MiningResult result     = ghuim::mine(data, config.mining);
+        const ghuim::MiningResult result     = [&] {
+            GHUIM_RANGE("mine");
+            return ghuim::mine(data, config.mining);
+        }();
         spdlog::info("Mined with {} search, {} partitioning: {} tasks in {} iterations, kernels {:.3f} s, peak live arena "
                      "{} MiB ({:.3f} s)",
                      ghuim::search_name(config.mining.search), ghuim::method_name(config.mining.method), result.tasks,

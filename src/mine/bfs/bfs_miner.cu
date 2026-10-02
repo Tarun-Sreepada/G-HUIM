@@ -5,6 +5,7 @@
 // the arena region the previous level is not using. Per-task working memory comes from a scratch
 // buffer that is reused every chunk, so the arenas only ever hold projected databases.
 
+#include "cuda/nvtx.hpp"
 #include "cuda/buffer.cuh"
 #include "mine/bfs/bfs_miner.hpp"
 #include "mine/bfs/kernels.cuh"
@@ -179,6 +180,7 @@ class LevelMiner
 
 void LevelMiner::allocate()
 {
+    GHUIM_RANGE("bfs: build + upload root database");
     const std::vector<char> root = root_image(data_);
     root_bytes_                  = root.size();
     root_trans_                  = static_cast<uint32_t>(data_.transaction_count());
@@ -217,6 +219,7 @@ void LevelMiner::seed_first_level()
 
 void LevelMiner::reset_control()
 {
+    GHUIM_RANGE("bfs: reset control");
     host_.arena_top  = 0;
     host_.next_count = 0;
     host_.error      = 0;
@@ -228,6 +231,7 @@ void LevelMiner::reset_control()
 // the chunk boundaries).
 void LevelMiner::plan_chunks(uint32_t count, std::vector<uint32_t>& cuts)
 {
+    GHUIM_RANGE("bfs: plan chunks (scratch sizes + scan + sync)");
     launch_scratch_sizes(current_, count, prefix_.get(), streams_[0]);
     exclusive_scan(prefix_.get(), count + 1, scan_sums_.get(), scan_total_.get(), streams_[0]);
     uint64_t level_scratch = 0;
@@ -263,10 +267,14 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
     const char* src = level == 1 ? root_.get() : regions_[(level - 1) & 1].get();
     char*       dst = regions_[level & 1].get();
 
-    launch_bin_chunk(control_.get(), current_, begin, end, order_.get(), tune_, streams_[0]);
-    check_cuda(cudaMemcpyAsync(&host_, control_.get(), sizeof(Control), cudaMemcpyDeviceToHost, streams_[0]),
-               "read bins");
-    check_cuda(cudaStreamSynchronize(streams_[0]), "bin chunk");
+    {
+        GHUIM_RANGE("bfs: bin chunk + readback");
+        launch_bin_chunk(control_.get(), current_, begin, end, order_.get(), tune_, streams_[0]);
+        check_cuda(cudaMemcpyAsync(&host_, control_.get(), sizeof(Control), cudaMemcpyDeviceToHost, streams_[0]),
+                   "read bins");
+        check_cuda(cudaStreamSynchronize(streams_[0]), "bin chunk");
+    }
+    GHUIM_RANGE("bfs: launch bins + sync");
 
     const BatchView view{src,
                          dst,
@@ -321,6 +329,7 @@ uint32_t LevelMiner::mine_level(uint32_t level)
         mine_chunk(level, cuts[c], cuts[c + 1], base);
     }
 
+    GHUIM_RANGE("bfs: level readback");
     download(&host_, control_.get(), 1);
     check_level(level);
     peak_arena_ = std::max<uint64_t>(peak_arena_, host_.arena_top);
@@ -390,6 +399,7 @@ MiningResult mine_bfs(const Dataset& data, const MiningOptions& options)
     LevelMiner   miner(data, effective);
     MiningResult result = miner.run();
     if (!effective.output.empty()) {
+        GHUIM_RANGE("bfs: write itemsets");
         ItemsetWriter writer(effective.output, data.original_item, 0);
         write_itemsets(miner.levels(), effective.minimum_utility, writer);
     }
