@@ -42,6 +42,8 @@ struct MiningOptions
     uint32_t    block_size      = 256;          // static: threads per task
     uint32_t    io_warps        = 1;            // staged: IO warps per block
     uint32_t    ring_kib        = 64;           // staged: shared memory for the tile ring
+    bool        smem_tables     = false;        // adaptive/staged: keep local/subtree/rename in shared memory
+    uint32_t    table_kib       = 8;            // shared memory for those tables (tasks with more items keep global ones)
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold (BFS)
     std::string output;                         // itemset file; empty = only count the itemsets (BFS)

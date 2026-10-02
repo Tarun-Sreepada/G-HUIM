@@ -39,8 +39,9 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
     // Kernels launched with the same block size: a size is usable only if all of them fit.
     const bool     warp_mode = tune.warp_mode != 0;
     const uint32_t dynamic   = tune.staged ? kStageBarrierBytes + tune.ring_bytes : 0;
+    const uint32_t block_dynamic = dynamic + tune.table_bytes;
     if (tune.staged)
-        prepare_staged_kernels(dynamic);
+        prepare_staged_kernels(block_dynamic);
     const void* block_kernels[1 + kHugeKernels] = {tune.staged ? block_kernel_staged() : block_kernel(warp_mode)};
     const void* huge[kHugeKernels];
     if (tune.staged)
@@ -52,8 +53,8 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
     // local/subtree/write/merge passes (huge kernel indices 1, 3, 5, 6).
     const bool staged_kernel[1 + kHugeKernels] = {true, false, true, false, true, false, true, true, false};
     auto block_occupancy = [&](uint32_t threads) {
-        uint32_t blocks = ~0u;
-        for (uint32_t k = 0; k < 1 + kHugeKernels; ++k)
+        uint32_t blocks = occupancy(block_kernels[0], threads, block_dynamic);
+        for (uint32_t k = 1; k < 1 + kHugeKernels; ++k)
             blocks = std::min(blocks, occupancy(block_kernels[k], threads, staged_kernel[k] ? dynamic : 0));
         return blocks;
     };
