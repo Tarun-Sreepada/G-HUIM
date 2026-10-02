@@ -7,6 +7,7 @@
 // lockstep loops; positions inside a transaction come from ballots and group scans.
 
 #include "mine/bfs/device/child.cuh"
+#include "mine/bfs/device/sources.cuh"
 
 namespace ghuim::bfs {
 
@@ -26,10 +27,10 @@ struct TxGroup
     unsigned mask;   // this group's lanes
     unsigned below;  // lanes of the warp below this one
 
-    __device__ explicit TxGroup(uint32_t max_len)
+    __device__ explicit TxGroup(uint32_t group_size)
     {
         const uint32_t lane = threadIdx.x & 31;
-        size                = tx_group_size(max_len);
+        size                = group_size;
         rank                = lane & (size - 1);
         index               = lane / size;
         groups              = 32 / size;
@@ -77,57 +78,88 @@ struct GroupTx
     const uint32_t* keys;
     const uint32_t* utils;
     uint32_t        length;
+    uint32_t        pos;  // position behind the extension item (k + 1), 0 when absent
     uint32_t        k;    // position of the extension item (valid when found)
     uint32_t        rest; // entries behind it
     bool            found;
     uint64_t        prefix; // utility of the itemset in this transaction (0 when not found)
 };
 
-__device__ __forceinline__ GroupTx open_group_tx(const TxGroup& g, const Projection& p, const Tx& tx)
+// The transaction `tx` once pass 1 has found the extension item at `pos - 1` (`pos` 0: absent).
+// `slot` is the transaction's position in the source's step (a tile slot for staged sources).
+template <typename Src>
+__device__ __forceinline__ GroupTx make_group_tx(const Tx& tx, const Src& src, uint32_t slot, uint32_t pos)
 {
     GroupTx t;
-    t.keys   = p.eitem + tx.begin;
-    t.utils  = p.eutil + tx.begin;
+    t.keys   = src.keys(tx, slot);
+    t.utils  = src.utils(tx, slot);
     t.length = tx.length;
-    t.k      = group_lower_bound(g, t.keys, tx.length, p.item);
-    t.found  = t.k < tx.length && t.keys[t.k] == p.item;
-    t.rest   = t.found ? tx.length - t.k - 1 : 0;
+    t.pos    = pos;
+    t.found  = pos != 0;
+    t.k      = pos - 1;
+    t.rest   = t.found ? tx.length - pos : 0;
     t.prefix = t.found ? uint64_t{tx.utility} + t.utils[t.k] : 0;
     return t;
 }
 
-// Pass 1: local utilities of later items, and the itemset's utility.
-__device__ inline void group_scan_local(const Projection& p, uint32_t from, uint32_t step, TaskState& state)
+// Pass 1: searches for the extension item.
+template <typename Src>
+__device__ __forceinline__ GroupTx open_group_tx(const TxGroup& g, const Projection& p, const Tx& tx, const Src& src,
+                                                 uint32_t slot)
 {
-    const TxGroup g(p.max_len);
-    uint64_t      utility = 0;
-    for (uint32_t i = from + g.index; i < p.n_trans; i += step) {
-        const GroupTx t = open_group_tx(g, p, p.txs[i]);
-        if (!t.found)
-            continue;
-        uint32_t after_part = 0;
-        for (uint32_t base = 0; base < t.rest; base += g.size)
-            if (base + g.rank < t.rest)
-                after_part += t.utils[t.k + 1 + base + g.rank];
-        const uint64_t after = g.total(after_part);
-        for (uint32_t base = 0; base < t.rest; base += g.size)
-            if (base + g.rank < t.rest)
-                add(p.local[t.keys[t.k + 1 + base + g.rank]], t.prefix + after);
-        utility += t.prefix;
-    }
+    const uint32_t* keys = src.keys(tx, slot);
+    const uint32_t  k    = group_lower_bound(g, keys, tx.length, p.item);
+    return make_group_tx(tx, src, slot, k < tx.length && keys[k] == p.item ? k + 1 : 0);
+}
+
+// Pass 1: local utilities of later items, and the itemset's utility. Each pass is a per-transaction
+// body (`slot` is the transaction's position in its source step) plus a finish; the drivers below run
+// the bodies over global memory and the staged kernels run them over shared-memory tiles.
+template <typename Src>
+__device__ inline void group_local_tx(const Projection& p, const TxGroup& g, uint32_t i, uint32_t slot, const Src& src,
+                                      uint64_t& utility)
+{
+    const GroupTx t = open_group_tx(g, p, src.tx(i, slot), src, slot);
+    if (g.rank == 0)
+        p.pos[i] = t.pos;
+    if (!t.found)
+        return;
+    uint32_t after_part = 0;
+    for (uint32_t base = 0; base < t.rest; base += g.size)
+        if (base + g.rank < t.rest)
+            after_part += t.utils[t.k + 1 + base + g.rank];
+    const uint64_t after = g.total(after_part);
+    for (uint32_t base = 0; base < t.rest; base += g.size)
+        if (base + g.rank < t.rest)
+            add(p.local[t.keys[t.k + 1 + base + g.rank]], t.prefix + after);
+    utility += t.prefix;
+}
+
+__device__ inline void group_local_finish(const TxGroup& g, uint64_t utility, TaskState& state)
+{
     if (g.rank == 0 && utility != 0)
         add(state.utility, utility);
+}
+
+__device__ inline void group_scan_local(const Projection& p, uint32_t group_size, uint32_t from, uint32_t step, TaskState& state)
+{
+    const TxGroup      g(group_size);
+    const GlobalSource src{p};
+    uint64_t           utility = 0;
+    for (uint32_t i = from + g.index; i < p.n_trans; i += step)
+        group_local_tx(p, g, i, 0, src, utility);
+    group_local_finish(g, utility, state);
 }
 
 // Kept entries of `a` equal those of `b` (both sorted, so equal sets are equal sequences): the counts
 // match and every kept item of `a` is a key of `b`.
 __device__ inline bool group_same_kept_items(const TxGroup& g, const Projection& p, const GroupTx& a, uint32_t a_kept,
-                                             const Tx& other)
+                                             uint32_t other_index)
 {
+    const Tx        other  = p.txs[other_index];
     const uint32_t* bkey   = p.eitem + other.begin;
-    const uint32_t  bk     = group_lower_bound(g, bkey, other.length, p.item);
     uint32_t        b_kept = 0;
-    for (uint32_t base = bk + 1; base < other.length; base += g.size) {
+    for (uint32_t base = p.pos[other_index]; base < other.length; base += g.size) {
         const uint32_t idx = base + g.rank;
         b_kept += __popc(g.ballot(idx < other.length && p.rename[bkey[idx]] != kNone));
     }
@@ -145,12 +177,18 @@ __device__ inline bool group_same_kept_items(const TxGroup& g, const Projection&
 
 // Pass 2: subtree utilities of kept items, merging of identical projected transactions, and the
 // exact size of the child database.
-__device__ inline void group_scan_subtree(const Projection& p, uint32_t from, uint32_t step, TaskState& state)
+template <typename Src>
+__device__ inline void group_subtree_tx(const Projection& p, const TxGroup& g, uint32_t i, uint32_t slot, const Src& src,
+                                        ChildSize& size)
 {
-    const TxGroup g(p.max_len);
-    ChildSize     size;
-    for (uint32_t i = from + g.index; i < p.n_trans; i += step) {
-        const GroupTx t = open_group_tx(g, p, p.txs[i]);
+    {
+        const uint32_t pos = p.pos[i];
+        if (pos == 0) { // absent: a staged tile holds no copy
+            if (g.rank == 0)
+                p.rep[i] = kNone;
+            return;
+        }
+        const GroupTx t = make_group_tx(src.tx(i, slot), src, slot, pos);
         // Sweep 1: kept count and kept utility.
         uint32_t kept      = 0;
         uint32_t kept_part = 0;
@@ -163,7 +201,7 @@ __device__ inline void group_scan_subtree(const Projection& p, uint32_t from, ui
         if (kept == 0) {
             if (g.rank == 0)
                 p.rep[i] = kNone;
-            continue;
+            return;
         }
         const uint64_t kept_sum = g.total(kept_part);
         // Sweep 2: subtree(z) = prefix + utility of z and every kept item after it; hash the sequence.
@@ -186,6 +224,8 @@ __device__ inline void group_scan_subtree(const Projection& p, uint32_t from, ui
         }
         hash         = g.xor_all(hash);
         size.max_len = max(size.max_len, kept);
+        if (g.rank == 0)
+            p.kept[i] = kept;
         for (uint32_t h = hash % p.table_size;; h = h + 1 == p.table_size ? 0 : h + 1) {
             uint32_t other = g.rank == 0 ? compare_swap(p.table[h], kNone, i) : 0;
             other          = g.from_rank(other, 0);
@@ -196,13 +236,17 @@ __device__ inline void group_scan_subtree(const Projection& p, uint32_t from, ui
                 size.entries += kept;
                 break;
             }
-            if (group_same_kept_items(g, p, t, kept, p.txs[other])) {
+            if (group_same_kept_items(g, p, t, kept, other)) {
                 if (g.rank == 0)
                     p.rep[i] = other;
                 break;
             }
         }
     }
+}
+
+__device__ inline void group_subtree_finish(const TxGroup& g, const ChildSize& size, TaskState& state)
+{
     if (g.rank == 0 && size.trans != 0) {
         add(state.child_trans, size.trans);
         add(state.child_entries, size.entries);
@@ -210,27 +254,33 @@ __device__ inline void group_scan_subtree(const Projection& p, uint32_t from, ui
     }
 }
 
-// Pass 3a: representatives write their child transaction and entries (coalesced stores).
-__device__ inline void group_write_representatives(const Projection& p, uint32_t from, uint32_t step, TaskState& state,
-                                                   const ChildView& c)
+__device__ inline void group_scan_subtree(const Projection& p, uint32_t group_size, uint32_t from, uint32_t step, TaskState& state)
 {
-    const TxGroup g(p.max_len);
-    for (uint32_t i = from + g.index; i < p.n_trans; i += step) {
-        if (p.rep[i] != i)
-            continue;
-        const Tx      tx   = p.txs[i];
-        const GroupTx t    = open_group_tx(g, p, tx);
-        uint32_t      kept = 0;
-        for (uint32_t base = 0; base < t.rest; base += g.size) {
-            const uint32_t pos = base + g.rank;
-            kept += __popc(g.ballot(pos < t.rest && p.rename[t.keys[t.k + 1 + pos]] != kNone));
-        }
+    const TxGroup      g(group_size);
+    const GlobalSource src{p};
+    ChildSize          size;
+    for (uint32_t i = from + g.index; i < p.n_trans; i += step)
+        group_subtree_tx(p, g, i, 0, src, size);
+    group_subtree_finish(g, size, state);
+}
+
+// Pass 3a: representatives write their child transaction and entries (coalesced stores).
+template <typename Src>
+__device__ inline void group_write_tx(const Projection& p, const TxGroup& g, uint32_t i, uint32_t slot, const Src& src,
+                                      TaskState& state, const ChildView& c)
+{
+    if (p.rep[i] != i)
+        return;
+    {
+        const Tx       tx   = src.tx(i, slot);
+        const GroupTx  t    = make_group_tx(tx, src, slot, p.pos[i]);
+        const uint32_t kept = p.kept[i];
         uint32_t begin = 0;
         if (g.rank == 0) {
-            const uint32_t slot = fetch_add(state.tx_cursor, 1u);
-            begin               = fetch_add(state.entry_cursor, kept);
-            p.slot_of[i]        = slot;
-            c.txs[slot]         = Tx{begin, kept, tx.utility + t.utils[t.k]};
+            const uint32_t out_slot = fetch_add(state.tx_cursor, 1u);
+            begin                   = fetch_add(state.entry_cursor, kept);
+            p.slot_of[i]            = out_slot;
+            c.txs[out_slot]         = Tx{begin, kept, tx.utility + t.utils[t.k]};
         }
         uint32_t out = g.from_rank(begin, 0);
         for (uint32_t base = 0; base < t.rest; base += g.size) {
@@ -248,16 +298,26 @@ __device__ inline void group_write_representatives(const Projection& p, uint32_t
     }
 }
 
-// Pass 3b: duplicates add their utilities into their representative's child transaction.
-__device__ inline void group_merge_duplicates(const Projection& p, uint32_t from, uint32_t step, const ChildView& c)
+__device__ inline void group_write_representatives(const Projection& p, uint32_t group_size, uint32_t from, uint32_t step,
+                                                   TaskState& state, const ChildView& c)
 {
-    const TxGroup g(p.max_len);
-    for (uint32_t i = from + g.index; i < p.n_trans; i += step) {
-        const uint32_t r = p.rep[i];
-        if (r == kNone || r == i)
-            continue;
-        const Tx       tx  = p.txs[i];
-        const GroupTx  t   = open_group_tx(g, p, tx);
+    const TxGroup      g(group_size);
+    const GlobalSource src{p};
+    for (uint32_t i = from + g.index; i < p.n_trans; i += step)
+        group_write_tx(p, g, i, 0, src, state, c);
+}
+
+// Pass 3b: duplicates add their utilities into their representative's child transaction.
+template <typename Src>
+__device__ inline void group_merge_tx(const Projection& p, const TxGroup& g, uint32_t i, uint32_t slot, const Src& src,
+                                      const ChildView& c)
+{
+    const uint32_t r = p.rep[i];
+    if (r == kNone || r == i)
+        return;
+    {
+        const Tx       tx  = src.tx(i, slot);
+        const GroupTx  t   = make_group_tx(tx, src, slot, p.pos[i]);
         const uint32_t dst = p.slot_of[r];
         if (g.rank == 0)
             add(c.txs[dst].utility, tx.utility + t.utils[t.k]);
@@ -271,6 +331,14 @@ __device__ inline void group_merge_duplicates(const Projection& p, uint32_t from
             out += __popc(bits);
         }
     }
+}
+
+__device__ inline void group_merge_duplicates(const Projection& p, uint32_t group_size, uint32_t from, uint32_t step, const ChildView& c)
+{
+    const TxGroup      g(group_size);
+    const GlobalSource src{p};
+    for (uint32_t i = from + g.index; i < p.n_trans; i += step)
+        group_merge_tx(p, g, i, 0, src, c);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -312,31 +380,49 @@ struct LaneTx
     }
 };
 
-// Lane group per transaction: a warp covers 32 / group-size transactions per step.
-struct WarpTx
+// Lane group per transaction: a warp covers 32 / group-size transactions per step. `Size` is
+// kGroupMode (group size from the task's longest transaction, at run time) or a fixed group size, which
+// the compiler can unroll the loops and masks for.
+template <uint32_t Size> struct WarpTxS
 {
     using Ctx = NoCtx;
+    static __device__ uint32_t size(const Projection& p) { return Size > kGroupMode ? Size : tx_group_size(p.max_len); }
     static __device__ Ctx make_ctx(const BatchView&, const Projection&, uint32_t, uint32_t, uint32_t) { return {}; }
-    static __device__ uint32_t unit(const Projection& p, const Lanes&) { return 32 / tx_group_size(p.max_len); }
+    static __device__ uint32_t unit(const Projection& p, const Lanes&) { return 32 / size(p); }
     static __device__ void scan_local(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s, const Ctx&)
     {
-        group_scan_local(p, from, step, s);
+        group_scan_local(p, size(p), from, step, s);
     }
     static __device__ void scan_subtree(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s,
                                         const Ctx&)
     {
-        group_scan_subtree(p, from, step, s);
+        group_scan_subtree(p, size(p), from, step, s);
     }
     static __device__ void write_representatives(const Projection& p, const Lanes&, uint32_t from, uint32_t step,
                                                  TaskState& s, const ChildView& c, const Ctx&)
     {
-        group_write_representatives(p, from, step, s, c);
+        group_write_representatives(p, size(p), from, step, s, c);
     }
     static __device__ void merge_duplicates(const Projection& p, const Lanes&, uint32_t from, uint32_t step,
                                             const ChildView& c, const Ctx&)
     {
-        group_merge_duplicates(p, from, step, c);
+        group_merge_duplicates(p, size(p), from, step, c);
     }
 };
+
+using WarpTx = WarpTxS<kGroupMode>;
+
+// Calls `f` with a default-constructed transaction mode for ShapeTune::group `group`.
+template <typename F> void with_mode(uint32_t group, F&& f)
+{
+    switch (group) {
+    case 4: f(WarpTxS<4>{}); break;
+    case 8: f(WarpTxS<8>{}); break;
+    case 16: f(WarpTxS<16>{}); break;
+    case 32: f(WarpTxS<32>{}); break;
+    case kGroupMode: f(WarpTx{}); break;
+    default: f(LaneTx{}); break;
+    }
+}
 
 } // namespace ghuim::bfs

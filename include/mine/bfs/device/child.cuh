@@ -85,12 +85,10 @@ __device__ inline void write_tile(const Projection& p, const Lanes& lanes, uint3
     const Tx        tx     = write ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
     const uint32_t* k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
-    const int       k      = write ? find_item(k_item, tx.length, p.item) : -1;
+    const int       k      = write ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
-    uint32_t        kept   = 0;
-    for (uint32_t d = 0; d < span; ++d)
-        kept += d < rest && p.rename[k_item[k + 1 + d]] != kNone;
+    const uint32_t  kept   = write ? p.kept[i] : 0;
     uint32_t* out_item = nullptr;
     uint32_t* out_util = nullptr;
     if (write) {
@@ -135,7 +133,7 @@ __device__ inline void merge_tile(const Projection& p, const Lanes& lanes, uint3
     const Tx        tx     = merge ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
     const uint32_t* k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
-    const int       k      = merge ? find_item(k_item, tx.length, p.item) : -1;
+    const int       k      = merge ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
     uint32_t*       out    = nullptr;
@@ -186,7 +184,9 @@ __device__ void emit_children(const Group& g, const BatchView& b, const TaskView
                                 state.child_trans,
                                 child_items,
                                 z,
-                                v.index};
+                                v.index,
+                                state.child_max_len,
+                                state.child_entries};
         emitted += g.count(emit);
     }
 }

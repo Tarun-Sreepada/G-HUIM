@@ -23,13 +23,13 @@ __global__ void scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes
 
 __global__ void begin_chunk(Control* control)
 {
-    for (uint32_t b = threadIdx.x; b < kMaxBins; b += blockDim.x)
-        control->bin_count[b] = control->bin_cursor[b] = control->bin_max_slices[b] = 0;
+    for (uint32_t b = threadIdx.x; b < kMaxCells; b += blockDim.x)
+        control->cell_count[b] = control->cell_start[b] = control->cell_cursor[b] = control->cell_max_slices[b] = 0;
     if (threadIdx.x == 0)
         control->batch_work = 0;
 }
 
-__global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end)
+__global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, AutoTune tune)
 {
     __shared__ unsigned long long block_work;
     if (threadIdx.x == 0)
@@ -37,7 +37,7 @@ __global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begi
     __syncthreads();
     unsigned long long work = 0;
     for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x)
-        work += tasks[i].n_trans;
+        work += task_work(tasks[i], tune);
     add(block_work, work);
     __syncthreads();
     if (threadIdx.x == 0 && block_work != 0)
@@ -48,8 +48,18 @@ __global__ void count_bins(Control* control, const Task* tasks, uint32_t begin, 
 {
     for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x) {
         const Placement place = place_task(tasks[i], tune, control->batch_work);
-        add(control->bin_count[place.bin], 1u);
-        fetch_max(control->bin_max_slices[place.bin], place.slices);
+        add(control->cell_count[place.cell()], 1u);
+        fetch_max(control->cell_max_slices[place.cell()], place.slices);
+    }
+}
+
+// Exclusive prefix of the cell counts: where each cell's tasks start in `order`.
+__global__ void start_cells(Control* control)
+{
+    uint32_t start = 0;
+    for (uint32_t c = 0; c < kCells; ++c) {
+        control->cell_start[c] = start;
+        start += control->cell_count[c];
     }
 }
 
@@ -57,11 +67,8 @@ __global__ void scatter_bins(Control* control, const Task* tasks, uint32_t begin
                              AutoTune tune)
 {
     for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x) {
-        const uint32_t bin   = place_task(tasks[i], tune, control->batch_work).bin;
-        uint32_t       start = 0;
-        for (uint32_t b = 0; b < bin; ++b)
-            start += control->bin_count[b];
-        order[start + fetch_add(control->bin_cursor[bin], 1u)] = i;
+        const uint32_t cell = place_task(tasks[i], tune, control->batch_work).cell();
+        order[control->cell_start[cell] + fetch_add(control->cell_cursor[cell], 1u)] = i;
     }
 }
 
@@ -78,8 +85,9 @@ void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint3
 {
     const uint32_t blocks = grid(end - begin);
     begin_chunk<<<1, 32, 0, stream>>>(control);
-    measure_chunk<<<blocks, 256, 0, stream>>>(control, tasks, begin, end);
+    measure_chunk<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, tune);
     count_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, tune);
+    start_cells<<<1, 1, 0, stream>>>(control);
     scatter_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, order, tune);
     check_launch("launch chunk binning");
 }

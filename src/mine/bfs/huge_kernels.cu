@@ -200,64 +200,71 @@ void launch_huge_passes(const BatchView& batch, const AutoTune& tune, const uint
 
 } // namespace
 
-void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices,
+void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices, uint32_t shape,
                        const AutoTune& tune, cudaStream_t stream)
 {
-    const uint32_t threads = tune.max_block_warps * 32;
+    const ShapeTune& st      = tune.shape[shape];
+    const uint32_t   threads = st.max_block_warps * 32;
     for (uint32_t done = 0; done < count; done += kMaxGrid) {
         const uint32_t  n    = std::min(count - done, kMaxGrid);
         const uint32_t* part = order + done;
         const dim3      sliced(n, max_slices), single(n, 1);
         huge_init<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        if (tune.staged)
+        if (tune.staged && tune.warp_mode)
+            launch_huge_passes<StagedWarpTx>(batch, tune, part, sliced, single, threads,
+                                             kStageBarrierBytes + tune.ring_bytes + tune.table_bytes, stream);
+        else if (tune.staged)
             launch_huge_passes<StagedTx>(batch, tune, part, sliced, single, threads,
                                          kStageBarrierBytes + tune.ring_bytes + tune.table_bytes, stream);
-        else if (tune.warp_mode)
-            launch_huge_passes<WarpTx>(batch, tune, part, sliced, single, threads, 0, stream);
         else
-            launch_huge_passes<LaneTx>(batch, tune, part, sliced, single, threads, tune.table_bytes, stream);
+            with_mode(st.group, [&](auto mode) {
+                launch_huge_passes<decltype(mode)>(batch, tune, part, sliced, single, threads,
+                                                   st.group == kLaneMode ? tune.table_bytes : 0, stream);
+            });
         huge_emit<<<single, threads, 0, stream>>>(batch, tune, part);
         check_launch("launch huge-task kernels");
     }
 }
 
-void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode)
+template <typename Mode> void huge_handles(const void* (&kernels)[kHugeKernels])
 {
     const void* handles[kHugeKernels] = {
             reinterpret_cast<const void*>(huge_init),
-            warp_mode ? reinterpret_cast<const void*>(huge_local<WarpTx>) : reinterpret_cast<const void*>(huge_local<LaneTx>),
+            reinterpret_cast<const void*>(huge_local<Mode>),
             reinterpret_cast<const void*>(huge_rename),
-            warp_mode ? reinterpret_cast<const void*>(huge_subtree<WarpTx>) : reinterpret_cast<const void*>(huge_subtree<LaneTx>),
+            reinterpret_cast<const void*>(huge_subtree<Mode>),
             reinterpret_cast<const void*>(huge_allocate),
-            warp_mode ? reinterpret_cast<const void*>(huge_write<WarpTx>) : reinterpret_cast<const void*>(huge_write<LaneTx>),
-            warp_mode ? reinterpret_cast<const void*>(huge_merge<WarpTx>) : reinterpret_cast<const void*>(huge_merge<LaneTx>),
+            reinterpret_cast<const void*>(huge_write<Mode>),
+            reinterpret_cast<const void*>(huge_merge<Mode>),
             reinterpret_cast<const void*>(huge_emit)};
     std::copy(std::begin(handles), std::end(handles), kernels);
 }
 
-void huge_kernels_staged(const void* (&kernels)[kHugeKernels])
+void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group)
 {
-    const void* handles[kHugeKernels] = {
-            reinterpret_cast<const void*>(huge_init),
-            reinterpret_cast<const void*>(huge_local<StagedTx>),
-            reinterpret_cast<const void*>(huge_rename),
-            reinterpret_cast<const void*>(huge_subtree<StagedTx>),
-            reinterpret_cast<const void*>(huge_allocate),
-            reinterpret_cast<const void*>(huge_write<StagedTx>),
-            reinterpret_cast<const void*>(huge_merge<StagedTx>),
-            reinterpret_cast<const void*>(huge_emit)};
-    std::copy(std::begin(handles), std::end(handles), kernels);
+    with_mode(group, [&](auto mode) { huge_handles<decltype(mode)>(kernels); });
 }
 
-void prepare_staged_kernels(uint32_t dynamic_bytes)
+template <typename Mode> void staged_handles(const void* (&kernels)[kHugeKernels])
 {
-    prepare_staged_block_kernel(dynamic_bytes);
-    const void* kernels[] = {reinterpret_cast<const void*>(huge_local<StagedTx>),
-                             reinterpret_cast<const void*>(huge_subtree<StagedTx>),
-                             reinterpret_cast<const void*>(huge_write<StagedTx>),
-                             reinterpret_cast<const void*>(huge_merge<StagedTx>)};
-    for (const void* kernel : kernels)
-        check_cuda(cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(dynamic_bytes)),
+    huge_handles<Mode>(kernels);
+}
+
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels], bool warp_mode)
+{
+    if (warp_mode)
+        staged_handles<StagedWarpTx>(kernels);
+    else
+        staged_handles<StagedTx>(kernels);
+}
+
+void prepare_staged_kernels(uint32_t dynamic_bytes, bool warp_mode)
+{
+    prepare_staged_block_kernel(dynamic_bytes, warp_mode);
+    const void* kernels[kHugeKernels];
+    huge_kernels_staged(kernels, warp_mode);
+    for (uint32_t k : {1u, 3u, 5u, 6u}) // the local, subtree, write and merge passes
+        check_cuda(cudaFuncSetAttribute(kernels[k], cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(dynamic_bytes)),
                    "raise staged huge kernel shared memory");
 }
 
