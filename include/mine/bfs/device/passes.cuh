@@ -29,6 +29,8 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
     const uint32_t* k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
     const int       k      = find_item(k_item, tx.length, p.item);
+    if (i < p.n_trans)
+        p.pos[i] = static_cast<uint32_t>(k + 1);
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
     const uint64_t  prefix = k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0;
@@ -94,10 +96,11 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
 {
     const uint32_t  i      = i0 + lanes.rank;
     const bool      valid  = i < p.n_trans;
-    const Tx        tx     = valid ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
+    const uint32_t  pos    = valid ? p.pos[i] : 0;
+    const Tx        tx     = pos != 0 ? src.tx(i, lanes.rank) : Tx{0, 0, 0}; // absent: a staged tile holds no copy
     const uint32_t* k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
-    const int       k      = find_item(k_item, tx.length, p.item);
+    const int       k      = static_cast<int>(pos) - 1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
     // Sweep 1: kept count and kept utility.
@@ -128,6 +131,7 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
             p.rep[i] = kNone;
         else {
             size.max_len = max(size.max_len, kept);
+            p.kept[i]    = kept;
             for (uint32_t h = hash % p.table_size;; h = h + 1 == p.table_size ? 0 : h + 1) {
                 const uint32_t other = compare_swap(p.table[h], kNone, i);
                 if (other == kNone) {
@@ -137,7 +141,7 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
                     break;
                 }
                 const Tx o = p.txs[other];
-                if (same_kept_items(p.eitem + o.begin, o.length, k_item, tx.length, p.item, p.rename)) {
+                if (same_kept_items(p.eitem + o.begin, o.length, p.pos[other], k_item, tx.length, pos, p.rename)) {
                     p.rep[i] = other;
                     break;
                 }
@@ -161,7 +165,7 @@ __device__ inline void subtree_finish(const Lanes& lanes, ChildSize& size, TaskS
 
 __device__ inline bool subtree_wants(const Projection& p, uint32_t i)
 {
-    return i < p.n_trans;
+    return i < p.n_trans && p.pos[i] != 0;
 }
 
 __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step,

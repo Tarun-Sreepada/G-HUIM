@@ -38,7 +38,8 @@ void configure_cli(CLI::App& app, Config& config)
             ->transform(CLI::CheckedTransformer(
                     std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
                                                   {"warp", Method::Warp},
-                                                  {"staged", Method::Staged}},
+                                                  {"staged", Method::Staged},
+                                                  {"stagedwarp", Method::StagedWarp}},
                     CLI::ignore_case))
             ->default_str("adaptive");
     app.add_option("--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
@@ -52,6 +53,19 @@ void configure_cli(CLI::App& app, Config& config)
             ->group("");
     app.add_flag("--smem-tables", config.mining.smem_tables,
                  "Keep per-item tables in shared memory for block-sized tasks (adaptive and staged methods, BFS)");
+    app.add_option("--shape-modes", config.mining.shape_modes,
+                   "BFS adaptive: comma-separated mode per task shape, longest transaction <=4,<=8,<=16,longer "
+                   "(lane, group, g4, g8, g16, g32), e.g. lane,lane,lane,g32")
+            ->group("");
+    app.add_option("--min-entries-per-warp", config.mining.min_entries_per_warp,
+                   "BFS: size tasks by entries instead of transactions; fewest entries worth a warp (0 = by transactions)")
+            ->group("");
+    app.add_option("--oversubscribe", config.mining.oversubscribe,
+                   "BFS: size tasks for this many times the resident warps (more warps per task balances the load)")
+            ->check(CLI::Range(1, 256))
+            ->group("");
+    app.add_flag("--bin-times", config.mining.bin_times, "BFS: run the bins one after another and log each bin's time per level")
+            ->group("");
     app.add_option("--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
             ->check(CLI::Range(1, 48))
             ->group("");
@@ -83,11 +97,15 @@ void configure_cli(CLI::App& app, Config& config)
         const MiningOptions& mining = config.mining;
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
-        if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged))
-            throw CLI::ValidationError("--method", "warp and staged are only available with --search bfs");
+        if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged ||
+                                              mining.method == Method::StagedWarp))
+            throw CLI::ValidationError("--method", "warp, staged and stagedwarp are only available with --search bfs");
+        if (!mining.shape_modes.empty() && (mining.search != Search::Bfs || mining.method != Method::Adaptive))
+            throw CLI::ValidationError("--shape-modes", "needs --search bfs with --method adaptive");
         if (mining.smem_tables && (mining.search != Search::Bfs ||
-                                   (mining.method != Method::Adaptive && mining.method != Method::Staged)))
-            throw CLI::ValidationError("--smem-tables", "needs --search bfs with --method adaptive or staged");
+                                   (mining.method != Method::Adaptive && mining.method != Method::Staged &&
+                                    mining.method != Method::StagedWarp)))
+            throw CLI::ValidationError("--smem-tables", "needs --search bfs with --method adaptive, staged or stagedwarp");
         if (mining.search == Search::Dfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });

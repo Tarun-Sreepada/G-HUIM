@@ -10,29 +10,30 @@
 namespace ghuim::bfs {
 
 // Bin 0: one task per warp, packed into blocks of tune.packed_block_warps warps.
-void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune,
-                       cudaStream_t stream);
+void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t shape,
+                       const AutoTune& tune, cudaStream_t stream);
 // Bins 1..kOptHugeBin-1: one block of (32 << bin) threads per task.
-void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin,
+void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin, uint32_t shape,
                         const AutoTune& tune, cudaStream_t stream);
 // Sub-warp bins: `group` lanes (a power of two <= 32) per task.
 void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group,
                           const AutoTune& tune, cudaStream_t stream);
 // Huge bin: each task is sliced over up to max_slices blocks, one launch per pass.
-void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices,
+void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices, uint32_t shape,
                        const AutoTune& tune, cudaStream_t stream);
 
 // Kernel handles for occupancy queries from another translation unit.
-const void* block_kernel(bool warp_mode);
-const void* warp_kernel(bool warp_mode);
+// `group` is a ShapeTune::group value.
+const void* block_kernel(uint32_t group);
+const void* warp_kernel(uint32_t group);
 const void* subwarp_kernel();
-const void* block_kernel_staged();
+const void* block_kernel_staged(bool warp_mode);
 // The pass kernels of a huge task, in launch order.
-void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode);
-void huge_kernels_staged(const void* (&kernels)[kHugeKernels]);
-void prepare_staged_block_kernel(uint32_t dynamic_bytes);
+void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group);
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels], bool warp_mode);
+void prepare_staged_block_kernel(uint32_t dynamic_bytes, bool warp_mode);
 // Raises the dynamic shared-memory limit of the staged kernels; call before querying occupancy or launching.
-void prepare_staged_kernels(uint32_t dynamic_bytes);
+void prepare_staged_kernels(uint32_t dynamic_bytes, bool warp_mode);
 
 // Fills the block-size fields of `tune` for a device with `sms` multiprocessors from kernel occupancy.
 void measure_occupancy(AutoTune& tune, uint32_t sms);

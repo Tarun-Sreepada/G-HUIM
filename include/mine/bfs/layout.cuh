@@ -73,6 +73,8 @@ struct Task
     uint32_t n_items;  // parent item count
     uint32_t item;     // local name in the parent database
     uint32_t parent;   // index of the task (in the previous level) that built the parent database
+    uint32_t max_len;  // parent's longest transaction (shape of the task)
+    uint32_t n_entries; // parent's entry count
 
     __host__ __device__ uint64_t db_offset() const
     {
@@ -107,10 +109,15 @@ struct TaskState
 __host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_trans)
 {
     return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(uint64_t) + sizeof(uint32_t)) +
-                    uint64_t{n_trans} * 4 * sizeof(uint32_t));
+                    uint64_t{n_trans} * 6 * sizeof(uint32_t));
 }
 
-constexpr uint32_t kMaxBins = 16;
+// How a task shape maps transactions onto lanes (ShapeTune::group, placement.cuh).
+constexpr uint32_t kLaneMode  = 0; // a lane per transaction
+constexpr uint32_t kGroupMode = 1; // lane groups, size from the task's longest transaction at run time
+// 4, 8, 16, 32: lane groups of that size, fixed at compile time
+
+constexpr uint32_t kMaxCells = 64; // scheduling cells: a size bin and a shape
 
 // Staged method: ring slots and the shared memory ahead of the tiles (two counters per slot).
 constexpr uint32_t kRingMaxSlots      = 32;
@@ -132,9 +139,10 @@ struct Control
     unsigned long long batch_work; // sum of transactions over the chunk's tasks
     uint32_t           next_count; // tasks written to the next level
     uint32_t           error;      // ControlError bits
-    uint32_t           bin_count[kMaxBins];
-    uint32_t           bin_cursor[kMaxBins];
-    uint32_t           bin_max_slices[kMaxBins]; // most blocks any task of the bin is split into
+    uint32_t           cell_count[kMaxCells];
+    uint32_t           cell_start[kMaxCells];
+    uint32_t           cell_cursor[kMaxCells];
+    uint32_t           cell_max_slices[kMaxCells]; // most blocks any task of the cell is split into
     // Staging statistics (GHUIM_STAGE_STATS): warp-cycles spent waiting.
     unsigned long long stage_full_wait;       // compute warps waiting for an IO warp
     unsigned long long stage_empty_wait;      // IO warps waiting for a compute warp to free a slot

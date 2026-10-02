@@ -59,11 +59,10 @@ __device__ inline int find_item(const uint32_t* keys, uint32_t length, uint32_t 
 }
 
 // Whether two parent transactions (their key arrays and lengths) project to the same kept items after `item`.
-__device__ inline bool same_kept_items(const uint32_t* ea, uint32_t a_length, const uint32_t* eb, uint32_t b_length,
-                                       uint32_t item, const uint32_t* rename)
+// `i`, `j` are the positions after the extension item (the passes' `pos`).
+__device__ inline bool same_kept_items(const uint32_t* ea, uint32_t a_length, uint32_t i, const uint32_t* eb,
+                                       uint32_t b_length, uint32_t j, const uint32_t* rename)
 {
-    uint32_t i = find_item(ea, a_length, item) + 1;
-    uint32_t j = find_item(eb, b_length, item) + 1;
     for (;;) {
         while (i < a_length && rename[ea[i]] == kNone)
             ++i;
@@ -94,6 +93,8 @@ struct Projection
     uint32_t            table_size;
     uint32_t*           rep;     // representative of each projected transaction
     uint32_t*           slot_of; // child transaction written by a representative
+    uint32_t*           pos;     // pass 1: position after the extension item in each transaction (k + 1), 0 = absent
+    uint32_t*           kept;    // pass 2: kept entries of each transaction behind the extension item
 };
 
 struct TaskView
@@ -107,7 +108,7 @@ struct TaskView
     Projection  p;
 };
 
-// Scratch layout: TaskState | local[n] | subtree[n] | rename[n] | table[2t] | rep[t] | slot[t].
+// Scratch layout: TaskState | local[n] | subtree[n] | rename[n] | table[2t] | rep[t] | slot[t] | pos[t] | kept[t].
 __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
 {
     TaskView v;
@@ -134,6 +135,8 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.table          = p.rename + n;
     p.rep            = p.table + p.table_size;
     p.slot_of        = p.rep + trans;
+    p.pos            = p.slot_of + trans;
+    p.kept           = p.pos + trans;
     return v;
 }
 
