@@ -64,8 +64,12 @@ add_library(ghuim_core STATIC
     src/mine/dfs/dfs_miner.cu)
 target_include_directories(ghuim_core PUBLIC include)
 target_link_libraries(ghuim_core PUBLIC CUDA::cudart spdlog::spdlog)
+# -lineinfo keeps source lines in optimized SASS, so Nsight Compute can attribute stalls to code.
+# -DGHUIM_PROFILE=ON also prints registers, spills and shared memory per kernel at build time.
+option(GHUIM_PROFILE "Print per-kernel resource usage while compiling" OFF)
 target_compile_options(ghuim_core PRIVATE
     $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>
+    $<$<AND:$<BOOL:${GHUIM_PROFILE}>,$<COMPILE_LANGUAGE:CUDA>>:--resource-usage>
     $<$<AND:$<CONFIG:Release>,$<COMPILE_LANGUAGE:CUDA>>:-O3>
     $<$<AND:$<CONFIG:Debug>,$<COMPILE_LANGUAGE:CUDA>>:-G>)
 target_compile_definitions(ghuim_core PRIVATE $<$<CONFIG:Debug>:DEBUG>)
