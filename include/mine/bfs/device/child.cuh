@@ -48,7 +48,8 @@ struct ChildView
     uint64_t  bytes;
     uint32_t* global;
     Tx*       txs;
-    Entry*    entries;
+    uint32_t* eitem;
+    uint32_t* eutil;
 };
 
 __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskState& state, uint32_t child_items)
@@ -59,7 +60,8 @@ __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskSt
     c.bytes               = layout.bytes;
     c.global              = reinterpret_cast<uint32_t*>(at + layout.items);
     c.txs                 = reinterpret_cast<Tx*>(at + layout.tx);
-    c.entries             = reinterpret_cast<Entry*>(at + layout.entries);
+    c.eitem               = reinterpret_cast<uint32_t*>(at + layout.eitem);
+    c.eutil               = reinterpret_cast<uint32_t*>(at + layout.eutil);
     return c;
 }
 
@@ -81,27 +83,32 @@ __device__ inline void write_representatives(const Projection& p, const Lanes& l
         const uint32_t i     = i0 + lanes.rank;
         const bool     write = i < p.n_trans && p.rep[i] == i;
         const Tx       tx    = write ? p.txs[i] : Tx{0, 0, 0};
-        const Entry*   e     = p.entries + tx.begin;
-        const int      k     = write ? find_item(e, tx.length, p.item) : -1;
+        const uint32_t* k_item = p.eitem + tx.begin;
+        const uint32_t* k_util = p.eutil + tx.begin;
+        const int      k     = write ? find_item(k_item, tx.length, p.item) : -1;
         const uint32_t rest  = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span  = lanes.max(rest);
         uint32_t       kept  = 0;
         for (uint32_t d = 0; d < span; ++d)
-            kept += d < rest && p.rename[e[k + 1 + d].item] != kNone;
-        Entry* out = nullptr;
+            kept += d < rest && p.rename[k_item[k + 1 + d]] != kNone;
+        uint32_t* out_item = nullptr;
+        uint32_t* out_util = nullptr;
         if (write) {
             const uint32_t slot  = fetch_add(state.tx_cursor, 1u);
             const uint32_t begin = fetch_add(state.entry_cursor, kept);
             p.slot_of[i]         = slot;
-            c.txs[slot]          = Tx{begin, kept, tx.utility + e[k].utility};
-            out                  = c.entries + begin;
+            c.txs[slot]          = Tx{begin, kept, tx.utility + k_util[k]};
+            out_item             = c.eitem + begin;
+            out_util             = c.eutil + begin;
         }
         for (uint32_t d = 0; d < span; ++d) {
             if (d >= rest)
                 continue;
-            const uint32_t z = p.rename[e[k + 1 + d].item];
-            if (z != kNone)
-                *out++ = Entry{z, e[k + 1 + d].utility};
+            const uint32_t z = p.rename[k_item[k + 1 + d]];
+            if (z != kNone) {
+                *out_item++ = z;
+                *out_util++ = k_util[k + 1 + d];
+            }
         }
     }
 }
@@ -115,21 +122,22 @@ __device__ inline void merge_duplicates(const Projection& p, const Lanes& lanes,
         const uint32_t r     = i < p.n_trans ? p.rep[i] : kNone;
         const bool     merge = r != kNone && r != i;
         const Tx       tx    = merge ? p.txs[i] : Tx{0, 0, 0};
-        const Entry*   e     = p.entries + tx.begin;
-        const int      k     = merge ? find_item(e, tx.length, p.item) : -1;
+        const uint32_t* k_item = p.eitem + tx.begin;
+        const uint32_t* k_util = p.eutil + tx.begin;
+        const int      k     = merge ? find_item(k_item, tx.length, p.item) : -1;
         const uint32_t rest  = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span  = lanes.max(rest);
-        Entry*         out   = nullptr;
+        uint32_t*      out   = nullptr;
         if (merge) {
             const uint32_t dst = p.slot_of[r];
-            add(c.txs[dst].utility, tx.utility + e[k].utility);
-            out = c.entries + c.txs[dst].begin;
+            add(c.txs[dst].utility, tx.utility + k_util[k]);
+            out = c.eutil + c.txs[dst].begin;
         }
         for (uint32_t d = 0; d < span; ++d) {
             if (d >= rest)
                 continue;
-            if (p.rename[e[k + 1 + d].item] != kNone)
-                add((out++)->utility, e[k + 1 + d].utility);
+            if (p.rename[k_item[k + 1 + d]] != kNone)
+                add(*out++, k_util[k + 1 + d]);
         }
     }
 }

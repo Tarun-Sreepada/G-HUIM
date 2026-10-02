@@ -23,11 +23,14 @@ std::vector<char> root_image(const Dataset& data)
     for (uint32_t i = 0; i < n_items; ++i)
         globals[i] = i;
     auto* txs     = reinterpret_cast<Tx*>(image.data() + layout.tx);
-    auto* entries = reinterpret_cast<Entry*>(image.data() + layout.entries);
+    auto* eitem   = reinterpret_cast<uint32_t*>(image.data() + layout.eitem);
+    auto* eutil   = reinterpret_cast<uint32_t*>(image.data() + layout.eutil);
     for (size_t t = 0; t < n_trans; ++t)
         txs[t] = Tx{data.tx_begin[t], data.tx_begin[t + 1] - data.tx_begin[t], 0};
-    for (size_t i = 0; i < n_entries; ++i)
-        entries[i] = Entry{data.items[i], data.utilities[i]};
+    for (size_t i = 0; i < n_entries; ++i) {
+        eitem[i] = data.items[i];
+        eutil[i] = data.utilities[i];
+    }
     return image;
 }
 

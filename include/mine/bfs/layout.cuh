@@ -4,7 +4,11 @@
 // A projected database lives in one contiguous arena block and refers to its own parts by
 // offsets only:
 //
-//   DbHeader | items[n_items] | Tx[n_trans] | Entry[n_entries]
+//   DbHeader | items[n_items] | Tx[n_trans] | entry_item[n_entries] | entry_utility[n_entries]
+//
+// Keys and values of the entries are separate arrays: passes that only test items read 4 bytes per
+// entry, and utilities are read only for the entries that need them. Transaction t owns entries
+// [begin, begin + length) of both arrays.
 //
 // Items inside a database use local names 0..n_items-1; items[] maps them to global ids
 // (ascending, so local order equals global order). Databases start on 16-byte boundaries and
@@ -38,12 +42,6 @@ struct Tx
     uint32_t utility; // utility of the database's prefix itemset in this transaction
 };
 
-struct Entry
-{
-    uint32_t item; // local name
-    uint32_t utility;
-};
-
 __host__ __device__ inline uint64_t align_up(uint64_t value, uint64_t alignment = kArenaUnit)
 {
     return (value + alignment - 1) / alignment * alignment;
@@ -51,15 +49,16 @@ __host__ __device__ inline uint64_t align_up(uint64_t value, uint64_t alignment 
 
 struct DbLayout
 {
-    uint64_t items, tx, entries, bytes;
+    uint64_t items, tx, eitem, eutil, bytes;
 
     __host__ __device__ static DbLayout of(uint64_t n_trans, uint64_t n_entries, uint64_t n_items)
     {
         DbLayout l;
         l.items   = sizeof(DbHeader);
         l.tx      = align_up(l.items + n_items * sizeof(uint32_t), 8);
-        l.entries = align_up(l.tx + n_trans * sizeof(Tx), 8);
-        l.bytes   = align_up(l.entries + n_entries * sizeof(Entry));
+        l.eitem   = align_up(l.tx + n_trans * sizeof(Tx), 16);
+        l.eutil   = align_up(l.eitem + n_entries * sizeof(uint32_t), 16);
+        l.bytes   = align_up(l.eutil + n_entries * sizeof(uint32_t));
         return l;
     }
 };

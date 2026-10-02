@@ -20,18 +20,19 @@ __device__ inline void scan_local(const Projection& p, const Lanes& lanes, uint3
     for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {
         const uint32_t i      = i0 + lanes.rank;
         const Tx       tx     = i < p.n_trans ? p.txs[i] : Tx{0, 0, 0};
-        const Entry*   e      = p.entries + tx.begin;
-        const int      k      = find_item(e, tx.length, p.item);
+        const uint32_t* k_item = p.eitem + tx.begin;
+        const uint32_t* k_util = p.eutil + tx.begin;
+        const int      k      = find_item(k_item, tx.length, p.item);
         const uint32_t rest   = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span   = lanes.max(rest);
-        const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0;
+        const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0;
         uint64_t       after  = 0;
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest)
-                after += e[k + 1 + d].utility;
+                after += k_util[k + 1 + d];
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest)
-                add(p.local[e[k + 1 + d].item], prefix + after);
+                add(p.local[k_item[k + 1 + d]], prefix + after);
         utility += prefix;
     }
     utility = lanes.sum(utility);
@@ -71,31 +72,32 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
         const uint32_t i     = i0 + lanes.rank;
         const bool     valid = i < p.n_trans;
         const Tx       tx    = valid ? p.txs[i] : Tx{0, 0, 0};
-        const Entry*   e     = p.entries + tx.begin;
-        const int      k     = find_item(e, tx.length, p.item);
+        const uint32_t* k_item = p.eitem + tx.begin;
+        const uint32_t* k_util = p.eutil + tx.begin;
+        const int      k     = find_item(k_item, tx.length, p.item);
         const uint32_t rest  = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span  = lanes.max(rest);
         // Sweep 1: kept count and kept utility.
         uint64_t kept_sum = 0;
         uint32_t kept     = 0;
         for (uint32_t d = 0; d < span; ++d)
-            if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {
+            if (d < rest && p.rename[k_item[k + 1 + d]] != kNone) {
                 ++kept;
-                kept_sum += e[k + 1 + d].utility;
+                kept_sum += k_util[k + 1 + d];
             }
         // Sweep 2: subtree(z) = prefix + utility of z and every kept item after it; hash the sequence.
-        const uint64_t remaining = (k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0) + kept_sum;
+        const uint64_t remaining = (k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0) + kept_sum;
         uint64_t       before    = 0;
         uint32_t       index = 0, hash = 0;
         for (uint32_t d = 0; d < span; ++d) {
             if (d >= rest)
                 continue;
-            const Entry&   entry = e[k + 1 + d];
-            const uint32_t z     = p.rename[entry.item];
+            const uint32_t item_d = k_item[k + 1 + d], util_d = k_util[k + 1 + d];
+            const uint32_t z     = p.rename[item_d];
             if (z == kNone)
                 continue;
             add(p.subtree[z], remaining - before);
-            before += entry.utility;
+            before += util_d;
             hash ^= mix(z * 0x9e3779b9u + index++);
         }
         if (valid) {
@@ -111,7 +113,7 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
                         size.entries += kept;
                         break;
                     }
-                    if (same_kept_items(p.txs[other], p.entries, tx, p.item, p.rename)) {
+                    if (same_kept_items(p.txs[other], p.eitem, tx, p.item, p.rename)) {
                         p.rep[i] = other;
                         break;
                     }
