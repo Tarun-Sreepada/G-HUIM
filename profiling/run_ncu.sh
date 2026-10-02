@@ -21,8 +21,10 @@ dram__bytes_read.sum,dram__bytes_write.sum,dram__throughput.avg.pct_of_peak_sust
 smsp__warp_issue_stalled_long_scoreboard_per_warp_active.pct,smsp__warp_issue_stalled_barrier_per_warp_active.pct,\
 smsp__warp_issue_stalled_membar_per_warp_active.pct,smsp__warp_issue_stalled_lg_throttle_per_warp_active.pct,\
 smsp__warps_active.avg.pct_of_peak_sustained_active,smsp__issue_active.avg.pct_of_peak_sustained_active
+ONLY=${ONLY:-}   # e.g. ONLY="dfs_adaptive_block dfs_adaptive_warp" to rerun a subset
 run() {  # name search method kernel-regex skip count
   local name=$1 s=$2 m=$3 re=$4 skip=$5 cnt=$6
+  [[ -n "$ONLY" && " $ONLY " != *" $name "* ]] && return
   CUDA_VISIBLE_DEVICES=0 timeout -k 10 900 "$NCU" "${sec[@]}" --metrics "$METRICS" --import-source yes \
     --cache-control all --clock-control base -k "regex:$re" -s "$skip" -c "$cnt" -f -o "ncu_${name}" \
     "$BIN" --input "$D" --minutil $M --search $s --method $m --total-memory 8G > "ncu_${name}.log" 2>&1
@@ -32,14 +34,14 @@ run() {  # name search method kernel-regex skip count
 run bfs_static_block   bfs static   'block_tasks'                       0 3
 run bfs_static_block_late bfs static 'block_tasks'                      8 2
 run bfs_adaptive_block bfs adaptive 'block_tasks'                       0 3
-run bfs_adaptive_warp  bfs adaptive 'warp_tasks'                        0 3
+run bfs_adaptive_warp  bfs adaptive '^warp_tasks$'                     4 3
 run bfs_adaptive_sub   bfs adaptive 'subwarp_tasks'                     20 3
 run bfs_adaptive_huge  bfs adaptive 'huge_(local|subtree|merge|write)'  0 4
 run dfs_static_block   dfs static   'block_tasks'                       0 3
 run dfs_static_block_late dfs static 'block_tasks'                      8 2
-run dfs_adaptive_block dfs adaptive 'opt::.*block_tasks'                0 3
-run dfs_adaptive_warp  dfs adaptive 'opt::.*warp_tasks'                 0 3
-run dfs_adaptive_sub   dfs adaptive 'opt::.*subwarp_tasks'              20 3
+run dfs_adaptive_block dfs adaptive '^block_tasks$'                    0 3
+run dfs_adaptive_warp  dfs adaptive '^warp_tasks$'                     4 3
+run dfs_adaptive_sub   dfs adaptive '^subwarp_tasks$'                  20 3
 run dfs_adaptive_huge  dfs adaptive 'huge_(local|subtree|merge|write)'  0 4
 run dfs_select         dfs adaptive 'select_kernel'                     0 3
 echo finished
