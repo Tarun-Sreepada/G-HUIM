@@ -38,12 +38,12 @@ __device__ __forceinline__ uint32_t mix(uint32_t x)
 }
 
 // Position of `item` in a sorted transaction, or -1.
-__device__ inline int find_item(const Entry* entries, uint32_t length, uint32_t item)
+__device__ inline int find_item(const uint32_t* keys, uint32_t length, uint32_t item)
 {
     int low = 0, high = static_cast<int>(length) - 1;
     while (low <= high) {
         const int      mid = (low + high) >> 1;
-        const uint32_t key = entries[mid].item;
+        const uint32_t key = keys[mid];
         if (key == item)
             return mid;
         if (key < item)
@@ -55,20 +55,20 @@ __device__ inline int find_item(const Entry* entries, uint32_t length, uint32_t 
 }
 
 // Whether two parent transactions project to the same kept items after `item`.
-__device__ inline bool same_kept_items(Tx a, const Entry* entries, Tx b, uint32_t item, const uint32_t* rename)
+__device__ inline bool same_kept_items(Tx a, const uint32_t* keys, Tx b, uint32_t item, const uint32_t* rename)
 {
-    const Entry* ea = entries + a.begin;
-    const Entry* eb = entries + b.begin;
+    const uint32_t* ea = keys + a.begin;
+    const uint32_t* eb = keys + b.begin;
     uint32_t     i  = find_item(ea, a.length, item) + 1;
     uint32_t     j  = find_item(eb, b.length, item) + 1;
     for (;;) {
-        while (i < a.length && rename[ea[i].item] == kNone)
+        while (i < a.length && rename[ea[i]] == kNone)
             ++i;
-        while (j < b.length && rename[eb[j].item] == kNone)
+        while (j < b.length && rename[eb[j]] == kNone)
             ++j;
         if (i == a.length || j == b.length)
             return i == a.length && j == b.length;
-        if (ea[i].item != eb[j].item)
+        if (ea[i] != eb[j])
             return false;
         ++i;
         ++j;
@@ -79,7 +79,8 @@ __device__ inline bool same_kept_items(Tx a, const Entry* entries, Tx b, uint32_
 struct Projection
 {
     const Tx*           txs;
-    const Entry*        entries;
+    const uint32_t*     eitem;   // entry keys (local item names)
+    const uint32_t*     eutil;   // entry utilities
     uint32_t            n_trans;
     uint32_t            item;    // extension item (local name in the parent)
     unsigned long long* local;   // by parent item name
@@ -117,7 +118,8 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     const uint32_t n = v.header.n_items, trans = v.header.n_trans;
     Projection&    p = v.p;
     p.txs            = reinterpret_cast<const Tx*>(v.base + v.layout.tx);
-    p.entries        = reinterpret_cast<const Entry*>(v.base + v.layout.entries);
+    p.eitem          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eitem);
+    p.eutil          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eutil);
     p.n_trans        = trans;
     p.item           = v.task.item;
     p.local          = reinterpret_cast<unsigned long long*>(scratch + sizeof(TaskState));
