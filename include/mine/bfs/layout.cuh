@@ -116,6 +116,8 @@ enum ControlError : uint32_t
 {
     kNextLevelFull = 1u << 0,
     kArenaFull     = 1u << 1,
+    kStageTimeout  = 1u << 2, // a staging wait exceeded its bound
+    kStageOverflow = 1u << 3, // a transaction was longer than the database's recorded longest
 };
 
 // Scheduler state shared by every kernel; lives in device memory and is read back once per chunk.
@@ -129,6 +131,10 @@ struct Control
     uint32_t           bin_count[kMaxBins];
     uint32_t           bin_cursor[kMaxBins];
     uint32_t           bin_max_slices[kMaxBins]; // most blocks any task of the bin is split into
+    // Staging statistics (GHUIM_STAGE_STATS): warp-cycles spent waiting.
+    unsigned long long stage_full_wait;       // compute warps waiting for an IO warp
+    unsigned long long stage_empty_wait;      // IO warps waiting for a compute warp to free a slot
+    unsigned long long stage_consumer_cycles; // compute warps, whole staged passes
 };
 
 } // namespace ghuim::bfs

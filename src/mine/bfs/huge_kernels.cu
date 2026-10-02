@@ -2,7 +2,7 @@
 // transactions. Passes that need the whole task finished are separate launches.
 
 #include "cuda/buffer.cuh"
-#include "mine/bfs/device/warp_passes.cuh"
+#include "mine/bfs/device/staging.cuh"
 #include "mine/bfs/kernels.cuh"
 
 #include <algorithm>
@@ -46,7 +46,8 @@ template <typename Mode> __global__ void huge_local(BatchView b, AutoTune tune, 
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    Mode::scan_local(v.p, lanes, from, step, *v.state);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::scan_local(v.p, lanes, from, step, *v.state, ctx);
 }
 
 __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
@@ -69,7 +70,8 @@ template <typename Mode> __global__ void huge_subtree(BatchView b, AutoTune tune
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    Mode::scan_subtree(v.p, lanes, from, step, *v.state);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::scan_subtree(v.p, lanes, from, step, *v.state, ctx);
 }
 
 __global__ void huge_allocate(BatchView b, AutoTune, const uint32_t* order)
@@ -91,7 +93,8 @@ template <typename Mode> __global__ void huge_write(BatchView b, AutoTune tune, 
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    Mode::write_representatives(v.p, lanes, from, step, *v.state, c);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::write_representatives(v.p, lanes, from, step, *v.state, c, ctx);
 }
 
 template <typename Mode> __global__ void huge_merge(BatchView b, AutoTune tune, const uint32_t* order)
@@ -104,7 +107,8 @@ template <typename Mode> __global__ void huge_merge(BatchView b, AutoTune tune, 
     const Lanes     lanes(WarpGroup{});
     uint32_t        from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    Mode::merge_duplicates(v.p, lanes, from, step, c);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::merge_duplicates(v.p, lanes, from, step, c, ctx);
 }
 
 __global__ void huge_emit(BatchView b, AutoTune, const uint32_t* order)
@@ -119,14 +123,14 @@ __global__ void huge_emit(BatchView b, AutoTune, const uint32_t* order)
 // init is launched by the caller; passes local..merge run in this order, emit follows.
 template <typename Mode>
 void launch_huge_passes(const BatchView& batch, const AutoTune& tune, const uint32_t* part, dim3 sliced, dim3 single,
-                        uint32_t threads, cudaStream_t stream)
+                        uint32_t threads, uint32_t dynamic_bytes, cudaStream_t stream)
 {
-    huge_local<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_local<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
     huge_rename<<<single, threads, 0, stream>>>(batch, tune, part);
-    huge_subtree<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_subtree<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
     huge_allocate<<<single, threads, 0, stream>>>(batch, tune, part);
-    huge_write<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
-    huge_merge<Mode><<<sliced, threads, 0, stream>>>(batch, tune, part);
+    huge_write<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
+    huge_merge<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
 }
 
 } // namespace
@@ -140,10 +144,13 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
         const uint32_t* part = order + done;
         const dim3      sliced(n, max_slices), single(n, 1);
         huge_init<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        if (tune.warp_mode)
-            launch_huge_passes<WarpTx>(batch, tune, part, sliced, single, threads, stream);
+        if (tune.staged)
+            launch_huge_passes<StagedTx>(batch, tune, part, sliced, single, threads, kStageBarrierBytes + tune.ring_bytes,
+                                         stream);
+        else if (tune.warp_mode)
+            launch_huge_passes<WarpTx>(batch, tune, part, sliced, single, threads, 0, stream);
         else
-            launch_huge_passes<LaneTx>(batch, tune, part, sliced, single, threads, stream);
+            launch_huge_passes<LaneTx>(batch, tune, part, sliced, single, threads, 0, stream);
         huge_emit<<<single, threads, 0, stream>>>(batch, tune, part);
         check_launch("launch huge-task kernels");
     }
@@ -161,6 +168,32 @@ void huge_kernels(const void* (&kernels)[kHugeKernels], bool warp_mode)
             warp_mode ? reinterpret_cast<const void*>(huge_merge<WarpTx>) : reinterpret_cast<const void*>(huge_merge<LaneTx>),
             reinterpret_cast<const void*>(huge_emit)};
     std::copy(std::begin(handles), std::end(handles), kernels);
+}
+
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels])
+{
+    const void* handles[kHugeKernels] = {
+            reinterpret_cast<const void*>(huge_init),
+            reinterpret_cast<const void*>(huge_local<StagedTx>),
+            reinterpret_cast<const void*>(huge_rename),
+            reinterpret_cast<const void*>(huge_subtree<StagedTx>),
+            reinterpret_cast<const void*>(huge_allocate),
+            reinterpret_cast<const void*>(huge_write<StagedTx>),
+            reinterpret_cast<const void*>(huge_merge<StagedTx>),
+            reinterpret_cast<const void*>(huge_emit)};
+    std::copy(std::begin(handles), std::end(handles), kernels);
+}
+
+void prepare_staged_kernels(uint32_t dynamic_bytes)
+{
+    prepare_staged_block_kernel(dynamic_bytes);
+    const void* kernels[] = {reinterpret_cast<const void*>(huge_local<StagedTx>),
+                             reinterpret_cast<const void*>(huge_subtree<StagedTx>),
+                             reinterpret_cast<const void*>(huge_write<StagedTx>),
+                             reinterpret_cast<const void*>(huge_merge<StagedTx>)};
+    for (const void* kernel : kernels)
+        check_cuda(cudaFuncSetAttribute(kernel, cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(dynamic_bytes)),
+                   "raise staged huge kernel shared memory");
 }
 
 } // namespace ghuim::bfs

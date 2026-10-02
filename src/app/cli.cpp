@@ -37,12 +37,19 @@ void configure_cli(CLI::App& app, Config& config)
     app.add_option("--method", config.mining.method, "Work partitioning")
             ->transform(CLI::CheckedTransformer(
                     std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
-                                                  {"warp", Method::Warp}},
+                                                  {"warp", Method::Warp},
+                                                  {"staged", Method::Staged}},
                     CLI::ignore_case))
             ->default_str("adaptive");
     app.add_option("--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
             ->check(CLI::Range(32, 1024))
             ->capture_default_str();
+    app.add_option("--io-warps,--io_warps", config.mining.io_warps, "IO warps per block (staged method)")
+            ->check(CLI::Range(1, 4))
+            ->capture_default_str();
+    app.add_option("--ring-kib", config.mining.ring_kib, "Shared memory for the staged tile ring, KiB")
+            ->check(CLI::Range(1, 200))
+            ->group("");
     add_size_option(app, "--total-memory,--total_memory,--memory", config.mining.memory_bytes,
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
     add_size_option(app, "--stack-capacity,--stack_capacity", config.mining.stack_capacity,
@@ -71,8 +78,8 @@ void configure_cli(CLI::App& app, Config& config)
         const MiningOptions& mining = config.mining;
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
-        if (mining.search == Search::Dfs && mining.method == Method::Warp)
-            throw CLI::ValidationError("--method", "warp is only available with --search bfs");
+        if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged))
+            throw CLI::ValidationError("--method", "warp and staged are only available with --search bfs");
         if (mining.search == Search::Dfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });

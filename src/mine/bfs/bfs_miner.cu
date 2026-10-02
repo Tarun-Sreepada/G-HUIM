@@ -70,7 +70,10 @@ AutoTune make_auto_tune(const MiningOptions& options)
     const uint32_t sms = static_cast<uint32_t>(props.multiProcessorCount);
 
     AutoTune tune{};
-    tune.warp_mode = options.method == Method::Warp;
+    tune.warp_mode  = options.method == Method::Warp;
+    tune.staged     = options.method == Method::Staged;
+    tune.io_warps   = options.io_warps;
+    tune.ring_bytes = options.ring_kib * 1024;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
     // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
@@ -78,7 +81,8 @@ AutoTune make_auto_tune(const MiningOptions& options)
                                                       : kNone;
     spdlog::info("Auto-tune ({}): {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
                  "lane-group block {} threads, huge tasks up to {} blocks",
-                 options.method == Method::Warp ? "lane group per transaction" : "lane per transaction", props.name, sms,
+                 options.method == Method::Warp ? "lane group per transaction"
+                                                    : options.method == Method::Staged ? "staged lanes" : "lane per transaction", props.name, sms,
                  tune.resident_warps, tune.max_block_warps * 32, tune.packed_block_warps * 32,
                  tune.subwarp_block_warps * 32, tune.max_slices);
     return tune;
@@ -289,7 +293,9 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          next_,
                          static_cast<uint32_t>(budget_.capacity),
                          nodes_.get(),
-                         options_.minimum_utility};
+                         options_.minimum_utility,
+                         tune_.staged ? tune_.io_warps : 0,
+                         tune_.ring_bytes};
     uint32_t        first = 0;
     for (uint32_t bin = 0; bin < kBinCount; ++bin) {
         const uint32_t  count  = host_.bin_count[bin];
@@ -315,6 +321,10 @@ void LevelMiner::check_level(uint32_t level)
     if (host_.error & kArenaFull)
         throw std::runtime_error("level " + std::to_string(level) +
                                  " does not fit in its arena region (raise --total-memory)");
+    if (host_.error & kStageTimeout)
+        throw std::runtime_error("a staging wait timed out (protocol error)");
+    if (host_.error & kStageOverflow)
+        throw std::runtime_error("a transaction is longer than its database's recorded longest");
     if (host_.error & kNextLevelFull)
         throw std::runtime_error("level " + std::to_string(level + 1) + " has more than " +
                                  std::to_string(budget_.capacity) + " tasks (raise --stack-capacity)");
@@ -363,6 +373,10 @@ MiningResult LevelMiner::run()
     }
     spdlog::info("BFS: peak arena region use {} MiB, peak scratch {} MiB, peak level {} tasks ({} MiB of task arrays)",
                  peak_arena_ >> 20, peak_scratch_ >> 20, peak_tasks_, (peak_tasks_ * budget_.per_task) >> 20);
+    if (host_.stage_consumer_cycles != 0)
+        spdlog::info("Staging: compute warps waited {:.1f}% of their time for data, IO warps waited {:.1f} Mcycles for free slots",
+                     100.0 * static_cast<double>(host_.stage_full_wait) / static_cast<double>(host_.stage_consumer_cycles),
+                     static_cast<double>(host_.stage_empty_wait) / 1e6);
     result_.patterns   = host_.patterns;
     result_.peak_arena = peak_arena_;
     return result_;

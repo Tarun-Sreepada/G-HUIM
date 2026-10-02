@@ -15,7 +15,8 @@ enum class Method
 {
     Static,  // every task gets one block of --block-size threads
     Adaptive, // size-binned kernels: each task gets lanes, a warp, a block or several blocks to fit its work
-    Warp      // BFS only: a group of 4-32 lanes (from the longest transaction) owns one transaction at a time
+    Warp,     // BFS only: a group of 4-32 lanes (from the longest transaction) owns one transaction at a time
+    Staged    // BFS only: adaptive kernels with IO warps staging transactions in shared memory
 };
 
 inline const char* search_name(Search search)
@@ -28,6 +29,7 @@ inline const char* method_name(Method method)
     switch (method) {
     case Method::Static: return "static";
     case Method::Warp: return "warp";
+    case Method::Staged: return "staged";
     default: return "adaptive";
     }
 }
@@ -38,6 +40,8 @@ struct MiningOptions
     Search      search          = Search::Bfs;
     Method      method          = Method::Adaptive;
     uint32_t    block_size      = 256;          // static: threads per task
+    uint32_t    io_warps        = 1;            // staged: IO warps per block
+    uint32_t    ring_kib        = 64;           // staged: shared memory for the tile ring
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold (BFS)
     std::string output;                         // itemset file; empty = only count the itemsets (BFS)

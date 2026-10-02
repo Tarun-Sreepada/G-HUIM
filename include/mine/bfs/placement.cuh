@@ -34,6 +34,9 @@ struct AutoTune
     uint32_t max_slices;          // blocks one huge task may use
     uint32_t fixed_bin;           // static method: the one bin every task runs in; kNone = adaptive
     uint32_t warp_mode;           // warp method: lane groups own one transaction at a time (WarpTx)
+    uint32_t staged;              // staged method: IO warps stage transactions in shared memory (StagedTx)
+    uint32_t io_warps;            // staged method: IO warps per block
+    uint32_t ring_bytes;          // staged method: shared memory for the tile ring
 };
 
 struct Placement

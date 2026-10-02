@@ -1,17 +1,19 @@
 // Device profile for the BFS miner: block sizes derived from kernel occupancy.
 
 #include "cuda/buffer.cuh"
+#include "mine/bfs/device/staging.cuh"
 #include "mine/bfs/kernels.cuh"
 
 #include <algorithm>
+#include <spdlog/spdlog.h>
 
 namespace ghuim::bfs {
 namespace {
 
-uint32_t occupancy(const void* kernel, uint32_t threads)
+uint32_t occupancy(const void* kernel, uint32_t threads, uint32_t dynamic_bytes = 0)
 {
     int count = 0;
-    check_cuda(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&count, kernel, static_cast<int>(threads), 0),
+    check_cuda(cudaOccupancyMaxActiveBlocksPerMultiprocessor(&count, kernel, static_cast<int>(threads), dynamic_bytes),
                "query occupancy");
     return static_cast<uint32_t>(count);
 }
@@ -35,15 +37,24 @@ uint32_t warp_kernel_block(const void* kernel)
 void measure_occupancy(AutoTune& tune, uint32_t sms)
 {
     // Kernels launched with the same block size: a size is usable only if all of them fit.
-    const bool  warp_mode = tune.warp_mode != 0;
-    const void* block_kernels[1 + kHugeKernels] = {block_kernel(warp_mode)};
+    const bool     warp_mode = tune.warp_mode != 0;
+    const uint32_t dynamic   = tune.staged ? kStageBarrierBytes + tune.ring_bytes : 0;
+    if (tune.staged)
+        prepare_staged_kernels(dynamic);
+    const void* block_kernels[1 + kHugeKernels] = {tune.staged ? block_kernel_staged() : block_kernel(warp_mode)};
     const void* huge[kHugeKernels];
-    huge_kernels(huge, warp_mode);
+    if (tune.staged)
+        huge_kernels_staged(huge);
+    else
+        huge_kernels(huge, warp_mode);
     std::copy(std::begin(huge), std::end(huge), block_kernels + 1);
+    // Only the staged kernels are launched with dynamic shared memory: the block kernel and the
+    // local/subtree/write/merge passes (huge kernel indices 1, 3, 5, 6).
+    const bool staged_kernel[1 + kHugeKernels] = {true, false, true, false, true, false, true, true, false};
     auto block_occupancy = [&](uint32_t threads) {
         uint32_t blocks = ~0u;
-        for (const void* kernel : block_kernels)
-            blocks = std::min(blocks, occupancy(kernel, threads));
+        for (uint32_t k = 0; k < 1 + kHugeKernels; ++k)
+            blocks = std::min(blocks, occupancy(block_kernels[k], threads, staged_kernel[k] ? dynamic : 0));
         return blocks;
     };
 
@@ -51,6 +62,7 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
     uint32_t best = 0, best_size = 1;
     for (uint32_t size = 1; size < kOptBlockSizes; ++size) {
         const uint32_t resident = block_occupancy(32u << size) << size;
+        spdlog::debug("Occupancy: {} threads -> {} blocks per SM, {} warps", 32u << size, block_occupancy(32u << size), resident);
         if (resident != 0 && resident >= best) {
             best      = resident;
             best_size = size;
