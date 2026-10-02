@@ -50,12 +50,12 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
         huge_kernels(huge, warp_mode);
     std::copy(std::begin(huge), std::end(huge), block_kernels + 1);
     // Only the staged kernels are launched with dynamic shared memory: the block kernel and the
-    // local/subtree/write/merge passes (huge kernel indices 1, 3, 5, 6).
+    // local/subtree/write/merge passes. They carry the table region too.
     const bool staged_kernel[1 + kHugeKernels] = {true, false, true, false, true, false, true, true, false};
     auto block_occupancy = [&](uint32_t threads) {
-        uint32_t blocks = occupancy(block_kernels[0], threads, block_dynamic);
-        for (uint32_t k = 1; k < 1 + kHugeKernels; ++k)
-            blocks = std::min(blocks, occupancy(block_kernels[k], threads, staged_kernel[k] ? dynamic : 0));
+        uint32_t blocks = ~0u;
+        for (uint32_t k = 0; k < 1 + kHugeKernels; ++k)
+            blocks = std::min(blocks, occupancy(block_kernels[k], threads, staged_kernel[k] ? block_dynamic : 0));
         return blocks;
     };
 
