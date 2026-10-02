@@ -15,7 +15,7 @@ constexpr uint32_t kMaxGrid = 65535;
 template <typename Mode> __global__ void block_tasks(BatchView b, const uint32_t* order, uint32_t count)
 {
     for (uint32_t i = blockIdx.x; i < count; i += gridDim.x) {
-        process_task<Mode>(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);
+        process_task<Mode>(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32, true);
         __syncthreads(); // the next task reuses the block
     }
 }
@@ -62,13 +62,13 @@ void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t 
     if (tune.staged) {
         // The block keeps the bin's compute warps and adds the IO warps (at most 32 warps in all).
         const uint32_t warps = std::min((1u << bin) + tune.io_warps, 32u);
-        block_tasks<StagedTx><<<std::min(count, kMaxGrid), warps * 32, kStageBarrierBytes + tune.ring_bytes, stream>>>(
-                batch, order, count);
+        block_tasks<StagedTx><<<std::min(count, kMaxGrid), warps * 32, kStageBarrierBytes + tune.ring_bytes + tune.table_bytes,
+                                stream>>>(batch, order, count);
     }
     else if (tune.warp_mode)
         block_tasks<WarpTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
     else
-        block_tasks<LaneTx><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
+        block_tasks<LaneTx><<<std::min(count, kMaxGrid), 32u << bin, tune.table_bytes, stream>>>(batch, order, count);
     check_launch("launch block-task kernel");
 }
 

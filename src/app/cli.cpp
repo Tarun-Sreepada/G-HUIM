@@ -50,6 +50,11 @@ void configure_cli(CLI::App& app, Config& config)
     app.add_option("--ring-kib", config.mining.ring_kib, "Shared memory for the staged tile ring, KiB")
             ->check(CLI::Range(1, 200))
             ->group("");
+    app.add_flag("--smem-tables", config.mining.smem_tables,
+                 "Keep per-item tables in shared memory for block-sized tasks (adaptive and staged methods, BFS)");
+    app.add_option("--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
+            ->check(CLI::Range(1, 48))
+            ->group("");
     add_size_option(app, "--total-memory,--total_memory,--memory", config.mining.memory_bytes,
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
     add_size_option(app, "--stack-capacity,--stack_capacity", config.mining.stack_capacity,
@@ -80,6 +85,9 @@ void configure_cli(CLI::App& app, Config& config)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
         if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged))
             throw CLI::ValidationError("--method", "warp and staged are only available with --search bfs");
+        if (mining.smem_tables && (mining.search != Search::Bfs ||
+                                   (mining.method != Method::Adaptive && mining.method != Method::Staged)))
+            throw CLI::ValidationError("--smem-tables", "needs --search bfs with --method adaptive or staged");
         if (mining.search == Search::Dfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });

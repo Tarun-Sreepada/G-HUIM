@@ -25,8 +25,6 @@
 namespace ghuim::bfs {
 
 constexpr uint32_t kTileTx            = 32;
-constexpr uint32_t kRingMaxSlots      = 32;
-constexpr uint32_t kStageBarrierBytes = 2 * kRingMaxSlots * sizeof(uint64_t);
 constexpr uint32_t kTileMetaBytes     = kTileTx * sizeof(Tx);
 constexpr uint32_t kStageSpinLimit    = 1u << 26;
 

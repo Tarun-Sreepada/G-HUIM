@@ -74,6 +74,7 @@ AutoTune make_auto_tune(const MiningOptions& options)
     tune.staged     = options.method == Method::Staged;
     tune.io_warps   = options.io_warps;
     tune.ring_bytes = options.ring_kib * 1024;
+    tune.table_bytes = options.smem_tables ? options.table_kib * 1024 : 0;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
     // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
@@ -295,7 +296,9 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          nodes_.get(),
                          options_.minimum_utility,
                          tune_.staged ? tune_.io_warps : 0,
-                         tune_.ring_bytes};
+                         tune_.ring_bytes,
+                         tune_.table_bytes,
+                         tune_.staged ? kStageBarrierBytes + tune_.ring_bytes : 0};
     uint32_t        first = 0;
     for (uint32_t bin = 0; bin < kBinCount; ++bin) {
         const uint32_t  count  = host_.bin_count[bin];

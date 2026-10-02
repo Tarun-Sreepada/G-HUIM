@@ -112,6 +112,10 @@ __host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_t
 
 constexpr uint32_t kMaxBins = 16;
 
+// Staged method: ring slots and the shared memory ahead of the tiles (two counters per slot).
+constexpr uint32_t kRingMaxSlots      = 32;
+constexpr uint32_t kStageBarrierBytes = 2 * kRingMaxSlots * sizeof(uint32_t);
+
 enum ControlError : uint32_t
 {
     kNextLevelFull = 1u << 0,

@@ -37,6 +37,7 @@ struct AutoTune
     uint32_t staged;              // staged method: IO warps stage transactions in shared memory (StagedTx)
     uint32_t io_warps;            // staged method: IO warps per block
     uint32_t ring_bytes;          // staged method: shared memory for the tile ring
+    uint32_t table_bytes;         // shared memory for the per-item tables of block-sized tasks (0 = global tables)
 };
 
 struct Placement

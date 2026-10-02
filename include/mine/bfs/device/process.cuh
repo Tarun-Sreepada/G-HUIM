@@ -8,14 +8,24 @@ namespace ghuim::bfs {
 // One group (lanes of a warp, a warp, or a block whose warps split the transactions) processes one
 // whole task.
 template <typename Mode, typename Group>
-__device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uint32_t warp, uint32_t warps)
+__device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uint32_t warp, uint32_t warps,
+                             bool block_tables = false)
 {
-    const TaskView v     = open_task(b, t);
+    TaskView       v     = open_task(b, t);
     const uint32_t first = v.task.item + 1, n = v.header.n_items;
     const Lanes    lanes(g);
     const uint32_t unit = Mode::unit(v.p, lanes);
     const uint32_t from = warp * unit, step = warps * unit;
     const auto     ctx  = Mode::make_ctx(b, v.p, warps, 1, 0);
+
+    // Block-sized tasks: when the item tables fit, they live in shared memory for the whole task. Nothing
+    // outside the block reads them, so no write-back is needed.
+    if (block_tables && b.table_bytes != 0 && uint64_t{n} * 20 <= b.table_bytes) {
+        auto* local     = reinterpret_cast<unsigned long long*>(stage_smem + b.table_offset);
+        v.p.local       = local;
+        v.p.subtree     = local + n;
+        v.p.rename      = reinterpret_cast<uint32_t*>(local + 2 * n);
+    }
 
     clear_task(v, g.rank(), g.size());
     g.sync();

@@ -27,6 +27,8 @@ struct BatchView
     uint64_t        minimum_utility;
     uint32_t        io_warps;   // staged method: IO warps per block (0 = unstaged)
     uint32_t        ring_bytes; // staged method: shared memory for the tile ring
+    uint32_t        table_bytes;  // shared memory for per-item tables (0 = global)
+    uint32_t        table_offset; // where the tables start in the dynamic shared memory
 };
 
 __device__ __forceinline__ uint32_t mix(uint32_t x)
