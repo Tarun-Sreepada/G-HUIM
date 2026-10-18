@@ -186,28 +186,20 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
     const int       k      = static_cast<int>(pos) - 1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
-    // Sweep 1: kept count and kept utility.
-    uint64_t kept_sum = 0;
-    uint32_t kept     = 0;
-    for (uint32_t d = 0; d < span; ++d)
-        if (d < rest && p.rename[k_item[k + 1 + d]] != kNone) {
-            ++kept;
-            kept_sum += k_util[k + 1 + d];
-        }
-    // Sweep 2: subtree(z) = prefix + utility of z and every kept item after it; hash the sequence.
-    const uint64_t remaining = (k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0) + kept_sum;
-    uint64_t       before    = 0;
-    uint32_t       index = 0, hash = 0;
-    for (uint32_t d = 0; d < span; ++d) {
+    // One backward sweep: subtree(z) = prefix + utility of z and every kept item after it, the kept count,
+    // and a hash of the kept sequence (positions counted from its end; equal sequences hash equally).
+    const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0;
+    uint64_t       after  = 0;
+    uint32_t       kept = 0, hash = 0;
+    for (uint32_t d = span; d-- > 0;) {
         if (d >= rest)
             continue;
-        const uint32_t item_d = k_item[k + 1 + d], util_d = k_util[k + 1 + d];
-        const uint32_t z      = p.rename[item_d];
+        const uint32_t z = p.rename[k_item[k + 1 + d]];
         if (z == kNone)
             continue;
-        add(p.subtree[z], remaining - before);
-        before += util_d;
-        hash ^= mix(z * 0x9e3779b9u + index++);
+        after += k_util[k + 1 + d];
+        add(p.subtree[z], prefix + after);
+        hash ^= mix(z * 0x9e3779b9u + kept++);
     }
     if (valid) {
         if (kept == 0)
