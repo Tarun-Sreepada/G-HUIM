@@ -16,7 +16,7 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
     const Lanes lanes(g);
     const bool valid = g.rank() < v.p.n_trans;
     const Tx tx = valid ? GlobalSource{v.p}.tx(g.rank(), 0) : Tx{0, 0, 0};
-    const uint32_t* keys = v.p.eitem + tx.begin;
+    const Key* keys = v.p.eitem + tx.begin;
     const uint32_t* utils = v.p.eutil + tx.begin;
     const uint32_t first = v.p.item + 1;
     uint64_t utility[kMaxLocalTailItems + 1];
@@ -89,7 +89,7 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
     }
     if (g.rank() == 0) {
         const Tx tx = GlobalSource{v.p}.tx(0, 0);
-        const uint32_t* keys = v.p.eitem + tx.begin;
+        const Key* keys = v.p.eitem + tx.begin;
         const uint32_t* utils = v.p.eutil + tx.begin;
         const int pos = v.p.occ ? static_cast<int>(v.p.occ[0].pos) : find_item(keys, tx.length, v.p.item);
         uint64_t count = 0;

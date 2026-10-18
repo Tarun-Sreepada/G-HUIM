@@ -64,7 +64,7 @@ struct ChildView
     uint64_t  bytes;
     uint32_t* global;
     Tx*       txs;
-    uint32_t* eitem;
+    Key*      eitem;
     uint32_t* eutil;
     uint32_t* occ_begin;
     Occurrence* occ;
@@ -79,7 +79,7 @@ __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskSt
     c.bytes               = layout.bytes;
     c.global              = reinterpret_cast<uint32_t*>(at + layout.items);
     c.txs                 = reinterpret_cast<Tx*>(at + layout.tx);
-    c.eitem               = reinterpret_cast<uint32_t*>(at + layout.eitem);
+    c.eitem               = reinterpret_cast<Key*>(at + layout.eitem);
     c.eutil               = reinterpret_cast<uint32_t*>(at + layout.eutil);
     c.occ_begin           = indexed ? reinterpret_cast<uint32_t*>(at + layout.occ_begin) : nullptr;
     c.occ                 = indexed ? reinterpret_cast<Occurrence*>(at + layout.occ) : nullptr;
@@ -104,13 +104,13 @@ __device__ inline void write_tile(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  i      = i0 + lanes.rank;
     const bool      write  = i < p.n_trans && p.rep[i] == i;
     const Tx        tx     = write ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
-    const uint32_t* k_item = src.keys(tx, lanes.rank);
+    const auto*     k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
     const int       k      = write ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
     const uint32_t  kept   = write ? p.kept[i] : 0;
-    uint32_t* out_item = nullptr;
+    Key*      out_item = nullptr;
     uint32_t* out_util = nullptr;
     if (write) {
         const uint32_t slot  = fetch_add(state.tx_cursor, 1u);
@@ -125,7 +125,7 @@ __device__ inline void write_tile(const Projection& p, const Lanes& lanes, uint3
             continue;
         const uint32_t z = p.rename[k_item[k + 1 + d]];
         if (z != kNone) {
-            *out_item++ = z;
+            *out_item++ = static_cast<Key>(z);
             *out_util++ = k_util[k + 1 + d];
         }
     }
@@ -152,7 +152,7 @@ __device__ inline void merge_tile(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  r      = i < p.n_trans ? p.rep[i] : kNone;
     const bool      merge  = r != kNone && r != i;
     const Tx        tx     = merge ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
-    const uint32_t* k_item = src.keys(tx, lanes.rank);
+    const auto*     k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
     const int       k      = merge ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;

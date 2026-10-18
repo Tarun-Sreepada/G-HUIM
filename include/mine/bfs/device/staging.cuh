@@ -215,7 +215,7 @@ __device__ void stage_produce(const Projection& p, const StageCfg& c, uint32_t i
             if (len > c.stride)
                 stage_fail(c, kStageOverflow);
             for (uint32_t e = lane; e < len; e += 32) {
-                cp_async_4(&keys[j * c.stride + e], &p.eitem[begin + e]);
+                keys[j * c.stride + e] = p.eitem[begin + e]; // 2-byte keys: too small for cp.async, widened here
                 cp_async_4(&utils[j * c.stride + e], &p.eutil[begin + e]);
             }
         }

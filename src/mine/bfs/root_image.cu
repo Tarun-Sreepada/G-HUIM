@@ -7,6 +7,8 @@
 
 #include <algorithm>
 #include <bit>
+#include <stdexcept>
+#include <string>
 
 namespace ghuim::bfs {
 
@@ -15,6 +17,8 @@ namespace {
 // The root database in the tile layout: transactions sorted by length, 32 to a tile, entries column-major.
 std::vector<char> tiled_root_image(const Dataset& data)
 {
+    if (data.original_item.size() > kMaxDbItems)
+        throw std::runtime_error("too many items for 16-bit keys (raise --minutil)");
     const uint64_t n_trans = data.transaction_count();
     const uint64_t n_items = data.original_item.size();
     auto           length  = [&](size_t t) { return data.tx_begin[t + 1] - data.tx_begin[t]; };
@@ -41,7 +45,7 @@ std::vector<char> tiled_root_image(const Dataset& data)
     for (uint32_t i = 0; i < n_items; ++i)
         globals[i] = i;
     auto* txs   = reinterpret_cast<Tx*>(image.data() + layout.tx);
-    auto* eitem = reinterpret_cast<uint32_t*>(image.data() + layout.eitem);
+    auto* eitem = reinterpret_cast<Key*>(image.data() + layout.eitem);
     auto* eutil = reinterpret_cast<uint32_t*>(image.data() + layout.eutil);
 
     uint64_t tile_base = 0;
@@ -53,7 +57,7 @@ std::vector<char> tiled_root_image(const Dataset& data)
             const uint32_t begin = static_cast<uint32_t>(tile_base + slot - first);
             txs[slot]            = Tx{begin, length(t), 0};
             for (uint32_t k = 0; k < length(t); ++k) {
-                eitem[begin + uint64_t{k} * stride] = data.items[data.tx_begin[t] + k];
+                eitem[begin + uint64_t{k} * stride] = static_cast<Key>(data.items[data.tx_begin[t] + k]);
                 eutil[begin + uint64_t{k} * stride] = data.utilities[data.tx_begin[t] + k];
             }
         }
@@ -72,7 +76,13 @@ __global__ void entry_occurrences(const Tx* txs, uint32_t n_trans, unsigned long
     }
 }
 
-__global__ void count_items(const uint32_t* eitem, uint64_t n_entries, uint32_t* count)
+__global__ void narrow_keys(const uint32_t* items, uint64_t n_entries, Key* keys)
+{
+    for (uint64_t e = blockIdx.x * uint64_t{blockDim.x} + threadIdx.x; e < n_entries; e += uint64_t{gridDim.x} * blockDim.x)
+        keys[e] = static_cast<Key>(items[e]);
+}
+
+__global__ void count_items(const Key* eitem, uint64_t n_entries, uint32_t* count)
 {
     for (uint64_t e = blockIdx.x * uint64_t{blockDim.x} + threadIdx.x; e < n_entries; e += uint64_t{gridDim.x} * blockDim.x)
         atomicAdd(count + eitem[e], 1u);
@@ -82,12 +92,13 @@ __global__ void count_items(const uint32_t* eitem, uint64_t n_entries, uint32_t*
 // so each item's occurrences stay in transaction order, and the exclusive prefix of the item counts.
 void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint32_t n_entries, uint32_t n_items)
 {
-    auto*          eitem = reinterpret_cast<const uint32_t*>(root + layout.eitem);
+    auto*          eitem = reinterpret_cast<const Key*>(root + layout.eitem);
     auto*          occ   = reinterpret_cast<unsigned long long*>(root + layout.occ);
     auto*          begin = reinterpret_cast<uint32_t*>(root + layout.occ_begin);
     const uint32_t grid  = std::min<uint64_t>((n_entries + 255) / 256 + 1, 65535);
     DeviceBuffer<unsigned long long> unsorted(n_entries);
-    DeviceBuffer<uint32_t>           keys(n_entries), count(n_items + 1);
+    DeviceBuffer<Key>                keys(n_entries);
+    DeviceBuffer<uint32_t>           count(n_items + 1);
     entry_occurrences<<<grid, 256>>>(reinterpret_cast<const Tx*>(root + layout.tx), n_trans, unsorted.get());
     check_cuda(cudaMemset(count.get(), 0, (n_items + 1) * sizeof(uint32_t)), "clear item counts");
     count_items<<<grid, 256>>>(eitem, n_entries, count.get());
@@ -121,6 +132,9 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     // own and go straight to their place in the device image.
     const uint64_t n_trans = data.transaction_count(), n_entries = data.items.size();
     const uint64_t n_items = data.original_item.size();
+    if (n_items > kMaxDbItems)
+        throw std::runtime_error(std::to_string(n_items) + " items survive TWU pruning; at most " +
+                                 std::to_string(kMaxDbItems) + " fit 16-bit keys (raise --minutil)");
     const bool     indexed = wants_index(n_trans, n_entries, n_items, index_min_trans, index_sparsity);
     const DbLayout layout  = DbLayout::of(n_trans, n_entries, n_items, false, indexed);
     std::vector<char> head(layout.eitem, 0);
@@ -141,7 +155,14 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     root.buffer = DeviceBuffer<char>(layout.bytes);
     char* base  = root.buffer.get();
     upload(base, head.data(), head.size());
-    upload(reinterpret_cast<uint32_t*>(base + layout.eitem), data.items.data(), n_entries);
+    {
+        DeviceBuffer<uint32_t> items(n_entries);
+        upload(items.get(), data.items.data(), n_entries);
+        narrow_keys<<<std::min<uint64_t>((n_entries + 255) / 256 + 1, 65535), 256>>>(items.get(), n_entries,
+                                                                                    reinterpret_cast<Key*>(base + layout.eitem));
+        check_launch("launch key narrowing");
+        synchronize("narrow root keys");
+    }
     upload(reinterpret_cast<uint32_t*>(base + layout.eutil), data.utilities.data(), n_entries);
     if (indexed) {
         build_root_index(base, layout, static_cast<uint32_t>(n_trans), static_cast<uint32_t>(n_entries),

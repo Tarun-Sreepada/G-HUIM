@@ -4,9 +4,9 @@
 // A projected database lives in one contiguous arena block and refers to its own parts by
 // offsets only:
 //
-//   DbHeader | items[n_items] | Tx[n_trans] | entry_item[n_entries] | entry_utility[n_entries]
+//   DbHeader | items[n_items] | Tx[n_trans] | entry_item[n_entries] (Key) | entry_utility[n_entries]
 //
-// Keys and values of the entries are separate arrays: passes that only test items read 4 bytes per
+// Keys and values of the entries are separate arrays: passes that only test items read 2 bytes per
 // entry, and utilities are read only for the entries that need them. Transaction t owns entries
 // [begin, begin + length) of both arrays.
 //
@@ -29,6 +29,11 @@
 #include <cstdint>
 
 namespace ghuim::bfs {
+
+// Entry keys are 16-bit local item names, so a database holds at most kMaxDbItems items (the root has the
+// most; load checks it). Utilities stay 32-bit.
+using Key = uint16_t;
+constexpr uint32_t kMaxDbItems = 65536;
 
 constexpr uint64_t kArenaUnit = 16;
 constexpr uint32_t kTile        = 32; // transactions per tile (tile method)
@@ -92,7 +97,7 @@ struct DbLayout
         if (tiled)
             n_trans = align_up(n_trans, tile_stride(n_trans));
         l.eitem   = align_up(l.tx + n_trans * sizeof(Tx), 16);
-        l.eutil   = align_up(l.eitem + n_entries * sizeof(uint32_t), 16);
+        l.eutil   = align_up(l.eitem + n_entries * sizeof(Key), 16);
         l.bytes   = align_up(l.eutil + n_entries * sizeof(uint32_t));
         if (indexed) {
             l.occ_begin = l.bytes;

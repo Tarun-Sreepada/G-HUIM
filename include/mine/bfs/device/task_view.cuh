@@ -47,7 +47,7 @@ __device__ __forceinline__ uint32_t mix(uint32_t x)
 }
 
 // Position of `item` in a sorted transaction, or -1.
-__device__ inline int find_item(const uint32_t* keys, uint32_t length, uint32_t item)
+template <typename K> __device__ inline int find_item(const K* keys, uint32_t length, uint32_t item)
 {
     int low = 0, high = static_cast<int>(length) - 1;
     while (low <= high) {
@@ -65,7 +65,8 @@ __device__ inline int find_item(const uint32_t* keys, uint32_t length, uint32_t 
 
 // Whether two parent transactions (their key arrays and lengths) project to the same kept items after `item`.
 // `i`, `j` are the positions after the extension item (the passes' `pos`).
-__device__ inline bool same_kept_items(const uint32_t* ea, uint32_t a_length, uint32_t i, const uint32_t* eb,
+template <typename K>
+__device__ inline bool same_kept_items(const Key* ea, uint32_t a_length, uint32_t i, const K* eb,
                                        uint32_t b_length, uint32_t j, const uint32_t* rename)
 {
     for (;;) {
@@ -87,7 +88,7 @@ struct Projection
 {
     const Tx*           txs;
     const Occurrence*   occ; // this extension's occurrences, or null for a full database scan
-    const uint32_t*     eitem;   // entry keys (local item names)
+    const Key*          eitem;   // entry keys (local item names)
     const uint32_t*     eutil;   // entry utilities
     uint32_t            n_trans;
     uint32_t            max_len; // longest transaction
@@ -140,7 +141,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.txs            = reinterpret_cast<const Tx*>(v.base + v.layout.tx);
     p.occ            = v.header.indexed ? reinterpret_cast<const Occurrence*>(v.base + v.layout.occ) +
                             reinterpret_cast<const uint32_t*>(v.base + v.layout.occ_begin)[v.task.item] : nullptr;
-    p.eitem          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eitem);
+    p.eitem          = reinterpret_cast<const Key*>(v.base + v.layout.eitem);
     p.eutil          = reinterpret_cast<const uint32_t*>(v.base + v.layout.eutil);
     p.n_trans        = trans;
     p.max_len        = v.header.max_len;

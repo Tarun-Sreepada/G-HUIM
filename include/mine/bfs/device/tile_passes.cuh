@@ -15,7 +15,7 @@
 namespace ghuim::bfs {
 
 // Position of `item` in a sorted tiled transaction (keys at col[k * kTile]), or -1.
-__device__ inline int find_item_tiled(const uint32_t* col, uint32_t length, uint32_t item, uint32_t stride)
+__device__ inline int find_item_tiled(const Key* col, uint32_t length, uint32_t item, uint32_t stride)
 {
     int low = 0, high = static_cast<int>(length) - 1;
     while (low <= high) {
@@ -32,7 +32,7 @@ __device__ inline int find_item_tiled(const uint32_t* col, uint32_t length, uint
 }
 
 // same_kept_items over tiled key arrays.
-__device__ inline bool same_kept_items_tiled(const uint32_t* ea, uint32_t a_length, uint32_t i, const uint32_t* eb,
+__device__ inline bool same_kept_items_tiled(const Key* ea, uint32_t a_length, uint32_t i, const Key* eb,
                                              uint32_t b_length, uint32_t j, const uint32_t* rename, uint32_t stride)
 {
     for (;;) {
@@ -69,7 +69,7 @@ __device__ inline void tile_local(const Projection& p, const Lanes& lanes, uint3
 {
     const uint32_t  i      = i0 + lanes.rank;
     const Tx        tx     = i < p.n_trans ? p.txs[i] : Tx{0, 0, 0};
-    const uint32_t* k_item = p.eitem + tx.begin;
+    const Key*      k_item = p.eitem + tx.begin;
     const uint32_t* k_util = p.eutil + tx.begin;
     const int       k      = find_item_tiled(k_item, tx.length, p.item, p.stride);
     if (i < p.n_trans)
@@ -96,7 +96,7 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
     const bool      valid  = i < p.n_trans;
     const uint32_t  pos    = valid ? p.pos[i] : 0;
     const Tx        tx     = pos != 0 ? p.txs[i] : Tx{0, 0, 0};
-    const uint32_t* k_item = p.eitem + tx.begin;
+    const Key*      k_item = p.eitem + tx.begin;
     const uint32_t* k_util = p.eutil + tx.begin;
     const int       k      = static_cast<int>(pos) - 1;
     const uint32_t  rest   = k >= 0 ? tx.length - pos : 0;
@@ -204,14 +204,14 @@ __device__ inline void tile_write(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  i      = i0 + lanes.rank;
     const bool      write  = i < p.n_trans && p.rep[i] == i;
     const Tx        tx     = write ? p.txs[i] : Tx{0, 0, 0};
-    const uint32_t* k_item = p.eitem + tx.begin;
+    const Key*      k_item = p.eitem + tx.begin;
     const uint32_t* k_util = p.eutil + tx.begin;
     const int       k      = write ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  pos    = static_cast<uint32_t>(k + 1);
     const uint32_t  rest   = k >= 0 ? tx.length - pos : 0;
     const uint32_t  span   = lanes.max(rest);
     const uint32_t  kept   = write ? p.kept[i] : 0;
-    uint32_t* out_item = nullptr;
+    Key*      out_item = nullptr;
     uint32_t* out_util = nullptr;
     if (write) {
         const uint32_t slot  = p.slot_of[i];
@@ -225,7 +225,7 @@ __device__ inline void tile_write(const Projection& p, const Lanes& lanes, uint3
             continue;
         const uint32_t z = p.rename[k_item[(pos + d) * p.stride]];
         if (z != kNone) {
-            *out_item = z;
+            *out_item = static_cast<Key>(z);
             *out_util = k_util[(pos + d) * p.stride];
             out_item += p.child_stride;
             out_util += p.child_stride;
@@ -240,7 +240,7 @@ __device__ inline void tile_merge(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  r      = i < p.n_trans ? p.rep[i] : kNone;
     const bool      merge  = r != kNone && r != i;
     const Tx        tx     = merge ? p.txs[i] : Tx{0, 0, 0};
-    const uint32_t* k_item = p.eitem + tx.begin;
+    const Key*      k_item = p.eitem + tx.begin;
     const uint32_t* k_util = p.eutil + tx.begin;
     const int       k      = merge ? static_cast<int>(p.pos[i]) - 1 : -1;
     const uint32_t  pos    = static_cast<uint32_t>(k + 1);
