@@ -107,7 +107,7 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
             measure_shape(st, tune, sms);
         st.rep = s > 0 && tune.shape[s - 1].group == st.group ? tune.shape[s - 1].rep : s;
     }
-    tune.subwarp_block_warps = warp_kernel_block(subwarp_kernel(tune.tiled != 0, tune.local_tail != 0));
+    tune.subwarp_block_warps = warp_kernel_block(subwarp_kernel(tune.tiled != 0));
 }
 
 } // namespace ghuim::bfs

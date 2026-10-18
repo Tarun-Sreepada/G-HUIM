@@ -61,13 +61,29 @@ struct AutoTune
     uint32_t ring_bytes;          // staged method: shared memory for the tile ring
     uint32_t table_bytes;         // shared memory for the per-item tables of block-sized tasks (0 = global tables)
     uint32_t min_entries_per_warp; // size tasks by entries, not transactions: fewest entries worth a warp (0 = by transactions)
-    uint32_t local_tail;          // use the bounded local-subtree kernel for small tasks
+    uint32_t tail_items;          // local subtrees (local_tail.cuh): most remaining items, 0 = off
+    uint32_t tail_trans;          // local subtrees: most supporting transactions
 };
 
 // Work of a task for sizing: transactions, or entries when the tune sizes by entries.
 __host__ __device__ inline uint64_t task_work(const Task& task, const AutoTune& tune)
 {
     return tune.min_entries_per_warp != 0 ? task.n_entries : task.n_trans;
+}
+
+// Local subtrees: most remaining items, and the longest suffix the single-transaction subset counter
+// enumerates (2^12 subsets on one lane; longer suffixes take the pruned subtree walk).
+constexpr uint32_t kMaxLocalTailItems = 31;
+constexpr uint32_t kMaxSubsetItems    = 12;
+
+// Whether finish_local_tail completes the task's whole subtree. Such tasks get their own cell (shape 1 of
+// the sub-warp bins), so the larger local-subtree kernel runs only on them.
+__host__ __device__ inline bool local_tail_task(const Task& task, const AutoTune& tune)
+{
+    if (tune.tail_items == 0 || task.n_trans > tune.tail_trans || task.n_trans > kWarpSize)
+        return false;
+    const uint32_t subset = tune.tail_items < kMaxSubsetItems ? tune.tail_items : kMaxSubsetItems;
+    return (task.n_trans == 1 && task.max_len <= subset + 1) || task.n_items - task.item - 1 <= tune.tail_items;
 }
 
 struct Placement
@@ -102,7 +118,7 @@ __host__ __device__ inline Placement place_task(const Task& task, const AutoTune
     if (group && task.n_trans < kWarpSize)
         return {0, 1, shape};
     if (!group && task.n_trans <= kWarpSize)
-        return {kOptSubBin + size_class(task.n_trans), 1, 0};
+        return {kOptSubBin + size_class(task.n_trans), 1, local_tail_task(task, tune) ? 1u : 0u};
     const uint64_t floor    = tune.min_entries_per_warp != 0 ? tune.min_entries_per_warp : group ? kWarpMinTrans : kMinTransPerWarp;
     const uint64_t share    = batch_work / (uint64_t{tune.resident_warps} * tune.oversubscribe);
     const uint64_t per_warp = share > floor ? share : floor;

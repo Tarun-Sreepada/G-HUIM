@@ -2,8 +2,10 @@
 
 #include "mine/bfs/device/sources.cuh"
 #include "mine/bfs/device/groups.cuh"
+#include "mine/bfs/placement.cuh"
 
 namespace ghuim::bfs {
+
 
 // A bounded cooperative DFS. Each lane owns one immutable parent transaction; the
 // stack holds only that lane's prefix utility and matching position. Pending items
@@ -17,9 +19,9 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
     const uint32_t* keys = v.p.eitem + tx.begin;
     const uint32_t* utils = v.p.eutil + tx.begin;
     const uint32_t first = v.p.item + 1;
-    uint64_t utility[21];
-    int position[21];
-    uint32_t pending[21];
+    uint64_t utility[kMaxLocalTailItems + 1];
+    int position[kMaxLocalTailItems + 1];
+    uint32_t pending[kMaxLocalTailItems + 1];
     position[0] = valid ? (v.p.occ ? static_cast<int>(v.p.occ[g.rank()].pos) : find_item(keys, tx.length, v.p.item)) : -1;
     utility[0] = position[0] >= 0 ? uint64_t{tx.utility} + utils[position[0]] : 0;
     uint64_t found = 0;
@@ -77,14 +79,14 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
 {
     if (b.local_tail_items == 0 || v.p.n_trans > b.local_tail_trans)
         return false;
-    if (v.p.n_trans != 1) {
+    // One transaction enumerates every subset of its suffix, so it takes the subset counter only while that
+    // stays small; otherwise the pruned subtree walk handles it like several transactions.
+    if (v.p.n_trans != 1 || v.header.max_len > min(b.local_tail_items, kMaxSubsetItems) + 1) {
         if (g.size() > 32 || v.p.n_trans > g.size() || v.header.n_items - v.p.item - 1 > b.local_tail_items)
             return false;
         count_small_subtree(g, b, v);
         return true;
     }
-    if (v.header.max_len > b.local_tail_items + 1)
-        return false;
     if (g.rank() == 0) {
         const Tx tx = GlobalSource{v.p}.tx(0, 0);
         const uint32_t* keys = v.p.eitem + tx.begin;
