@@ -194,26 +194,25 @@ class LevelMiner
 void LevelMiner::allocate()
 {
     GHUIM_RANGE("bfs: build + upload root database");
-    const std::vector<char> root = root_image(data_, tune_.tiled != 0, options_.index_min_trans, options_.index_sparsity);
-    root_bytes_                  = root.size();
-    root_trans_                  = static_cast<uint32_t>(data_.transaction_count());
-    root_items_                  = static_cast<uint32_t>(data_.original_item.size());
-    const auto* root_header      = reinterpret_cast<const DbHeader*>(root.data());
-    root_max_len_                = root_header->max_len;
-    root_entries_                = root_header->n_entries;
-    if (root_header->indexed) {
-        const auto layout = DbLayout::of(root_header->n_trans, root_header->n_entries, root_header->n_items, false, true);
-        const auto* begin = reinterpret_cast<const uint32_t*>(root.data() + layout.occ_begin);
-        root_occ_counts_.resize(root_items_);
-        for (uint32_t z = 0; z < root_items_; ++z)
-            root_occ_counts_[z] = begin[z + 1] - begin[z];
-        spdlog::info("Occurrence indexes: databases with at least {} transactions{}", options_.index_min_trans,
-                     options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "");
-    }
+    auto lap = std::chrono::steady_clock::now();
+    auto stage = [&](const char* name) {
+        spdlog::debug("  {:<28} {:9.1f} ms", name, ms_since(lap));
+        lap = std::chrono::steady_clock::now();
+    };
+    RootDatabase root = upload_root(data_, tune_.tiled != 0, options_.index_min_trans, options_.index_sparsity);
+    stage("build + upload root");
+    root_bytes_   = root.header.bytes;
+    root_trans_   = root.header.n_trans;
+    root_items_   = root.header.n_items;
+    root_max_len_ = root.header.max_len;
+    root_entries_ = root.header.n_entries;
     if (root_bytes_ / kArenaUnit > 0xffffffffull)
         throw std::runtime_error("the input database is too large for 32-bit arena offsets");
-    root_ = DeviceBuffer<char>(root_bytes_);
-    upload(root_.get(), root.data(), root.size());
+    root_            = std::move(root.buffer);
+    root_occ_counts_ = std::move(root.occ_counts);
+    if (root.header.indexed)
+        spdlog::info("Occurrence indexes: databases with at least {} transactions{}", options_.index_min_trans,
+                     options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "");
 
     const uint64_t capacity = budget_.capacity;
     level_a_                = DeviceBuffer<Task>(capacity);
@@ -227,6 +226,7 @@ void LevelMiner::allocate()
     regions_                = {DeviceBuffer<char>(budget_.region_bytes), DeviceBuffer<char>(budget_.region_bytes)};
     control_                = DeviceBuffer<Control>(1);
     chunk_plan_             = DeviceBuffer<ChunkPlan>(1);
+    stage("allocate buffers");
 }
 
 // Level 1: one task per primary item of the root.
@@ -476,7 +476,9 @@ MiningResult mine_bfs(const Dataset& data, const MiningOptions& options)
     MiningOptions effective = options;
     if (options.output == "/dev/null")
         effective.output.clear();
+    const auto   start = std::chrono::steady_clock::now();
     LevelMiner   miner(data, effective);
+    spdlog::debug("  {:<28} {:9.1f} ms", "BFS setup (tune + buffers)", ms_since(start));
     MiningResult result = miner.run();
     if (!effective.output.empty()) {
         GHUIM_RANGE("bfs: write itemsets");
