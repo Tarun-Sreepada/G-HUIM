@@ -23,9 +23,23 @@ cmake --build build -j 4
 The GPU architecture is auto-detected (`native`, sm_80 or newer); pass
 `-DCMAKE_CUDA_ARCHITECTURES=...` to override it. The build produces `build/G-HUIM` (GPU miner) and `build/efim` (CPU baseline).
 
-CPU baseline usage: `build/efim -i data.txt -m <minutil> [-o out.txt] [--separator space] [-t 48] [--numa on|off]
-[--simd auto|avx512|scalar] [--log-level debug]`. Workers are pinned and steal work nearest-first; `--log-level debug`
-prints reader phase times and per-worker steal counts.
+CPU baseline usage: `build/efim -i data.txt -m <minutil> [-o out.txt] [-t 48]`. Workers are pinned and steal work
+nearest-first; `-l debug` prints reader phase times and per-worker steal counts. Both miners share `-i/--input`,
+`-m/--minutil`, `-o/--output`, `-s/--separator` (default space), `-r/--refine`, `-l/--log-level` and `-L/--log-file`.
+CPU-only options:
+
+| Option | Meaning |
+| --- | --- |
+| `-t`, `--threads` | Worker threads (default 1, `0` = all) |
+| `-n`, `--numa` | `on` (default) pins workers and places memory per NUMA node, or `off` |
+| `-v`, `--simd` | Vector kernels: `auto` (default), `avx512` or `scalar` |
+| `-p`, `--thp` | Transparent huge pages: `auto` (default; off above 3/4 of the hardware threads), `on` or `off` |
+| `-r`, `--refine` | Rounds of recomputing each child's bounds without the items it rules out (default `-1` = until none is; `0` = off) |
+| `-d`, `--refine-min-drop` | Refine only while a pass drops at least this fraction of the candidates (default 0) |
+| `-f`, `--leaf` | `on` (default): sum leaf extensions from the occurrence index instead of projecting them |
+| `-c`, `--compact` | `on` (default): rewrite each child without the items it rules out |
+| `-S`, `--stats` | Log search counters (nodes, refinement, compaction, leaves) |
+
 Both miners only count patterns when output is omitted or set to `/dev/null`;
 a real output path enables itemset collection and writing.
 Items are stored in 16 bits and utilities in 32 bits, so `efim` stops with an error if more than 65535 items
@@ -42,27 +56,27 @@ survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-
 
 | Option | Meaning |
 | --- | --- |
-| `--input` | SPMF utility dataset (required) |
-| `--minutil` | Minimum itemset utility (required) |
-| `--search` | `bfs` (default, level by level) or `dfs` (task stack) |
-| `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task), `static` (one block of `--block-size` threads per task), `warp` (BFS only: a lane group of 4, 8, 16 or 32 lanes per transaction), `staged` (BFS only: adaptive kernels with IO warps staging transactions in shared memory), `stagedwarp` (BFS only: `staged` with lane groups) or `tile` (BFS only: adaptive scheduling over databases stored in warp tiles). See [Methods and speeds](#methods-and-speeds) |
-| `--block-size` | Threads per task for `--method static`: a power of two, 32-1024 (default 256) |
-| `--io-warps` | `staged`/`stagedwarp`: IO warps added to each block, 1-4 (default 1; 4 was fastest) |
-| `--ring-kib` | `staged`/`stagedwarp`: shared memory for the tile ring, KiB (default 64) |
-| `--smem-tables`, `--table-kib` | `adaptive`/`staged`: keep per-item tables of block-sized tasks in shared memory (default off; no gain measured) |
-| `--oversubscribe` | BFS: size tasks for this many times the resident warps (default 12; more, smaller blocks balance the load) |
-| `--shape-modes` | BFS `adaptive`: mode per task shape (longest transaction <=4, <=8, <=16, longer), e.g. `lane,lane,lane,g32`; modes are `lane`, `group`, `g4`, `g8`, `g16`, `g32` (default all `lane`) |
-| `--min-entries-per-warp` | BFS: size tasks by entries instead of transactions (default 0 = by transactions; neutral so far) |
-| `--bin-times` | BFS: run the cells one after another and log the time of each per level |
-| `--index-min-trans` | BFS adaptive/static lane kernels: build shared occurrence indexes for databases with at least this many transactions; `0` disables them (default). Indexes add memory and construction work; measure before enabling |
-| `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain; `0` disables it (default), maximum 20 |
-| `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 4); try `--local-tail-items 8 --local-tail-trans 32` |
-| `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
-| `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
-| `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
-| `--output` | Write itemsets as `items... UTIL u` (BFS only); without it they are only counted |
-| `--separator` | Separator between items within each SPMF field (default space) |
-| `--log-level`, `--log-file` | Logging verbosity and optional log file |
+| `-i`, `--input` | SPMF utility dataset (required) |
+| `-m`, `--minutil` | Minimum itemset utility (required) |
+| `-e`, `--search` | `bfs` (default, level by level) or `dfs` (task stack) |
+| `-M`, `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task), `static` (one block of `--block-size` threads per task), `warp` (BFS only: a lane group of 4, 8, 16 or 32 lanes per transaction), `staged` (BFS only: adaptive kernels with IO warps staging transactions in shared memory), `stagedwarp` (BFS only: `staged` with lane groups) or `tile` (BFS only: adaptive scheduling over databases stored in warp tiles). See [Methods and speeds](#methods-and-speeds) |
+| `-b`, `--block-size` | Threads per task for `--method static`: a power of two, 32-1024 (default 256) |
+| `-w`, `--io-warps` | `staged`/`stagedwarp`: IO warps added to each block, 1-4 (default 1; 4 was fastest) |
+| `-R`, `--ring-kib` | `staged`/`stagedwarp`: shared memory for the tile ring, KiB (default 64) |
+| `-T`, `--smem-tables`, `-K`, `--table-kib` | `adaptive`/`staged`: keep per-item tables of block-sized tasks in shared memory (default off; no gain measured) |
+| `-O`, `--oversubscribe` | BFS: size tasks for this many times the resident warps (default 12; more, smaller blocks balance the load) |
+| `-P`, `--shape-modes` | BFS `adaptive`: mode per task shape (longest transaction <=4, <=8, <=16, longer), e.g. `lane,lane,lane,g32`; modes are `lane`, `group`, `g4`, `g8`, `g16`, `g32` (default all `lane`) |
+| `-E`, `--min-entries-per-warp` | BFS: size tasks by entries instead of transactions (default 0 = by transactions; neutral so far) |
+| `-B`, `--bin-times` | BFS: run the cells one after another and log the time of each per level |
+| `-I`, `--index-min-trans` | BFS adaptive/static lane kernels: build shared occurrence indexes for databases with at least this many transactions; `0` disables them (default). Indexes add memory and construction work; measure before enabling |
+| `-k`, `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain; `0` disables it (default), maximum 20 |
+| `-j`, `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 4); try `--local-tail-items 8 --local-tail-trans 32` |
+| `-r`, `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
+| `-g`, `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
+| `-C`, `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
+| `-o`, `--output` | Write itemsets as `items... UTIL u` (BFS only); without it they are only counted |
+| `-s`, `--separator` | Separator between items within each SPMF field (default space) |
+| `-l`, `--log-level`, `-L`, `--log-file` | Logging verbosity and optional log file |
 
 Help and argument validation run before CUDA initialization. `--log-level debug` prints stage
 timings and per-iteration statistics.

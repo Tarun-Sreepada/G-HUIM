@@ -6,8 +6,9 @@
 // Input format (one transaction per line, items/utilities split by `sep`):
 //     a c d:8:5 1 2
 //
-// Usage: efim -i <input> -m <minUtil> [-o <output>] [--separator tab|space|<literal>] [-t <threads>]
-//             [--numa on|off] [--simd auto|avx512|scalar] [--log-level L] [--log-file F]
+// Usage: efim -i <input> -m <minUtil> [-o <output>] [-s space|tab|<literal>] [-t <threads>] [-r <rounds>]
+//             [-n on|off] [-v auto|avx512|scalar] [-l <level>] [-L <file>]  (efim --help lists all; G-HUIM shares
+//             -i -m -o -s -r -l -L)
 //        (legacy positional form: efim <input> <output> <minUtil> [sep] [threads])
 //     threads defaults to 1 (0 = all) and is capped at the hardware thread count.
 //

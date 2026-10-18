@@ -29,7 +29,7 @@ static void init_logging(const std::string& level, const std::string& file) {
 }
 
 int main(int argc, char** argv) {
-	std::string input, output, sep = "tab", log_level = "info", log_file, numa = "on", simd = "auto", thp = "auto";
+	std::string input, output, sep = "space", log_level = "info", log_file, numa = "on", simd = "auto", thp = "auto";
 	long long min_util = 0;
 	int threads = 1, refine = -1;
 	bool stats = false;
@@ -58,36 +58,36 @@ int main(int argc, char** argv) {
 			->check(CLI::ExistingFile);
 		app.add_option("-m,--minutil", min_util, "Minimum utility threshold (>= 1)")->required()->check(CLI::PositiveNumber);
 		app.add_option("-o,--output", output, "Output file (omit or use /dev/null to only count patterns)");
-		app.add_option("--separator", sep, "Field separator: tab, space or a literal")->capture_default_str();
+		app.add_option("-s,--separator", sep, "Field separator: tab, space or a literal")->capture_default_str();
 		app.add_option("-t,--threads", threads, "Worker threads (0 = all hardware threads)")
 			->capture_default_str()
 			->check(CLI::NonNegativeNumber);
-		app.add_option("--numa", numa, "Pin workers, place memory per node, steal nearest-first")
+		app.add_option("-n,--numa", numa, "Pin workers, place memory per node, steal nearest-first")
 			->capture_default_str()
 			->check(CLI::IsMember({"on", "off"}));
-		app.add_option("--simd", simd, "Vector kernels: auto, avx512 or scalar")
+		app.add_option("-v,--simd", simd, "Vector kernels: auto, avx512 or scalar")
 			->capture_default_str()
 			->check(CLI::IsMember({"auto", "avx512", "scalar"}));
-		app.add_option("--thp", thp, "Transparent huge pages for big arrays: auto (off above 3/4 of the hardware threads), on or off")
+		app.add_option("-p,--thp", thp, "Transparent huge pages for big arrays: auto (off above 3/4 of the hardware threads), on or off")
 			->capture_default_str()
 			->check(CLI::IsMember({"auto", "on", "off"}));
-		app.add_option("--refine", refine, "Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is)")
+		app.add_option("-r,--refine", refine, "Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is)")
 			->capture_default_str()
 			->check(CLI::Range(-1, 1000));
-		app.add_option("--refine-min-drop", refine_min_drop, "Refine only while a pass drops at least this fraction of the candidates")
+		app.add_option("-d,--refine-min-drop", refine_min_drop, "Refine only while a pass drops at least this fraction of the candidates")
 			->capture_default_str()
 			->check(CLI::Range(0.0, 1.0));
-		app.add_option("--leaf", leaf, "Sum leaf extensions from the occurrence index instead of projecting them")
+		app.add_option("-f,--leaf", leaf, "Sum leaf extensions from the occurrence index instead of projecting them")
 			->capture_default_str()
 			->check(CLI::IsMember({"on", "off"}));
-		app.add_option("--compact", compact, "Rewrite each child without the items it rules out")
+		app.add_option("-c,--compact", compact, "Rewrite each child without the items it rules out")
 			->capture_default_str()
 			->check(CLI::IsMember({"on", "off"}));
-		app.add_flag("--stats", stats, "Log search counters");
-		app.add_option("--log-level", log_level, "trace, debug, info, warn, error, critical or off")
+		app.add_flag("-S,--stats", stats, "Log search counters");
+		app.add_option("-l,--log-level", log_level, "trace, debug, info, warn, error, critical or off")
 			->capture_default_str()
 			->check(CLI::IsMember({"trace", "debug", "info", "warn", "error", "critical", "off"}));
-		app.add_option("--log-file", log_file, "Also write the log to this file");
+		app.add_option("-L,--log-file", log_file, "Also write the log to this file");
 		try {
 			app.parse(argc, argv);
 		} catch (const CLI::ParseError& error) {

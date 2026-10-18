@@ -26,15 +26,15 @@ void add_size_option(CLI::App& app, const std::string& name, uint64_t& target, c
 
 void configure_cli(CLI::App& app, Config& config)
 {
-    app.add_option("--input", config.input, "SPMF utility dataset")->required()->check(CLI::ExistingFile);
-    app.add_option("--minutil", config.mining.minimum_utility, "Minimum itemset utility")
+    app.add_option("-i,--input", config.input, "SPMF utility dataset")->required()->check(CLI::ExistingFile);
+    app.add_option("-m,--minutil", config.mining.minimum_utility, "Minimum itemset utility")
             ->required()
             ->check(CLI::PositiveNumber);
-    app.add_option("--search", config.mining.search, "Search order")
+    app.add_option("-e,--search", config.mining.search, "Search order")
             ->transform(CLI::CheckedTransformer(
                     std::map<std::string, Search>{{"bfs", Search::Bfs}, {"dfs", Search::Dfs}}, CLI::ignore_case))
             ->default_str("bfs");
-    app.add_option("--method", config.mining.method, "Work partitioning")
+    app.add_option("-M,--method", config.mining.method, "Work partitioning")
             ->transform(CLI::CheckedTransformer(
                     std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
                                                   {"warp", Method::Warp},
@@ -43,52 +43,52 @@ void configure_cli(CLI::App& app, Config& config)
                                                   {"tile", Method::Tile}},
                     CLI::ignore_case))
             ->default_str("adaptive");
-    app.add_option("--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
+    app.add_option("-b,--block-size,--block_size", config.mining.block_size, "Threads per task (static method)")
             ->check(CLI::Range(32, 1024))
             ->capture_default_str();
-    app.add_option("--io-warps,--io_warps", config.mining.io_warps, "IO warps per block (staged method)")
+    app.add_option("-w,--io-warps,--io_warps", config.mining.io_warps, "IO warps per block (staged method)")
             ->check(CLI::Range(1, 4))
             ->capture_default_str();
-    app.add_option("--ring-kib", config.mining.ring_kib, "Shared memory for the staged tile ring, KiB")
+    app.add_option("-R,--ring-kib", config.mining.ring_kib, "Shared memory for the staged tile ring, KiB")
             ->check(CLI::Range(1, 200))
             ->group("");
-    app.add_flag("--smem-tables", config.mining.smem_tables,
+    app.add_flag("-T,--smem-tables", config.mining.smem_tables,
                  "Keep per-item tables in shared memory for block-sized tasks (adaptive and staged methods, BFS)");
-    app.add_option("--shape-modes", config.mining.shape_modes,
+    app.add_option("-P,--shape-modes", config.mining.shape_modes,
                    "BFS adaptive: comma-separated mode per task shape, longest transaction <=4,<=8,<=16,longer "
                    "(lane, group, g4, g8, g16, g32), e.g. lane,lane,lane,g32")
             ->group("");
-    app.add_option("--min-entries-per-warp", config.mining.min_entries_per_warp,
+    app.add_option("-E,--min-entries-per-warp", config.mining.min_entries_per_warp,
                    "BFS: size tasks by entries instead of transactions; fewest entries worth a warp (0 = by transactions)")
             ->group("");
-    app.add_option("--oversubscribe", config.mining.oversubscribe,
+    app.add_option("-O,--oversubscribe", config.mining.oversubscribe,
                    "BFS: size tasks for this many times the resident warps (more warps per task balances the load)")
             ->check(CLI::Range(1, 256))
             ->group("");
-    app.add_flag("--bin-times", config.mining.bin_times, "BFS: run the bins one after another and log each bin's time per level")
+    app.add_flag("-B,--bin-times", config.mining.bin_times, "BFS: run the bins one after another and log each bin's time per level")
             ->group("");
-    app.add_option("--index-min-trans", config.mining.index_min_trans,
+    app.add_option("-I,--index-min-trans", config.mining.index_min_trans,
                    "BFS adaptive/static lanes: build occurrence indexes for databases with at least this many transactions (0 = off)");
-    app.add_option("--local-tail-items", config.mining.local_tail_items,
+    app.add_option("-k,--local-tail-items", config.mining.local_tail_items,
                    "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally (0 = off)")
             ->check(CLI::Range(0, 20));
-    app.add_option("--local-tail-trans", config.mining.local_tail_trans,
+    app.add_option("-j,--local-tail-trans", config.mining.local_tail_trans,
                    "Maximum supporting transactions for local subtree processing")
             ->check(CLI::Range(1, 32))->capture_default_str();
-    app.add_option("--refine", config.mining.refine_rounds,
+    app.add_option("-r,--refine", config.mining.refine_rounds,
                    "Bound refinement: recompute local utilities without the items each task drops, this many rounds "
                    "(-1 = until none drops, 0 = off; huge tasks run at most 8)")
             ->check(CLI::Range(-1, 1000))->capture_default_str();
-    app.add_option("--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
+    app.add_option("-K,--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
             ->check(CLI::Range(1, 48))
             ->group("");
-    add_size_option(app, "--total-memory,--total_memory,--memory", config.mining.memory_bytes,
+    add_size_option(app, "-g,--total-memory,--total_memory,--memory", config.mining.memory_bytes,
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
-    add_size_option(app, "--stack-capacity,--stack_capacity", config.mining.stack_capacity,
+    add_size_option(app, "-C,--stack-capacity,--stack_capacity", config.mining.stack_capacity,
                     "Most tasks one level may hold (K/M/G suffixes)");
-    app.add_option("--output", config.mining.output, "Write the itemsets (\"items... UTIL u\") to this file");
+    app.add_option("-o,--output", config.mining.output, "Write the itemsets (\"items... UTIL u\") to this file");
     app.add_option_function<std::string>(
-               "--separator",
+               "-s,--separator",
                [&config](const std::string& value) {
                    if (value == "\\s" || value == "space")
                        config.separator = ' ';
@@ -99,12 +99,12 @@ void configure_cli(CLI::App& app, Config& config)
                    else
                        throw CLI::ValidationError("--separator", "use one character, space, or tab");
                },
-               "Separator between items within each SPMF field")
+               "Field separator: space, tab or one character")
             ->default_str("space");
-    app.add_option("--log-level", config.log_level, "Logging verbosity")
+    app.add_option("-l,--log-level", config.log_level, "Logging verbosity")
             ->check(CLI::IsMember({"trace", "debug", "info", "warn", "error", "critical", "off"}))
             ->capture_default_str();
-    app.add_option("--log-file", config.log_file, "Also write diagnostics to a log file");
+    app.add_option("-L,--log-file", config.log_file, "Also write diagnostics to a log file");
 
     app.callback([&config] {
         const MiningOptions& mining = config.mining;
