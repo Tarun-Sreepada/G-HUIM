@@ -69,9 +69,12 @@ void configure_cli(CLI::App& app, Config& config)
             ->group("");
     app.add_option("-I,--index-min-trans", config.mining.index_min_trans,
                    "BFS adaptive/static lanes: build occurrence indexes for databases with at least this many transactions (0 = off)");
-    app.add_option("-k,--local-tail-items", config.mining.local_tail_items,
-                   "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally (0 = off)")
-            ->check(CLI::Range(0, 20));
+    CLI::Option* local_tail =
+            app.add_option("-k,--local-tail-items", config.mining.local_tail_items,
+                           "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally "
+                           "(0 = off; on by default where it applies)")
+                    ->check(CLI::Range(0, 31))
+                    ->capture_default_str();
     app.add_option("-j,--local-tail-trans", config.mining.local_tail_trans,
                    "Maximum supporting transactions for local subtree processing")
             ->check(CLI::Range(1, 32))->capture_default_str();
@@ -106,8 +109,15 @@ void configure_cli(CLI::App& app, Config& config)
             ->capture_default_str();
     app.add_option("-L,--log-file", config.log_file, "Also write diagnostics to a log file");
 
-    app.callback([&config] {
-        const MiningOptions& mining = config.mining;
+    app.callback([&config, local_tail] {
+        MiningOptions& mining = config.mining;
+        // The default local subtrees only apply to count-only BFS adaptive lane mining; elsewhere they are
+        // turned off, and only an explicit --local-tail-items is an error.
+        const bool counting = mining.output.empty() || mining.output == "/dev/null";
+        if (local_tail->count() == 0 &&
+            (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting ||
+             (!mining.shape_modes.empty() && mining.shape_modes != "lane,lane,lane,lane")))
+            mining.local_tail_items = 0;
         if (mining.index_min_trans != 0 || mining.local_tail_items != 0) {
             if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static) ||
                 (!mining.shape_modes.empty() && mining.shape_modes != "lane,lane,lane,lane"))

@@ -83,7 +83,8 @@ AutoTune make_auto_tune(const MiningOptions& options)
     AutoTune tune{};
     tune.warp_mode  = options.method == Method::StagedWarp;
     tune.tiled      = options.method == Method::Tile;
-    tune.local_tail = options.local_tail_items != 0;
+    tune.tail_items = options.local_tail_items;
+    tune.tail_trans = options.local_tail_trans;
     tune.staged     = options.method == Method::Staged || options.method == Method::StagedWarp;
     tune.io_warps   = options.io_warps;
     tune.min_entries_per_warp = options.min_entries_per_warp;
@@ -389,7 +390,7 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
         else if (bin == kOptHugeBin)
             launch_huge_tasks(view, tasks, count, host_.cell_max_slices[cell], shape, tune_, stream);
         else
-            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), tune_, stream);
+            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), shape == 1, tune_, stream);
         if (options_.bin_times) {
             check_cuda(cudaEventRecord(stop, stream), "record event");
             timed.push_back({cell, {start, stop}});

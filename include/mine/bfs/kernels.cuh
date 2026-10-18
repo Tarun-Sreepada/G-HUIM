@@ -15,8 +15,9 @@ void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 // Bins 1..kOptHugeBin-1: one block of (32 << bin) threads per task.
 void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin, uint32_t shape,
                         const AutoTune& tune, cudaStream_t stream);
-// Sub-warp bins: `group` lanes (a power of two <= 32) per task.
-void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group,
+// Sub-warp bins: `group` lanes (a power of two <= 32) per task; `local_tail`: every task is a local
+// subtree (local_tail_task).
+void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group, bool local_tail,
                           const AutoTune& tune, cudaStream_t stream);
 // Huge bin: each task is sliced over up to max_slices blocks, one launch per pass.
 void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices, uint32_t shape,
@@ -26,7 +27,7 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 // `group` is a ShapeTune::group value.
 const void* block_kernel(uint32_t group, bool tiled = false);
 const void* warp_kernel(uint32_t group, bool tiled = false);
-const void* subwarp_kernel(bool tiled = false, bool local_tail = false);
+const void* subwarp_kernel(bool tiled = false);
 const void* block_kernel_staged(bool warp_mode);
 // The pass kernels of a huge task, in launch order.
 void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group, bool tiled = false);

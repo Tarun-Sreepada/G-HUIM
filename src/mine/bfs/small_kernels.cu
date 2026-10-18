@@ -91,7 +91,7 @@ void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t 
     check_launch("launch block-task kernel");
 }
 
-void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group,
+void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group, bool local_tail,
                           const AutoTune& tune, cudaStream_t stream)
 {
     const uint32_t threads = tune.subwarp_block_warps * 32;
@@ -99,7 +99,7 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
     const uint32_t grid = static_cast<uint32_t>(std::min<uint64_t>(blocks, 1u << 20));
     if (tune.tiled)
         subwarp_tasks<TileTx><<<grid, threads, 0, stream>>>(batch, order, count, group);
-    else if (batch.local_tail_items != 0)
+    else if (local_tail)
         subwarp_tasks<LaneTx, true><<<grid, threads, 0, stream>>>(batch, order, count, group);
     else
         subwarp_tasks<LaneTx><<<grid, threads, 0, stream>>>(batch, order, count, group);
@@ -137,10 +137,8 @@ const void* warp_kernel(uint32_t group, bool tiled)
     return kernel;
 }
 
-const void* subwarp_kernel(bool tiled, bool local_tail)
+const void* subwarp_kernel(bool tiled)
 {
-    if (local_tail)
-        return reinterpret_cast<const void*>(subwarp_tasks<LaneTx, true>);
     return tiled ? reinterpret_cast<const void*>(subwarp_tasks<TileTx>)
                  : reinterpret_cast<const void*>(subwarp_tasks<LaneTx>);
 }
