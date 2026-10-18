@@ -137,8 +137,10 @@ const void* warp_kernel(uint32_t group, bool tiled)
     return kernel;
 }
 
-const void* subwarp_kernel(bool tiled)
+const void* subwarp_kernel(bool tiled, bool local_tail)
 {
+    if (local_tail)
+        return reinterpret_cast<const void*>(subwarp_tasks<LaneTx, true>);
     return tiled ? reinterpret_cast<const void*>(subwarp_tasks<TileTx>)
                  : reinterpret_cast<const void*>(subwarp_tasks<LaneTx>);
 }

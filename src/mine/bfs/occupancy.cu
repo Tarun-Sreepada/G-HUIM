@@ -18,13 +18,15 @@ uint32_t occupancy(const void* kernel, uint32_t threads, uint32_t dynamic_bytes 
     return static_cast<uint32_t>(count);
 }
 
-// Warp-sized kernels: the largest block whose resident warps are the best the kernel reaches.
+// Warp-sized kernels: the smallest block whose resident warps are the best the kernel reaches. Their
+// tasks are independent, so smaller blocks only finish more evenly (1024-thread blocks were 25% slower
+// on BMS than 128-thread ones at the same occupancy).
 uint32_t warp_kernel_block(const void* kernel)
 {
     uint32_t best_warps = 0, block_warps = 1;
     for (uint32_t size = 0; size < kOptBlockSizes; ++size) {
         const uint32_t resident = occupancy(kernel, 32u << size) << size;
-        if (resident != 0 && resident >= best_warps) {
+        if (resident != 0 && resident > best_warps) {
             best_warps  = resident;
             block_warps = 1u << size;
         }
@@ -107,7 +109,10 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
             measure_shape(st, tune, sms);
         st.rep = s > 0 && tune.shape[s - 1].group == st.group ? tune.shape[s - 1].rep : s;
     }
+    // One block size serves both sub-warp kernels, so it must fit the local-subtree one too.
     tune.subwarp_block_warps = warp_kernel_block(subwarp_kernel(tune.tiled != 0));
+    if (tune.tail_items != 0)
+        tune.subwarp_block_warps = std::min(tune.subwarp_block_warps, warp_kernel_block(subwarp_kernel(false, true)));
 }
 
 } // namespace ghuim::bfs
