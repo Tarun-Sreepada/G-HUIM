@@ -59,18 +59,16 @@ survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-
 | `-i`, `--input` | SPMF utility dataset (required) |
 | `-m`, `--minutil` | Minimum itemset utility (required) |
 | `-e`, `--search` | `bfs` (default, level by level) or `dfs` (task stack) |
-| `-M`, `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task), `static` (one block of `--block-size` threads per task), `warp` (BFS only: a lane group of 4, 8, 16 or 32 lanes per transaction), `staged` (BFS only: adaptive kernels with IO warps staging transactions in shared memory), `stagedwarp` (BFS only: `staged` with lane groups) or `tile` (BFS only: adaptive scheduling over databases stored in warp tiles). See [Methods and speeds](#methods-and-speeds) |
+| `-M`, `--method` | `adaptive` (default, size-binned kernels: lanes, warp, block or several blocks per task), `static` (one block of `--block-size` threads per task), `staged` (BFS only: adaptive kernels with IO warps staging transactions in shared memory) or `tile` (BFS only: adaptive scheduling over databases stored in warp tiles). See [Methods and speeds](#methods-and-speeds) |
 | `-b`, `--block-size` | Threads per task for `--method static`: a power of two, 32-1024 (default 256) |
-| `-w`, `--io-warps` | `staged`/`stagedwarp`: IO warps added to each block, 1-4 (default 1; 4 was fastest) |
-| `-R`, `--ring-kib` | `staged`/`stagedwarp`: shared memory for the tile ring, KiB (default 64) |
-| `-T`, `--smem-tables`, `-K`, `--table-kib` | `adaptive`/`staged`: keep per-item tables of block-sized tasks in shared memory (default off; no gain measured) |
+| `-w`, `--io-warps` | `staged`: IO warps added to each block, 1-4 (default 1; 4 was fastest) |
+| `-R`, `--ring-kib` | `staged`: shared memory for the tile ring, KiB (default 64) |
 | `-O`, `--oversubscribe` | BFS: size tasks for this many times the resident warps (default 12; more, smaller blocks balance the load) |
-| `-P`, `--shape-modes` | BFS `adaptive`: mode per task shape (longest transaction <=4, <=8, <=16, longer), e.g. `lane,lane,lane,g32`; modes are `lane`, `group`, `g4`, `g8`, `g16`, `g32` (default all `lane`) |
-| `-E`, `--min-entries-per-warp` | BFS: size tasks by entries instead of transactions (default 0 = by transactions; neutral so far) |
 | `-B`, `--bin-times` | BFS: run the cells one after another and log the time of each per level |
-| `-I`, `--index-min-trans` | BFS adaptive/static lane kernels: build shared occurrence indexes for databases with at least this many transactions; `0` disables them (default). Indexes add memory and construction work; measure before enabling |
-| `-k`, `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain; `0` disables it (default), maximum 20 |
-| `-j`, `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 4); try `--local-tail-items 8 --local-tail-trans 32` |
+| `-I`, `--index-min-trans` | BFS adaptive/static: build shared occurrence indexes for databases with at least this many transactions (default 4096; `0` = off). By default only sparse databases are indexed (`-D`); an explicit `-I` alone indexes any density |
+| `-D`, `--index-sparsity` | Index only databases with at most 1/this of their transaction-item pairs present (default 32; `0` = any) |
+| `-k`, `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain (default 8, on wherever it applies; `0` = off; maximum 31) |
+| `-j`, `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 32) |
 | `-r`, `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
 | `-g`, `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
 | `-C`, `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
@@ -89,10 +87,7 @@ How to run each method (BFS search; swap `--minutil` and `--input` for your data
 IN="--input datasets/accidents_utility_spmf.txt --minutil 6000000"
 ./build/G-HUIM $IN                                                      # adaptive (default, fastest)
 ./build/G-HUIM $IN --method static --block-size 256                     # one block per task
-./build/G-HUIM $IN --method warp                                        # lane group per transaction
 ./build/G-HUIM $IN --method staged --io-warps 4 --ring-kib 64           # IO warps stage transactions in shared memory
-./build/G-HUIM $IN --method stagedwarp --io-warps 4 --ring-kib 32       # IO warps + lane groups
-./build/G-HUIM $IN --shape-modes lane,lane,lane,g32                     # per-shape mode (adaptive); all lane is the default
 ./build/G-HUIM $IN --bin-times                                          # time per scheduling cell and level
 ```
 
@@ -123,9 +118,8 @@ kernel, concurrently on separate streams:
 - more: one block of 64 to 1024 threads per task, the warps splitting the transactions;
 - very large: the task is sliced over many blocks, with one launch per pass.
 
-A bin is further split by the task's shape, the length class of its longest transaction (<=4, <=8,
-<=16, longer), so each (size, shape) cell can run its own kernel (`--shape-modes`; every shape uses the
-same lane-per-transaction mode by default). The cell counts are updated on the GPU as tasks are created,
+Lane-group tasks that the local-subtree walk finishes on its own (`--local-tail-items`, decided from the
+task's sizes) get a cell of their own, so its larger kernel runs only on them. The cell counts are updated on the GPU as tasks are created,
 and every non-empty cell is launched. In the kernel a lane owns one transaction: a warp covers 32
 consecutive transactions per step, each lane searches its own transaction and walks the entries behind the
 extension item. This is simple and has little overhead, but neighbouring lanes read far-apart memory,
@@ -135,12 +129,6 @@ which makes the loads uncoalesced.
 transactions as in `adaptive`. It is the simple baseline: small tasks waste most of the block and huge
 tasks run on a single block.
 
-**`warp`.** A group of 4, 8, 16 or 32 lanes owns one transaction at a time, and its lanes sit on
-consecutive entries, so the key and utility arrays are read coalesced. The group size comes from the
-task's longest transaction. Positions inside the transaction come from ballots, popcounts and group scans
-instead of per-lane loops. The loads get much better (about 1.7 sectors per request instead of about 10), but the same work
-takes several times the instructions, so it ends up limited by instruction issue.
-
 **`staged`.** `adaptive`, with some warps added to each block as IO warps. An IO warp copies tiles of 32
 transactions from global memory into a ring of shared-memory slots with `cp.async`, keeping up to two
 tiles in flight. The other (compute) warps run the lane-per-transaction passes on the tiles, so their
@@ -149,7 +137,8 @@ tell the compute warps when a tile has landed and the IO warps when a slot is fr
 so a protocol bug ends the kernel with an error and does not hang the GPU. It applies to block-sized and
 huge tasks; smaller tasks run unstaged. From pass 2 on, only transactions that contain the extension
 item are copied. `--io-warps` sets how many IO warps a block gets and `--ring-kib` how much shared
-memory the ring has, which is also the prefetch depth.
+memory the ring has, which is also the prefetch depth. Since keys became 16-bit, an IO warp copies them
+with plain loads (`cp.async` needs 4 bytes), and `staged` is about twice as slow as before.
 
 **`tile`.** `adaptive` scheduling, but every database is stored in tiles of 32 transactions with the entries
 column-major: entry *k* of the 32 transactions of a tile is one contiguous row, so lanes that read the same
@@ -162,13 +151,11 @@ the child allocated at its exact size. The passes are still a lane per transacti
 count is the same as `adaptive`; only the loads change. Status: correct (same counts as `adaptive` at 8M, 6M
 and 3M, `compute-sanitizer` clean on a 2,000-transaction subset), not faster yet: see the table below (n/m = total time not measured; tile builds its root image on one host thread, about 0.2 s more than `adaptive` at 8M). Peak arena use matches `adaptive` at 6M (664 vs 661 MiB) and is 35% higher at 3M (2590 vs 1914 MiB).
 
-**`stagedwarp`.** The same IO-warp ring, but each compute warp takes a whole tile and its lane groups
-split the tile's transactions, as in `warp`.
-
 `--search dfs` processes tasks from a stack instead of level by level and has its own `static` and
-`adaptive` kernels; `warp`, `staged` and `stagedwarp` are BFS only.
+`adaptive` kernels; `staged` and `tile` are BFS only.
 
-Each cell is **kernel time / total time**, the `kernels` and `Total time` log lines, best of 3, on
+Historical measurements, before the changes in [Recent optimizations](#recent-optimizations); `warp`,
+`stagedwarp`, `--shape-modes`, `--smem-tables` and `--min-entries-per-warp` have since been removed. Each cell is **kernel time / total time**, the `kernels` and `Total time` log lines, best of 3, on
 `accidents_utility_spmf`, NVIDIA H100 PCIe, BFS search, run with `--total-memory 8G`. The kernel time is
 the mining itself; the total time adds loading the dataset (about 0.16 s), building and uploading the root
 database, allocating the arenas and reading back, about 0.5 s in these runs. With the default memory
@@ -227,6 +214,29 @@ Local processing requires BFS adaptive lane kernels with no output file (or
 itemset output. Both options default to off. With local processing, reported
 task counts are globally scheduled tasks, and a level's pattern count includes
 descendants completed locally. See [measurements and validation](experiments/gpu_occurrence_index.md).
+
+## Recent optimizations
+
+Kernel time (BFS adaptive defaults, `-g 16G`) before and after the October 19 changes, best of one
+run each; every count matches efim:
+
+| Dataset (minutil) | Before | After |
+| --- | ---: | ---: |
+| kosarak (720K) | 0.163 s | 0.028 s |
+| BMS (1,999K) | 0.227 s | 0.186 s |
+| retail (1,440) | 0.582 s | 0.309 s |
+| pumsb (9,680K) | 0.276 s | 0.221 s |
+| accidents (3,900K) | 0.591 s | 0.283 s |
+| connect (7,400K) | fails (level capacity) | 0.114 s |
+| chess (170K) | fails (level capacity) | 0.214 s |
+| mushroom (5,500) | fails (level capacity) | 0.077 s |
+
+In order of effect: local subtrees on by default in their own scheduling cell; occurrence indexes
+by default for large sparse databases (kosarak); the last child item counted without a task;
+packed-warp kernels on the smallest full-occupancy block; 16-bit entry keys; one backward sweep in
+pass 2; the root database uploaded without a host image and indexed on the GPU (setup 72 -> 15 ms on
+accidents); sparse input item ids compacted (ecommerce loading 16 s -> 0.05 s). CPU against GPU
+across all datasets: [cpu_gpu_sweep.md](experiments/cpu_gpu_sweep.md).
 
 ## Checking results against the CPU baseline
 
