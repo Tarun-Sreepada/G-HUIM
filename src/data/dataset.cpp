@@ -25,6 +25,25 @@ void check_total_utility(const RawInput& in)
         throw std::runtime_error("total database utility exceeds 32 bits");
 }
 
+// Item ids sparse next to the input (ecommerce: ids up to 1.2e9, 3,468 distinct) would make every
+// per-item table huge. Renames them to 0..distinct-1 in ascending order and returns the original ids;
+// returns empty and leaves the input alone when the ids are already dense enough.
+std::vector<uint32_t> compact_item_ids(RawInput& in)
+{
+    const uint32_t max_item = *std::max_element(in.items.begin(), in.items.end());
+    if (max_item < std::max<size_t>(in.items.size(), size_t{1} << 20))
+        return {};
+    std::vector<uint32_t> ids(in.items);
+    std::sort(ids.begin(), ids.end());
+    ids.erase(std::unique(ids.begin(), ids.end()), ids.end());
+    const size_t workers = worker_count(in.items.size(), size_t{1} << 16);
+    parallel_for(workers, in.items.size(), [&](size_t, size_t begin, size_t end) {
+        for (size_t i = begin; i < end; ++i)
+            in.items[i] = static_cast<uint32_t>(std::lower_bound(ids.begin(), ids.end(), in.items[i]) - ids.begin());
+    });
+    return ids;
+}
+
 // Transaction-weighted utility of each item: per-thread histograms, summed. Each extra
 // histogram costs `bins` words, so fan out only while that stays small next to the input.
 std::vector<uint64_t> transaction_weighted_utility(const RawInput& in)
@@ -153,8 +172,10 @@ Dataset load_dataset(const std::string& path, char separator, uint64_t minimum_u
     stage("map file");
 
     phase.next("load: parse");
-    const RawInput input = parse_input(file.view(), separator);
+    RawInput input = parse_input(file.view(), separator);
     stage("parse");
+    const std::vector<uint32_t> input_ids = compact_item_ids(input);
+    stage("compact item ids");
     phase.next("load: merge chunks");
     check_total_utility(input);
     stage("merge chunks");
@@ -167,6 +188,9 @@ Dataset load_dataset(const std::string& path, char separator, uint64_t minimum_u
     Dataset data;
     data.input_transactions = input.transactions.size();
     const std::vector<uint32_t> rename = rename_items(twu, minimum_utility, data);
+    if (!input_ids.empty())
+        for (uint32_t& item : data.original_item)
+            item = input_ids[item];
     stage("prune + rename items");
 
     phase.next("load: rebuild + sort transactions");
