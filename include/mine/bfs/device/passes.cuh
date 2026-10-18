@@ -27,7 +27,7 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
 {
     const uint32_t  i      = i0 + lanes.rank;
     const Tx        tx     = i < p.n_trans ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
-    const uint32_t* k_item = src.keys(tx, lanes.rank);
+    const auto*     k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
     const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(p.occ[i].pos) : -1)
                                   : find_item(k_item, tx.length, p.item);
@@ -101,7 +101,7 @@ __device__ inline void refine_tile(const Projection& p, const Lanes& lanes, uint
     const uint32_t  i      = i0 + lanes.rank;
     const uint32_t  pos    = i < p.n_trans ? p.pos[i] : 0;
     const Tx        tx     = pos != 0 ? p.txs[p.occ ? p.occ[i].tid : i] : Tx{0, 0, 0};
-    const uint32_t* k_item = p.eitem + tx.begin;
+    const Key*      k_item = p.eitem + tx.begin;
     const uint32_t* k_util = p.eutil + tx.begin;
     const uint32_t  s      = p.stride;
     const uint32_t  rest   = pos != 0 ? tx.length - pos : 0;
@@ -181,7 +181,7 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
     const bool      valid  = i < p.n_trans;
     const uint32_t  pos    = valid ? p.pos[i] : 0;
     const Tx        tx     = pos != 0 ? src.tx(i, lanes.rank) : Tx{0, 0, 0}; // absent: a staged tile holds no copy
-    const uint32_t* k_item = src.keys(tx, lanes.rank);
+    const auto*     k_item = src.keys(tx, lanes.rank);
     const uint32_t* k_util = src.utils(tx, lanes.rank);
     const int       k      = static_cast<int>(pos) - 1;
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
