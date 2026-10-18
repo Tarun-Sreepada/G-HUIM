@@ -273,7 +273,15 @@ void read_database(const std::string& input_file_, const std::string& sep_, Util
 			if (transaction.empty()) continue;
 			std::sort(transaction.begin(), transaction.end(),
 					  [](const auto& a, const auto& b) { return a.first < b.first; });
+			// An item listed twice in one transaction (kosarak) becomes one entry with the summed utility.
+			const std::size_t first = c.keys.size();
 			for (const auto& [x, u] : transaction) {
+				if (c.keys.size() > first && c.keys.back() == x) {
+					const Utility sum = Utility{c.vals.back()} + u;
+					if (sum > std::numeric_limits<Util>::max()) c.bad_util = true;
+					c.vals.back() = static_cast<Util>(sum);
+					continue;
+				}
 				c.keys.push_back(x);
 				c.vals.push_back(u);
 			}

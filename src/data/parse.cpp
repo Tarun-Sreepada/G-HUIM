@@ -2,10 +2,12 @@
 
 #include "data/parallel.hpp"
 
+#include <algorithm>
 #include <cstring>
 #include <limits>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace ghuim {
 namespace {
@@ -40,6 +42,37 @@ void parse_numbers(std::string_view field, char separator, std::vector<uint32_t>
     }
 }
 
+// An item listed twice in one transaction (kosarak has 27 such lines) becomes one entry with the summed
+// utility; the miners assume each item occurs at most once per transaction. Lines whose items already
+// ascend are left alone.
+void merge_repeated_items(Chunk& chunk, size_t begin)
+{
+    const size_t end = chunk.items.size();
+    bool         ascending = true;
+    for (size_t i = begin + 1; i < end && ascending; ++i)
+        ascending = chunk.items[i - 1] < chunk.items[i];
+    if (ascending)
+        return;
+    std::vector<std::pair<uint32_t, uint64_t>> entries;
+    for (size_t i = begin; i < end; ++i)
+        entries.emplace_back(chunk.items[i], chunk.utils[i]);
+    std::sort(entries.begin(), entries.end());
+    size_t out = begin;
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (out > begin && chunk.items[out - 1] == entries[i].first) {
+            const uint64_t sum = chunk.utils[out - 1] + entries[i].second;
+            if (sum > std::numeric_limits<uint32_t>::max())
+                throw std::runtime_error("utility of a repeated item exceeds 32 bits");
+            chunk.utils[out - 1] = static_cast<uint32_t>(sum);
+            continue;
+        }
+        chunk.items[out]   = entries[i].first;
+        chunk.utils[out++] = static_cast<uint32_t>(entries[i].second);
+    }
+    chunk.items.resize(out);
+    chunk.utils.resize(out);
+}
+
 // Parses "items:transaction utility:item utilities" lines; `text` starts and ends on line boundaries.
 void parse_lines(std::string_view text, char separator, Chunk& chunk)
 {
@@ -63,6 +96,7 @@ void parse_lines(std::string_view text, char separator, Chunk& chunk)
         parse_numbers(line.substr(second + 1), separator, chunk.utils);
         if (chunk.items.size() != chunk.utils.size())
             throw std::runtime_error("item and utility counts differ in line: " + std::string(line));
+        merge_repeated_items(chunk, begin);
         // Use the sum of item utilities rather than the stated total so the bounds are exact.
         uint64_t utility = 0;
         for (size_t i = begin; i < chunk.utils.size(); ++i)
