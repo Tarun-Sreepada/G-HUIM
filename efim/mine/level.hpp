@@ -142,6 +142,36 @@ struct Level {
 		for (const Item x : primary) slot[x] = -1;
 	}
 
+	// Parallel copy of a Level whose transactions are all owned (the root): shape_copy() sizes the
+	// arrays (left uninitialised), then fill_part(src, p, parts) for p in [0, parts) copies slices,
+	// each from its own thread, so the copy is first-touched by the threads that will use it.
+	std::shared_ptr<Level> shape_copy() const {
+		auto copy = std::make_shared<Level>();
+		copy->items.resize(items.size());
+		copy->utils.resize(utils.size());
+		copy->txs.resize(txs.size());
+		copy->occ.resize(occ.size());
+		copy->primary = primary;
+		copy->secondary = secondary;
+		copy->occ_begin = occ_begin;
+		return copy;
+	}
+	void fill_part(const Level& src, int p, int parts) {
+		const auto slice = [&](std::size_t n) { return std::pair{n / parts * p, p + 1 == parts ? n : n / parts * (p + 1)}; };
+		const auto [i0, i1] = slice(src.items.size());
+		std::copy(src.items.begin() + i0, src.items.begin() + i1, items.begin() + i0);
+		std::copy(src.utils.begin() + i0, src.utils.begin() + i1, utils.begin() + i0);
+		const auto [o0, o1] = slice(src.occ.size());
+		std::copy(src.occ.begin() + o0, src.occ.begin() + o1, occ.begin() + o0);
+		const auto [t0, t1] = slice(src.txs.size());
+		for (std::size_t i = t0; i < t1; ++i) {
+			Transaction t = src.txs[i];
+			t.items = items.data() + t.own;
+			t.utils = utils.data() + t.own;
+			txs[i] = t;
+		}
+	}
+
 	// A self-contained copy whose transactions all point into its own storage.
 	std::shared_ptr<Level> materialize() const {
 		auto copy = std::make_shared<Level>();

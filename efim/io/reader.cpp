@@ -334,13 +334,36 @@ void read_database(const std::string& input_file_, const std::string& sep_, Util
 		cut[parts] = perm.size();
 		const auto at = [&](int i) { return perm.begin() + static_cast<std::ptrdiff_t>(cut[i]); };
 		parallel_run(parts, [&](int i) { std::sort(at(i), at(i + 1), less); });
+		// Each round merges pairs of runs into `buf`. Every merge is split into slices of the
+		// output by co-ranking, so all threads stay busy even in the last (single-pair) round.
+		std::vector<std::uint32_t> buf(perm.size());
+		std::uint32_t *src = perm.data(), *dst = buf.data();
 		for (int width = 1; width < parts; width *= 2) {
 			const int merges = (parts + 2 * width - 1) / (2 * width);
-			parallel_run(merges, [&](int m) {
-				const int lo = m * 2 * width, mid = lo + width, hi = std::min(lo + 2 * width, parts);
-				if (mid < hi) std::inplace_merge(at(lo), at(mid), at(hi), less);
+			const int slices = std::max(1, threads / merges);
+			parallel_run(merges * slices, [&](int job) {
+				const int m = job / slices, sl = job % slices;
+				const int lo = m * 2 * width, mid = std::min(lo + width, parts), hi = std::min(lo + 2 * width, parts);
+				const std::uint32_t *a = src + cut[lo], *b = src + cut[mid];
+				const std::size_t na = cut[mid] - cut[lo], nb = cut[hi] - cut[mid], n = na + nb;
+				// Smallest i with i + j = d such that the first i of `a` and first j of `b` are
+				// the first d outputs of a stable merge (ties take `a` first).
+				const auto corank = [&](std::size_t d) {
+					std::size_t lo_i = d > nb ? d - nb : 0, hi_i = std::min(d, na);
+					while (lo_i < hi_i) {
+						const std::size_t i = (lo_i + hi_i) / 2, j = d - i - 1;
+						if (less(b[j], a[i])) hi_i = i;
+						else lo_i = i + 1;
+					}
+					return lo_i;
+				};
+				const std::size_t d0 = n * sl / slices, d1 = n * (sl + 1) / slices;
+				const std::size_t i0 = corank(d0), i1 = corank(d1);
+				std::merge(a + i0, a + i1, b + (d0 - i0), b + (d1 - i1), dst + cut[lo] + d0, less);
 			});
+			std::swap(src, dst);
 		}
+		if (src != perm.data()) std::copy(src, src + perm.size(), perm.data());
 	}
 	lap("sort transactions");
 
