@@ -21,9 +21,11 @@ constexpr uint32_t kWarpSize        = 32;
 constexpr uint32_t kMinTransPerWarp = 8; // below this, extra warps only add overhead
 constexpr uint32_t kHugeKernels     = 8;
 
-// A scheduling cell is a size bin and whether its tasks are local subtrees (sub-warp bins only). The cells
-// are counted as tasks are created and every non-empty cell gets its own kernel.
-constexpr uint32_t kCellKinds = 2;
+// A scheduling cell is a size bin and a kind: 0 projects, 1 is a local subtree (sub-warp bins), 2 a vertical
+// subtree (bin 0). The cells are counted as tasks are created and every non-empty cell gets its own kernel.
+constexpr uint32_t kCellKinds = 3;
+constexpr uint32_t kTailKind  = 1;
+constexpr uint32_t kVertKind  = 2;
 constexpr uint32_t kCells     = kBinCount * kCellKinds;
 
 static_assert(kCells <= kMaxCells);
@@ -44,7 +46,14 @@ struct AutoTune
     uint32_t ring_bytes;          // staged method: shared memory for the tile ring
     uint32_t tail_items;          // local subtrees (local_tail.cuh): most remaining items, 0 = off
     uint32_t tail_trans;          // local subtrees: most supporting transactions
+    uint32_t vert_items;          // vertical subtrees (vertical_kernels.cu): most remaining items, 0 = off
+    uint32_t vert_trans;          // vertical subtrees: most transactions
+    uint32_t vert_warps;          // warps the vertical kernel runs (each has its own scratch)
 };
+
+// Vertical subtrees: remaining items are a 32-bit set, and a lane's slots one 32-bit word.
+constexpr uint32_t kMaxVertItems = 32;
+constexpr uint32_t kMaxVertTrans = 1024;
 
 // Local subtrees: most remaining items, and the longest suffix the single-transaction subset counter
 // enumerates (2^12 subsets on one lane; longer suffixes take the pruned subtree walk).
@@ -61,11 +70,17 @@ __host__ __device__ inline bool local_tail_task(const Task& task, const AutoTune
     return (task.n_trans == 1 && task.max_len <= subset + 1) || task.n_items - task.item - 1 <= tune.tail_items;
 }
 
+// Whether a task's subtree is mined vertically: few enough remaining items and transactions.
+__host__ __device__ inline bool vertical_task(const Task& task, const AutoTune& tune)
+{
+    return tune.vert_items != 0 && task.n_trans <= tune.vert_trans && task.n_items - task.item - 1 <= tune.vert_items;
+}
+
 struct Placement
 {
     uint32_t bin;
     uint32_t slices; // blocks sharing the task (huge bin only)
-    uint32_t tail;   // 1: a local subtree (sub-warp bins only)
+    uint32_t tail;   // cell kind (kTailKind, kVertKind; 0 = projected)
     __host__ __device__ uint32_t cell() const { return bin * kCellKinds + tail; }
 };
 
@@ -86,8 +101,12 @@ __host__ __device__ inline Placement place_task(const Task& task, const AutoTune
 {
     if (tune.fixed_bin != kNone)
         return {tune.fixed_bin, 1, 0};
+    if (local_tail_task(task, tune))
+        return {kOptSubBin + size_class(task.n_trans), 1, kTailKind};
+    if (vertical_task(task, tune))
+        return {0, 1, kVertKind};
     if (task.n_trans <= kWarpSize)
-        return {kOptSubBin + size_class(task.n_trans), 1, local_tail_task(task, tune) ? 1u : 0u};
+        return {kOptSubBin + size_class(task.n_trans), 1, 0};
     const uint64_t share    = batch_work / (uint64_t{tune.resident_warps} * tune.oversubscribe);
     const uint64_t per_warp = share > kMinTransPerWarp ? share : kMinTransPerWarp;
     const uint32_t warps    = ceil_div(task.n_trans, per_warp);

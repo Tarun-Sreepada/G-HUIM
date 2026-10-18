@@ -79,6 +79,20 @@ AutoTune make_auto_tune(const MiningOptions& options)
     tune.ring_bytes     = options.ring_kib * 1024;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
+    if (options.vert_items != 0) {
+        // Every vertical warp has its own scratch: at most the resident warps, within an eighth of the budget.
+        tune.vert_items = options.vert_items;
+        tune.vert_trans = options.vert_trans;
+        size_t free_bytes = 0, total_bytes = 0;
+        check_cuda(cudaMemGetInfo(&free_bytes, &total_bytes), "query device memory");
+        const uint64_t budget   = options.memory_bytes == 0 ? free_bytes : std::min<uint64_t>(options.memory_bytes, free_bytes);
+        const uint64_t per_warp = vertical_warp_words(vertical_slots(tune)) * sizeof(uint32_t);
+        tune.vert_warps = static_cast<uint32_t>(std::min<uint64_t>(tune.resident_warps, budget / 8 / per_warp)) / 4 * 4;
+        if (tune.vert_warps == 0)
+            throw std::runtime_error("not enough device memory for vertical subtrees; lower --vert-trans");
+        spdlog::info("Vertical subtrees: up to {} items and {} transactions, {} warps ({} MiB)", tune.vert_items,
+                     tune.vert_trans, tune.vert_warps, (uint64_t{tune.vert_warps} * per_warp) >> 20);
+    }
     // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
     tune.fixed_bin = options.method == Method::Static ? static_cast<uint32_t>(std::countr_zero(options.block_size / 32))
                                                       : kNone;
@@ -101,14 +115,16 @@ struct Budget
     uint64_t per_task;
 };
 
-Budget plan_budget(const MiningOptions& options, uint64_t first_level_tasks)
+Budget plan_budget(const MiningOptions& options, const AutoTune& tune, uint64_t first_level_tasks)
 {
     size_t free_bytes = 0, total_bytes = 0;
     check_cuda(cudaMemGetInfo(&free_bytes, &total_bytes), "query device memory");
     if (free_bytes <= kReservedBytes + (64ull << 20))
         throw std::runtime_error("not enough free device memory");
     const uint64_t usable = free_bytes - kReservedBytes;
-    const uint64_t budget = options.memory_bytes == 0 ? usable : std::min<uint64_t>(options.memory_bytes, usable);
+    const uint64_t vertical = uint64_t{tune.vert_warps} * vertical_warp_words(vertical_slots(tune)) * sizeof(uint32_t);
+    const uint64_t budget =
+            (options.memory_bytes == 0 ? usable : std::min<uint64_t>(options.memory_bytes, usable)) - std::min(vertical, usable / 2);
 
     Budget plan{};
     plan.per_task = 2 * sizeof(Task) + sizeof(Node) + sizeof(uint64_t) + sizeof(uint32_t);
@@ -136,7 +152,7 @@ class LevelMiner
 {
   public:
     LevelMiner(const Dataset& data, const MiningOptions& options)
-        : data_(data), options_(options), tune_(make_auto_tune(options)), budget_(plan_budget(options, data.primary.size())),
+        : data_(data), options_(options), tune_(make_auto_tune(options)), budget_(plan_budget(options, tune_, data.primary.size())),
           collect_(!options.output.empty())
     {
         allocate();
@@ -173,6 +189,7 @@ class LevelMiner
     DeviceBuffer<uint32_t>            order_;
     DeviceBuffer<char>                scratch_;
     std::array<DeviceBuffer<char>, 2> regions_;
+    DeviceBuffer<uint32_t>            vertical_;
     DeviceBuffer<Control>             control_;
     DeviceBuffer<ChunkPlan>           chunk_plan_;
 
@@ -225,6 +242,7 @@ void LevelMiner::allocate()
     scratch_                = DeviceBuffer<char>(budget_.scratch_capacity);
     regions_                = {DeviceBuffer<char>(budget_.region_bytes), DeviceBuffer<char>(budget_.region_bytes)};
     control_                = DeviceBuffer<Control>(1);
+    vertical_ = DeviceBuffer<uint32_t>(uint64_t{tune_.vert_warps} * vertical_warp_words(vertical_slots(tune_)));
     chunk_plan_             = DeviceBuffer<ChunkPlan>(1);
     stage("allocate buffers");
 }
@@ -326,7 +344,10 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          options_.local_tail_items,
                          options_.local_tail_trans,
                          options_.refine_rounds,
-                         !collect_};
+                         !collect_,
+                         vertical_.get(),
+                         vertical_slots(tune_),
+                         vertical_warp_words(vertical_slots(tune_))};
     cudaEvent_t     start = nullptr, stop = nullptr;
     std::vector<std::pair<uint32_t, std::pair<cudaEvent_t, cudaEvent_t>>> timed;
     for (uint32_t cell = 0; cell < kCells; ++cell) {
@@ -342,14 +363,16 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
             check_cuda(cudaEventRecord(start, stream), "record event");
             bin_tasks_[cell] += count;
         }
-        if (bin == 0)
+        if (tail == kVertKind)
+            launch_vertical_tasks(view, tasks, count, tune_, stream);
+        else if (bin == 0)
             launch_warp_tasks(view, tasks, count, tune_, stream);
         else if (bin < kOptHugeBin)
             launch_block_tasks(view, tasks, count, bin, tune_, stream);
         else if (bin == kOptHugeBin)
             launch_huge_tasks(view, tasks, count, host_.cell_max_slices[cell], tune_, stream);
         else
-            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), tail != 0, tune_, stream);
+            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), tail == kTailKind, tune_, stream);
         if (options_.bin_times) {
             check_cuda(cudaEventRecord(stop, stream), "record event");
             timed.push_back({cell, {start, stop}});
@@ -421,7 +444,7 @@ MiningResult LevelMiner::run()
             std::string line;
             for (uint32_t cell = 0; cell < kCells; ++cell)
                 if (bin_tasks_[cell] != 0)
-                    line += fmt::format(" [bin {}{}: {} tasks {:.2f} ms]", cell / kCellKinds, cell % kCellKinds ? " tail" : "", bin_tasks_[cell],
+                    line += fmt::format(" [bin {}{}: {} tasks {:.2f} ms]", cell / kCellKinds, cell % kCellKinds == kTailKind ? " tail" : cell % kCellKinds == kVertKind ? " vertical" : "", bin_tasks_[cell],
                                         bin_ms_[cell]);
             spdlog::info("Level {:>3} bins:{}", level, line);
             bin_ms_.fill(0);

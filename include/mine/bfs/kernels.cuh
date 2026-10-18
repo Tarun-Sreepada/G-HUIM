@@ -19,6 +19,19 @@ void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t 
 // subtree (local_tail_task).
 void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group, bool local_tail,
                           const AutoTune& tune, cudaStream_t stream);
+// Vertical cell: a warp mines each task's whole subtree (vertical_kernels.cu).
+void launch_vertical_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune,
+                           cudaStream_t stream);
+// Vertical subtrees: slots per column.
+inline uint32_t vertical_slots(const AutoTune& tune)
+{
+    return (tune.vert_trans + 31) / 32 * 32;
+}
+// Vertical subtrees: scratch words per warp for `slots` slots per column.
+inline uint64_t vertical_warp_words(uint32_t slots)
+{
+    return (2 * uint64_t{kMaxVertItems} + 1 + kMaxVertItems + 1) * slots;
+}
 // Huge bin: each task is sliced over up to max_slices blocks, one launch per pass.
 void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices,
                        const AutoTune& tune, cudaStream_t stream);
