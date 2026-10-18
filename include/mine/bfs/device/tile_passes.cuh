@@ -101,26 +101,19 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
     const int       k      = static_cast<int>(pos) - 1;
     const uint32_t  rest   = k >= 0 ? tx.length - pos : 0;
     const uint32_t  span   = lanes.max(rest);
-    uint64_t kept_sum = 0;
-    uint32_t kept     = 0;
-    for (uint32_t d = 0; d < span; ++d)
-        if (d < rest && p.rename[k_item[(pos + d) * p.stride]] != kNone) {
-            ++kept;
-            kept_sum += k_util[(pos + d) * p.stride];
-        }
-    const uint64_t remaining = (k >= 0 ? uint64_t{tx.utility} + k_util[static_cast<uint32_t>(k) * p.stride] : 0) + kept_sum;
-    uint64_t       before    = 0;
-    uint32_t       index = 0, hash = 0;
-    for (uint32_t d = 0; d < span; ++d) {
+    // One backward sweep, as in subtree_tile.
+    const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + k_util[static_cast<uint32_t>(k) * p.stride] : 0;
+    uint64_t       after  = 0;
+    uint32_t       kept = 0, hash = 0;
+    for (uint32_t d = span; d-- > 0;) {
         if (d >= rest)
             continue;
-        const uint32_t item_d = k_item[(pos + d) * p.stride], util_d = k_util[(pos + d) * p.stride];
-        const uint32_t z      = p.rename[item_d];
+        const uint32_t z = p.rename[k_item[(pos + d) * p.stride]];
         if (z == kNone)
             continue;
-        add(p.subtree[z], remaining - before);
-        before += util_d;
-        hash ^= mix(z * 0x9e3779b9u + index++);
+        after += k_util[(pos + d) * p.stride];
+        add(p.subtree[z], prefix + after);
+        hash ^= mix(z * 0x9e3779b9u + kept++);
     }
     uint32_t bucket = kTileBuckets; // no class: not a representative
     if (valid) {
