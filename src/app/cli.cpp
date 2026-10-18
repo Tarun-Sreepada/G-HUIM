@@ -71,6 +71,14 @@ void configure_cli(CLI::App& app, Config& config)
                            "(0 = off; on by default where it applies)")
                     ->check(CLI::Range(0, 31))
                     ->capture_default_str();
+    app.add_option("-V,--vert-items", config.mining.vert_items,
+                   "BFS adaptive count-only: mine subtrees with at most this many remaining items vertically, from "
+                   "transaction bitmaps (0 = off)")
+            ->check(CLI::Range(0, 32))
+            ->capture_default_str();
+    app.add_option("-X,--vert-trans", config.mining.vert_trans, "Most transactions of a vertical subtree")
+            ->check(CLI::Range(1, 1024))
+            ->capture_default_str();
     app.add_option("-j,--local-tail-trans", config.mining.local_tail_trans,
                    "Maximum supporting transactions for local subtree processing")
             ->check(CLI::Range(1, 32))->capture_default_str();
@@ -124,6 +132,8 @@ void configure_cli(CLI::App& app, Config& config)
             if (mining.local_tail_items != 0 && mining.method != Method::Adaptive)
                 throw CLI::ValidationError("--local-tail-items", "needs --method adaptive");
         }
+        if (mining.vert_items != 0 && (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting))
+            throw CLI::ValidationError("--vert-items", "needs BFS adaptive count-only mining");
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
         if (mining.search == Search::Dfs && (mining.method == Method::Staged || mining.method == Method::Tile))

@@ -48,6 +48,8 @@ struct MiningOptions
     uint32_t    index_sparsity  = 32;           // ... and at most 1/this filled (0 = any density)
     uint32_t    local_tail_items = 8;           // BFS count-only: finish bounded small subtrees locally; 0 = off
     uint32_t    local_tail_trans = 32;          // maximum supporting transactions for local subtree processing
+    uint32_t    vert_items      = 0;            // BFS count-only: mine subtrees with at most this many items vertically; 0 = off
+    uint32_t    vert_trans      = 256;          // ... and at most this many transactions
     int32_t     refine_rounds   = 1;            // bound refinement rounds per task: -1 = until no item drops, 0 = off
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold (BFS)

@@ -48,6 +48,7 @@ add_library(ghuim_core STATIC
     src/mine/output.cpp
     src/mine/primitives.cu
     src/mine/bfs/small_kernels.cu
+    src/mine/bfs/vertical_kernels.cu
     src/mine/bfs/huge_kernels.cu
     src/mine/bfs/schedule.cu
     src/mine/bfs/occupancy.cu

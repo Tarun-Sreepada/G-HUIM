@@ -69,6 +69,7 @@ survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-
 | `-D`, `--index-sparsity` | Index only databases with at most 1/this of their transaction-item pairs present (default 32; `0` = any) |
 | `-k`, `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain (default 8, on wherever it applies; `0` = off; maximum 31) |
 | `-j`, `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 32) |
+| `-V`, `--vert-items`, `-X`, `--vert-trans` | BFS adaptive, count-only: a warp mines subtrees with at most `-V` remaining items (<= 32) and `-X` transactions (<= 1024, default 256) from per-item transaction bitmaps and utility columns, without projecting (default off). `-V 16 -X 64`: retail 0.31 -> 0.19 s, accidents -6%; dense data 2-5x slower (one warp walks a whole dense subtree) |
 | `-r`, `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
 | `-g`, `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
 | `-C`, `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
