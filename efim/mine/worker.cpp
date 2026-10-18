@@ -8,8 +8,10 @@ namespace {
 constexpr std::uint32_t kPrefetchTx = 12, kPrefetchData = 5;
 }  // namespace
 
-Worker::Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns)
-	: id(id), min_util(min_util), threads(threads), scheduler(scheduler), collect_patterns(collect_patterns), mark(num_items, -1), bound(num_items),
+Worker::Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns,
+			   int refine)
+	: id(id), min_util(min_util), threads(threads), scheduler(scheduler), collect_patterns(collect_patterns), refine(refine),
+	  mark(num_items, -1), bound(num_items),
 	  slot(num_items, -1), filter(filter_kernel()),
 	  fused(std::string_view(simd_name()) == "scalar") {}
 
@@ -33,6 +35,69 @@ void Worker::execute(const Task& task) {
 		for (const Item x : task.level->secondary) mark[x] = -1;
 }
 
+void Worker::select_extensions(Level& child, int depth) {
+	const int next = depth + 1, restore = depth > 0 ? depth : -1;
+	// Candidates for child.secondary with their subtree bound. `dropped`: some item of the child's
+	// transactions was ruled out, so their bounds still count utility no extension can use.
+	chosen.clear();
+	bool dropped = false;
+	for (const Item x : touched) {
+		const Bound bx = bound[x];
+		bound[x] = {};
+		if (bx.local < min_util) {
+			dropped = true;
+			continue;
+		}
+		chosen.push_back({x, bx.subtree});
+	}
+	touched.clear();
+
+	std::uint64_t first_primary = 0;
+	for (const auto& [x, su] : chosen) first_primary += su >= min_util;
+	Bound* __restrict b = bound.data();
+	int rounds = 0;
+	while (dropped && !chosen.empty() && (refine < 0 || rounds < refine)) {
+		++rounds;
+		for (const auto& [x, su] : chosen) mark[x] = next;
+		for (const auto& t : child.txs) {
+			Utility suffix = 0;
+			for (std::uint32_t i = t.len; i-- > 0;) {
+				const Item x = t.items[i];
+				if (mark[x] != next) continue;
+				suffix += t.utils[i];
+				b[x].subtree += t.prefix + suffix;
+			}
+			const Utility base = t.prefix + suffix;
+			for (std::uint32_t i = 0; i < t.len; ++i)
+				if (mark[t.items[i]] == next) b[t.items[i]].local += base;
+		}
+		for (const auto& [x, su] : chosen) mark[x] = restore;
+		dropped = false;
+		std::size_t w = 0;
+		for (const auto& [x, su] : chosen) {
+			const Bound bx = b[x];
+			b[x] = {};
+			if (bx.local < min_util) {
+				++stats.refine_secondary;
+				dropped = true;
+				continue;
+			}
+			chosen[w++] = {x, bx.subtree};
+		}
+		chosen.resize(w);
+	}
+	stats.refine_rounds += rounds;
+
+	std::sort(chosen.begin(), chosen.end());
+	for (const auto& [x, su] : chosen) {
+		child.secondary.push_back(x);
+		if (su >= min_util) child.primary.push_back(x);
+	}
+	stats.refine_primary += first_primary - child.primary.size();
+	stats.primary += child.primary.size();
+	stats.secondary += child.secondary.size();
+}
+
 Level& Worker::level_at(std::size_t depth) {
 	while (levels.size() <= depth) levels.push_back(std::make_unique<Level>());
 	return *levels[depth];
@@ -43,6 +108,7 @@ void Worker::expand(const Level& db, int depth, std::size_t k) {
 	Level& child = level_at(depth + 1);
 	child.clear();
 	Utility utility = 0;
+	++stats.nodes;
 
 	const std::uint32_t occ_end = db.occ_begin[k + 1];
 	for (std::uint32_t o = db.occ_begin[k]; o < occ_end; ++o) {
@@ -149,15 +215,9 @@ void Worker::expand(const Level& db, int depth, std::size_t k) {
 		}
 	}
 
-	for (const Item x : touched) {
-		if (bound[x].subtree >= min_util) child.primary.push_back(x);
-		if (bound[x].local >= min_util) child.secondary.push_back(x);
-		bound[x] = {};
-	}
-	touched.clear();
+	select_extensions(child, depth);
 
 	if (!child.primary.empty()) {
-		std::sort(child.primary.begin(), child.primary.end());
 		child.index(slot);
 
 		const int next = depth + 1;

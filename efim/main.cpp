@@ -31,7 +31,8 @@ static void init_logging(const std::string& level, const std::string& file) {
 int main(int argc, char** argv) {
 	std::string input, output, sep = "tab", log_level = "info", log_file, numa = "on", simd = "auto", thp = "auto";
 	long long min_util = 0;
-	int threads = 1;
+	int threads = 1, refine = -1;
+	bool stats = false;
 
 	// Legacy form: efim <input> <output> <minUtil> [sep] [threads]
 	std::vector<std::string> legacy;
@@ -68,6 +69,10 @@ int main(int argc, char** argv) {
 		app.add_option("--thp", thp, "Transparent huge pages for big arrays: auto (off above 3/4 of the hardware threads), on or off")
 			->capture_default_str()
 			->check(CLI::IsMember({"auto", "on", "off"}));
+		app.add_option("--refine", refine, "Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is)")
+			->capture_default_str()
+			->check(CLI::Range(-1, 1000));
+		app.add_flag("--stats", stats, "Log search counters");
 		app.add_option("--log-level", log_level, "trace, debug, info, warn, error, critical or off")
 			->capture_default_str()
 			->check(CLI::IsMember({"trace", "debug", "info", "warn", "error", "critical", "off"}));
@@ -92,6 +97,8 @@ int main(int argc, char** argv) {
 		spdlog::debug("simd: {}", simd_name());
 		spdlog::debug("thp: {}", huge_pages ? "on" : "off");
 		miner.set_numa(numa == "on");
+		miner.set_refine(refine);
+		miner.set_stats(stats);
 		const bool collect_patterns = !output.empty() && output != "/dev/null";
 		miner.mine(collect_patterns);
 		if (collect_patterns) miner.save(output);

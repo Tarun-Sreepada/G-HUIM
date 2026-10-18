@@ -39,6 +39,7 @@
 
 #include "mine/level.hpp"
 #include "mine/scheduler.hpp"
+#include "mine/worker.hpp"
 
 #include <algorithm>
 #include <memory>
@@ -64,6 +65,9 @@ public:
 
 	// Pin workers to cores, place memory node-locally and steal nearest-first (default on).
 	void set_numa(bool on) { numa_ = on; }
+	// Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is).
+	void set_refine(int rounds) { refine_ = rounds; }
+	void set_stats(bool on) { stats_ = on; }
 	int threads() const { return threads_; }
 	// Count by default; collection must be enabled before mining to call save().
 	void mine(bool collect_patterns = false);
@@ -79,6 +83,8 @@ private:
 	std::string sep_;
 	int threads_;
 	bool numa_ = true;
+	int refine_ = -1;
+	bool stats_ = false;
 	bool collect_patterns_ = false;
 	std::size_t pattern_count_ = 0;
 	std::vector<std::string> rename_;  // rename_[id] = original item name; index 0 unused

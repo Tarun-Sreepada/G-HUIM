@@ -25,6 +25,7 @@ void Efim::mine(bool collect_patterns) {
 	auto root = std::make_shared<Level>();
 	read_database(input_file_, sep_, min_util_, *root, rename_, threads_);
 
+
 	// Placement: pin worker w to cpus[w] and group workers by NUMA node.
 	std::vector<CpuInfo> cpus;
 	int nodes = 1;
@@ -65,7 +66,7 @@ void Efim::mine(bool collect_patterns) {
 		if (!cpus.empty() && !pin_this_thread(cpus[w].cpu)) spdlog::warn("numa: cannot pin worker {} to cpu {}", w, cpus[w].cpu);
 		// Big arrays of this worker come from (and return to) the arena of its L3 group.
 		const ArenaBinding binding(cpus.empty() ? nullptr : Arena::get(cpus[w].l3));
-		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_);
+		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_, refine_);
 
 		// One copy of the root per node, shaped by the first worker of that node and filled by
 		// all of the node's workers (first touch, in parallel).
@@ -95,10 +96,15 @@ void Efim::mine(bool collect_patterns) {
 	};
 	parallel_run(threads_, body);
 	const double mine_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count();
+	SearchStats stats;
 	for (auto& w : workers) {
+		stats += w->stats;
 		pattern_count_ += w->pattern_count;
 		if (collect_patterns_) results_.push_back(std::move(w->patterns));
 	}
+	if (stats_)
+		spdlog::info("stats: nodes {} primary {} secondary {} | refine rounds {} secondary -{} primary -{}", stats.nodes,
+					 stats.primary, stats.secondary, stats.refine_rounds, stats.refine_secondary, stats.refine_primary);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		const Arena::Stats a = Arena::stats();
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
