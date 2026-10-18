@@ -60,29 +60,41 @@ void Efim::mine(bool collect_patterns) {
 	std::barrier sync(threads_);
 	const std::size_t roots = root->primary.size();
 
+	const auto mine_start = std::chrono::steady_clock::now();
 	const auto body = [&](int w) {
 		if (!cpus.empty() && !pin_this_thread(cpus[w].cpu)) spdlog::warn("numa: cannot pin worker {} to cpu {}", w, cpus[w].cpu);
 		// Big arrays of this worker come from (and return to) the arena of its L3 group.
 		const ArenaBinding binding(cpus.empty() ? nullptr : Arena::get(cpus[w].l3));
 		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_);
 
-		// One copy of the root per node, built by the first worker of that node (first touch).
+		// One copy of the root per node, shaped by the first worker of that node and filled by
+		// all of the node's workers (first touch, in parallel).
 		const int node = node_of(w);
-		bool leader = true;
-		for (int v = 0; v < w; ++v) leader &= node_of(v) != node;
-		if (nodes > 1 && leader) replicas[node] = root->materialize();
+		int rank = 0, peers = 0;
+		for (int v = 0; v < threads_; ++v) {
+			if (node_of(v) != node) continue;
+			if (v < w) ++rank;
+			++peers;
+		}
+		if (nodes > 1) {
+			if (rank == 0) replicas[node] = root->shape_copy();
+			sync.arrive_and_wait();
+			std::const_pointer_cast<Level>(replicas[node])->fill_part(*root, rank, peers);
+		}
 		sync.arrive_and_wait();
 		const std::shared_ptr<const Level>& mine = nodes > 1 ? replicas[node] : root;
 		for (std::size_t k = roots; k-- > 0;)
 			if (k % threads_ == static_cast<std::size_t>(w)) scheduler.seed(w, {mine, 0, static_cast<std::uint32_t>(k), {}});
 		sync.arrive_and_wait();
 		if (w == 0) {
+			spdlog::debug("mine: setup {:.3f} s", std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count());
 			root.reset();
 			replicas.clear();
 		}
 		workers[w]->run();
 	};
 	parallel_run(threads_, body);
+	const double mine_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count();
 	for (auto& w : workers) {
 		pattern_count_ += w->pattern_count;
 		if (collect_patterns_) results_.push_back(std::move(w->patterns));
@@ -92,7 +104,12 @@ void Efim::mine(bool collect_patterns) {
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
 	}
 	if (spdlog::should_log(spdlog::level::debug)) {
-		for (int w = 0; w < threads_; ++w) spdlog::debug("worker {}: {} patterns, {} steals", w, workers[w]->pattern_count, scheduler.steals(w));
+		double busy = 0;
+		for (int w = 0; w < threads_; ++w) {
+			spdlog::debug("worker {}: {} patterns, {} steals, busy {:.3f} s", w, workers[w]->pattern_count, scheduler.steals(w), workers[w]->busy_seconds);
+			busy += workers[w]->busy_seconds;
+		}
+		spdlog::debug("mine: {:.3f} s wall, workers busy {:.0f}%", mine_seconds, 100 * busy / (mine_seconds * threads_));
 	}
 
 	runtime_ = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();

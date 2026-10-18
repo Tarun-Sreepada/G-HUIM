@@ -16,6 +16,7 @@ struct Worker {
 
 	Patterns patterns;
 	std::size_t pattern_count = 0;
+	double busy_seconds = 0;  // time spent executing tasks (vs. waiting for one)
 
 private:
 	void execute(const Task& task);

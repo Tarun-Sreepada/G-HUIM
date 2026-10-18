@@ -52,7 +52,7 @@ void* Arena::map_chunk(std::size_t total, Arena* owner) {
 	if (at != start) ::munmap(raw, at - start);
 	const std::uintptr_t end = start + total + kHuge;
 	if (end != at + total) ::munmap(reinterpret_cast<void*>(at + total), end - (at + total));
-	::madvise(reinterpret_cast<void*>(at), total, MADV_HUGEPAGE);
+	if (huge_pages_) ::madvise(reinterpret_cast<void*>(at), total, MADV_HUGEPAGE);
 	void* base = reinterpret_cast<void*>(at);
 	*static_cast<Arena**>(base) = owner;
 	return base;

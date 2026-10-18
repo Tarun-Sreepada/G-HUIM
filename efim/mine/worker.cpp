@@ -1,6 +1,7 @@
 #include "mine/worker.hpp"
 
 #include <algorithm>
+#include <chrono>
 
 namespace {
 constexpr std::uint32_t kPrefetchTx = 12, kPrefetchData = 5;
@@ -13,7 +14,9 @@ Worker::Worker(int id, std::size_t num_items, Utility min_util, int threads, Sch
 void Worker::run() {
 	Task task;
 	while (scheduler.pop(id, task)) {
+		const auto start = std::chrono::steady_clock::now();
 		execute(task);
+		busy_seconds += std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 		task = {};  // release the database before reporting completion
 		scheduler.done();
 	}

@@ -3,7 +3,9 @@
 // worker thread bound to an arena takes power-of-two chunks from that arena's free lists, so
 // chunks that were first touched by a worker of this CCD (node-local, warm in its L3 / TLB) are
 // recycled by the same CCD instead of going back to the kernel (mmap/munmap + page faults).
-// Chunks are mmap'd with MADV_HUGEPAGE. A chunk freed by another thread returns to the arena it
+// Chunks are mmap'd with MADV_HUGEPAGE unless set_huge_pages(false): with defrag=madvise every fault
+// on such a chunk may compact memory synchronously, which serialises on the zone lock when most
+// cores fault at once (measured on 2x EPYC 9224: 48 threads ran 1.9x slower with it). A chunk freed by another thread returns to the arena it
 // came from. Threads without an arena (the reader, main) use plain mmap/munmap. Smaller blocks use
 // a 64-byte aligned malloc. Arenas live until process exit.
 
@@ -26,6 +28,8 @@ public:
 	// Makes `arena` the calling thread's arena (nullptr = none).
 	static void bind(Arena* arena) { current_ = arena; }
 	static Arena* current() { return current_; }
+	// Whether new chunks get MADV_HUGEPAGE (default on). Set before the first allocation.
+	static void set_huge_pages(bool on) { huge_pages_ = on; }
 
 	// Cumulative counters over all arenas, for the debug log.
 	struct Stats {
@@ -48,6 +52,7 @@ private:
 	Pool pools_[kClasses];
 	std::atomic<std::size_t> reused_{0}, mapped_{0}, bytes_mapped_{0};
 	static inline thread_local Arena* current_ = nullptr;
+	static inline bool huge_pages_ = true;
 };
 
 template <class T>

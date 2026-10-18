@@ -1,5 +1,6 @@
 #include "mine/efim.hpp"
 #include "mine/simd.hpp"
+#include "sys/alloc.hpp"
 
 #include <CLI/CLI.hpp>
 #include <spdlog/sinks/basic_file_sink.h>
@@ -27,7 +28,7 @@ static void init_logging(const std::string& level, const std::string& file) {
 }
 
 int main(int argc, char** argv) {
-	std::string input, output, sep = "tab", log_level = "info", log_file, numa = "on", simd = "auto";
+	std::string input, output, sep = "tab", log_level = "info", log_file, numa = "on", simd = "auto", thp = "auto";
 	long long min_util = 0;
 	int threads = 1;
 
@@ -62,6 +63,9 @@ int main(int argc, char** argv) {
 		app.add_option("--simd", simd, "Vector kernels: auto, avx512 or scalar")
 			->capture_default_str()
 			->check(CLI::IsMember({"auto", "avx512", "scalar"}));
+		app.add_option("--thp", thp, "Transparent huge pages for big arrays: auto (off above 3/4 of the hardware threads), on or off")
+			->capture_default_str()
+			->check(CLI::IsMember({"auto", "on", "off"}));
 		app.add_option("--log-level", log_level, "trace, debug, info, warn, error, critical or off")
 			->capture_default_str()
 			->check(CLI::IsMember({"trace", "debug", "info", "warn", "error", "critical", "off"}));
@@ -76,11 +80,15 @@ int main(int argc, char** argv) {
 	init_logging(log_level, log_file);
 	try {
 		if (threads == 0) threads = Efim::max_threads();
+		// Measured crossover: huge pages win up to ~32 of 48 threads, then compaction stalls dominate.
+		const bool huge_pages = thp == "on" || (thp == "auto" && 4 * threads <= 3 * Efim::max_threads());
+		Arena::set_huge_pages(huge_pages);
 		Efim miner(input, min_util, parse_sep(sep), threads);
 		if (miner.threads() != threads)
 			spdlog::warn("threads {} capped to {} (allowed range 1-{})", threads, miner.threads(), Efim::max_threads());
 		if (!select_simd(simd)) throw std::runtime_error("--simd " + simd + " is not supported by this CPU");
 		spdlog::debug("simd: {}", simd_name());
+		spdlog::debug("thp: {}", huge_pages ? "on" : "off");
 		miner.set_numa(numa == "on");
 		const bool collect_patterns = !output.empty() && output != "/dev/null";
 		miner.mine(collect_patterns);
