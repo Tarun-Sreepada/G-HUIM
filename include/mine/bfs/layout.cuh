@@ -152,12 +152,7 @@ __host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_t
                     uint64_t{n_trans} * 6 * sizeof(uint32_t) + (tiled ? tile_scratch_words(n_trans) * sizeof(uint32_t) : 0));
 }
 
-// How a task shape maps transactions onto lanes (ShapeTune::group, placement.cuh).
-constexpr uint32_t kLaneMode  = 0; // a lane per transaction
-constexpr uint32_t kGroupMode = 1; // lane groups, size from the task's longest transaction at run time
-// 4, 8, 16, 32: lane groups of that size, fixed at compile time
-
-constexpr uint32_t kMaxCells = 64; // scheduling cells: a size bin and a shape
+constexpr uint32_t kMaxCells = 64; // scheduling cells (placement.cuh)
 
 // Staged method: ring slots and the shared memory ahead of the tiles (two counters per slot).
 constexpr uint32_t kRingMaxSlots      = 32;

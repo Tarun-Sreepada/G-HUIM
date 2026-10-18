@@ -57,7 +57,7 @@ __global__ void begin_chunk(Control* control)
         control->batch_work = 0;
 }
 
-__global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, AutoTune tune)
+__global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end)
 {
     __shared__ unsigned long long block_work;
     if (threadIdx.x == 0)
@@ -65,7 +65,7 @@ __global__ void measure_chunk(Control* control, const Task* tasks, uint32_t begi
     __syncthreads();
     unsigned long long work = 0;
     for (uint32_t i = begin + blockIdx.x * blockDim.x + threadIdx.x; i < end; i += gridDim.x * blockDim.x)
-        work += task_work(tasks[i], tune);
+        work += tasks[i].n_trans;
     add(block_work, work);
     __syncthreads();
     if (threadIdx.x == 0 && block_work != 0)
@@ -120,7 +120,7 @@ void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint3
 {
     const uint32_t blocks = grid(end - begin);
     begin_chunk<<<1, 32, 0, stream>>>(control);
-    measure_chunk<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, tune);
+    measure_chunk<<<blocks, 256, 0, stream>>>(control, tasks, begin, end);
     count_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, tune);
     start_cells<<<1, 1, 0, stream>>>(control);
     scatter_bins<<<blocks, 256, 0, stream>>>(control, tasks, begin, end, order, tune);

@@ -47,6 +47,11 @@ def main():
         ("local-four", ["--local-tail-items", "8"], False),
         ("indexed-local-warp", ["--index-min-trans", "1", "--local-tail-items", "8", "--local-tail-trans", "32"], False),
         ("indexed-local-one", ["--index-min-trans", "1", "--local-tail-items", "8", "--local-tail-trans", "1"], False),
+        ("count-default", [], False),
+        ("count-no-tail", ["--local-tail-items", "0"], False),
+        ("count-wide-tail", ["--local-tail-items", "31", "--local-tail-trans", "32"], False),
+        ("count-subset-limit", ["--local-tail-items", "12", "--local-tail-trans", "1"], False),
+        ("count-static", ["--method", "static", "--block-size", "64"], False),
     ]
     with tempfile.TemporaryDirectory(prefix="ghuim-index-") as folder:
         folder = Path(folder)

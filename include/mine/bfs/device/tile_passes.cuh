@@ -9,7 +9,7 @@
 // Only then is the child allocated, at its exact size, and written.
 
 #include "mine/bfs/device/child.cuh"
-#include "mine/bfs/device/warp_passes.cuh"
+#include "mine/bfs/device/modes.cuh"
 #include "mine/bfs/placement.cuh"
 
 namespace ghuim::bfs {
@@ -306,13 +306,13 @@ struct TileTx
 
 template <typename Mode> concept TiledMode = requires { Mode::kTiled; };
 
-// Calls `f` with the transaction mode a launch uses: TileTx for the tile method, else ShapeTune::group's.
-template <typename F> void with_mode(const AutoTune& tune, uint32_t group, F&& f)
+// Calls `f` with the transaction mode a launch uses: TileTx for the tile method, else LaneTx.
+template <typename F> void with_mode(const AutoTune& tune, F&& f)
 {
     if (tune.tiled)
         f(TileTx{});
     else
-        with_mode(group, f);
+        f(LaneTx{});
 }
 
 } // namespace ghuim::bfs

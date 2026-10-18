@@ -60,17 +60,6 @@ class Streams
     std::array<cudaStream_t, kStreams> streams_{};
 };
 
-// "mode:max block threads" of every shape.
-std::string describe_shapes(const AutoTune& tune)
-{
-    std::string text;
-    for (const ShapeTune& st : tune.shape) {
-        const std::string mode = st.group == kLaneMode ? "lane" : st.group == kGroupMode ? "group" : "g" + std::to_string(st.group);
-        text += (text.empty() ? "" : " ") + mode + ":" + std::to_string(st.max_block_warps * 32);
-    }
-    return text;
-}
-
 // Device profile of the current GPU.
 AutoTune make_auto_tune(const MiningOptions& options)
 {
@@ -81,55 +70,24 @@ AutoTune make_auto_tune(const MiningOptions& options)
     const uint32_t sms = static_cast<uint32_t>(props.multiProcessorCount);
 
     AutoTune tune{};
-    tune.warp_mode  = options.method == Method::StagedWarp;
-    tune.tiled      = options.method == Method::Tile;
-    tune.tail_items = options.local_tail_items;
-    tune.tail_trans = options.local_tail_trans;
-    tune.staged     = options.method == Method::Staged || options.method == Method::StagedWarp;
-    tune.io_warps   = options.io_warps;
-    tune.min_entries_per_warp = options.min_entries_per_warp;
-    tune.oversubscribe        = options.oversubscribe;
-    tune.ring_bytes = options.ring_kib * 1024;
-    tune.table_bytes = options.smem_tables ? options.table_kib * 1024 : 0;
+    tune.tiled          = options.method == Method::Tile;
+    tune.tail_items     = options.local_tail_items;
+    tune.tail_trans     = options.local_tail_trans;
+    tune.staged         = options.method == Method::Staged;
+    tune.io_warps       = options.io_warps;
+    tune.oversubscribe  = options.oversubscribe;
+    tune.ring_bytes     = options.ring_kib * 1024;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
-    // Mode of each task shape: the lane-group methods use lane groups for every shape, adaptive
-    // takes --shape-modes (default: a lane per transaction).
-    const uint32_t method_group = options.method == Method::Warp || options.method == Method::StagedWarp ? kGroupMode : kLaneMode;
-    for (ShapeTune& st : tune.shape)
-        st.group = method_group;
-    if (!options.shape_modes.empty()) {
-        std::vector<std::string> names;
-        for (size_t at = 0; at <= options.shape_modes.size();) {
-            const size_t end = std::min(options.shape_modes.find(',', at), options.shape_modes.size());
-            names.push_back(options.shape_modes.substr(at, end - at));
-            at = end + 1;
-        }
-        if (names.size() != kShapes)
-            throw std::runtime_error("--shape-modes needs " + std::to_string(kShapes) + " comma-separated modes");
-        for (uint32_t s = 0; s < kShapes; ++s) {
-            const std::string& n = names[s];
-            if (n == "lane")
-                tune.shape[s].group = kLaneMode;
-            else if (n == "group")
-                tune.shape[s].group = kGroupMode;
-            else if (n == "g4" || n == "g8" || n == "g16" || n == "g32")
-                tune.shape[s].group = static_cast<uint32_t>(std::stoul(n.substr(1)));
-            else
-                throw std::runtime_error("--shape-modes: unknown mode '" + n + "'");
-        }
-    }
     measure_occupancy(tune, sms);
     // Static: every task runs in the block-per-task bin of --block-size threads (bin 0 is one warp).
     tune.fixed_bin = options.method == Method::Static ? static_cast<uint32_t>(std::countr_zero(options.block_size / 32))
                                                       : kNone;
     spdlog::info("Auto-tune ({}): {} ({} SMs), {} resident warps, max block {} threads, packed-warp block {} threads, "
-                 "lane-group block {} threads, shapes: {}",
-                 options.method == Method::Tile ? "tiled lanes"
-                 : options.method == Method::Warp ? "lane group per transaction"
-                 : options.method == Method::Staged ? "staged lanes"
-                 : options.method == Method::StagedWarp ? "staged lane groups" : "lane per transaction", props.name, sms,
-                 tune.resident_warps, tune.shape[0].max_block_warps * 32, tune.shape[0].packed_block_warps * 32,
-                 tune.subwarp_block_warps * 32, describe_shapes(tune));
+                 "lane-group block {} threads",
+                 options.method == Method::Tile ? "tiled lanes" : options.method == Method::Staged ? "staged lanes"
+                                                                                                  : "lane per transaction",
+                 props.name, sms, tune.resident_warps, tune.max_block_warps * 32, tune.packed_block_warps * 32,
+                 tune.subwarp_block_warps * 32);
     return tune;
 }
 
@@ -361,8 +319,6 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          options_.minimum_utility,
                          tune_.staged ? tune_.io_warps : 0,
                          tune_.ring_bytes,
-                         tune_.table_bytes,
-                         tune_.staged ? kStageBarrierBytes + tune_.ring_bytes : 0,
                          tune_.tiled,
                          options_.index_min_trans,
                          options_.local_tail_items,
@@ -374,8 +330,8 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
     for (uint32_t cell = 0; cell < kCells; ++cell) {
         const uint32_t  count  = host_.cell_count[cell];
         const uint32_t* tasks  = order_.get() + host_.cell_start[cell];
-        const uint32_t  bin = cell / kShapes, shape = cell % kShapes;
-        cudaStream_t    stream = options_.bin_times ? streams_[0] : streams_[bin + shape];
+        const uint32_t  bin = cell / kCellKinds, tail = cell % kCellKinds;
+        cudaStream_t    stream = options_.bin_times ? streams_[0] : streams_[bin + tail];
         if (count == 0)
             continue;
         if (options_.bin_times) {
@@ -385,13 +341,13 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
             bin_tasks_[cell] += count;
         }
         if (bin == 0)
-            launch_warp_tasks(view, tasks, count, shape, tune_, stream);
+            launch_warp_tasks(view, tasks, count, tune_, stream);
         else if (bin < kOptHugeBin)
-            launch_block_tasks(view, tasks, count, bin, shape, tune_, stream);
+            launch_block_tasks(view, tasks, count, bin, tune_, stream);
         else if (bin == kOptHugeBin)
-            launch_huge_tasks(view, tasks, count, host_.cell_max_slices[cell], shape, tune_, stream);
+            launch_huge_tasks(view, tasks, count, host_.cell_max_slices[cell], tune_, stream);
         else
-            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), shape == 1, tune_, stream);
+            launch_subwarp_tasks(view, tasks, count, 1u << (bin - kOptSubBin), tail != 0, tune_, stream);
         if (options_.bin_times) {
             check_cuda(cudaEventRecord(stop, stream), "record event");
             timed.push_back({cell, {start, stop}});
@@ -463,7 +419,7 @@ MiningResult LevelMiner::run()
             std::string line;
             for (uint32_t cell = 0; cell < kCells; ++cell)
                 if (bin_tasks_[cell] != 0)
-                    line += fmt::format(" [bin {} shape {}: {} tasks {:.2f} ms]", cell / kShapes, cell % kShapes, bin_tasks_[cell],
+                    line += fmt::format(" [bin {}{}: {} tasks {:.2f} ms]", cell / kCellKinds, cell % kCellKinds ? " tail" : "", bin_tasks_[cell],
                                         bin_ms_[cell]);
             spdlog::info("Level {:>3} bins:{}", level, line);
             bin_ms_.fill(0);

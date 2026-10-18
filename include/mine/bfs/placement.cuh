@@ -20,64 +20,39 @@ constexpr uint32_t kBinCount        = kOptSubBin + kOptSubBins;
 constexpr uint32_t kWarpSize        = 32;
 constexpr uint32_t kMinTransPerWarp = 8; // below this, extra warps only add overhead
 constexpr uint32_t kHugeKernels     = 8;
-constexpr uint32_t kWarpMinTrans    = 2; // lane-group tasks: fewest transactions worth giving a warp
 
-// Task shape: the length class of the task's longest transaction. Shape s is served by lane groups of
-// 4 << s lanes (4, 8, 16, 32). A scheduling cell is a size bin and a shape; the matrix of cells is
-// counted as tasks are created and every non-empty cell gets its own kernel.
-constexpr uint32_t kShapes = 4;
-constexpr uint32_t kCells  = kBinCount * kShapes;
+// A scheduling cell is a size bin and whether its tasks are local subtrees (sub-warp bins only). The cells
+// are counted as tasks are created and every non-empty cell gets its own kernel.
+constexpr uint32_t kCellKinds = 2;
+constexpr uint32_t kCells     = kBinCount * kCellKinds;
 
 static_assert(kCells <= kMaxCells);
-
-__host__ __device__ inline uint32_t shape_of(uint32_t max_len)
-{
-    return max_len <= 4 ? 0u : max_len <= 8 ? 1u : max_len <= 16 ? 2u : 3u;
-}
-
-
-// Per-shape kernel profile (occupancy depends on the kernels the shape runs).
-struct ShapeTune
-{
-    uint32_t group;              // kLaneMode, kGroupMode or a fixed group size
-    uint32_t max_block_warps;    // largest block (in warps) that still reaches full occupancy
-    uint32_t packed_block_warps; // block size (in warps) for the one-task-per-warp kernel
-    uint32_t max_slices;         // blocks one huge task may use
-    uint32_t rep;                // first shape of the run of neighbours with the same group: they share cells
-};
 
 // Device profile measured at startup from kernel occupancy.
 struct AutoTune
 {
     uint32_t resident_warps;      // warps the whole GPU keeps resident
     uint32_t oversubscribe;       // tasks are sized for this many times the resident warps (more, smaller blocks balance better)
-    ShapeTune shape[kShapes];
+    uint32_t max_block_warps;     // largest block (in warps) that still reaches full occupancy
+    uint32_t packed_block_warps;  // block size (in warps) for the one-task-per-warp kernel
+    uint32_t max_slices;          // blocks one huge task may use
     uint32_t subwarp_block_warps; // block size (in warps) for the lane-group-per-task kernel
     uint32_t fixed_bin;           // static method: the one bin every task runs in; kNone = adaptive
-    uint32_t warp_mode;           // staged method: lane groups own one transaction at a time (StagedWarpTx)
     uint32_t tiled;               // tile method: databases are stored in tiles (layout.cuh), lane-per-transaction passes
     uint32_t staged;              // staged method: IO warps stage transactions in shared memory (StagedTx)
     uint32_t io_warps;            // staged method: IO warps per block
     uint32_t ring_bytes;          // staged method: shared memory for the tile ring
-    uint32_t table_bytes;         // shared memory for the per-item tables of block-sized tasks (0 = global tables)
-    uint32_t min_entries_per_warp; // size tasks by entries, not transactions: fewest entries worth a warp (0 = by transactions)
     uint32_t tail_items;          // local subtrees (local_tail.cuh): most remaining items, 0 = off
     uint32_t tail_trans;          // local subtrees: most supporting transactions
 };
-
-// Work of a task for sizing: transactions, or entries when the tune sizes by entries.
-__host__ __device__ inline uint64_t task_work(const Task& task, const AutoTune& tune)
-{
-    return tune.min_entries_per_warp != 0 ? task.n_entries : task.n_trans;
-}
 
 // Local subtrees: most remaining items, and the longest suffix the single-transaction subset counter
 // enumerates (2^12 subsets on one lane; longer suffixes take the pruned subtree walk).
 constexpr uint32_t kMaxLocalTailItems = 31;
 constexpr uint32_t kMaxSubsetItems    = 12;
 
-// Whether finish_local_tail completes the task's whole subtree. Such tasks get their own cell (shape 1 of
-// the sub-warp bins), so the larger local-subtree kernel runs only on them.
+// Whether finish_local_tail completes the task's whole subtree. Such tasks get their own cell, so the larger
+// local-subtree kernel runs only on them.
 __host__ __device__ inline bool local_tail_task(const Task& task, const AutoTune& tune)
 {
     if (tune.tail_items == 0 || task.n_trans > tune.tail_trans || task.n_trans > kWarpSize)
@@ -90,8 +65,8 @@ struct Placement
 {
     uint32_t bin;
     uint32_t slices; // blocks sharing the task (huge bin only)
-    uint32_t shape;  // representative shape of the task's cell
-    __host__ __device__ uint32_t cell() const { return bin * kShapes + shape; }
+    uint32_t tail;   // 1: a local subtree (sub-warp bins only)
+    __host__ __device__ uint32_t cell() const { return bin * kCellKinds + tail; }
 };
 
 __host__ __device__ inline uint32_t ceil_div(uint64_t a, uint64_t b)
@@ -104,30 +79,23 @@ __host__ __device__ inline uint32_t size_class(uint32_t warps)
     return cuda::std::countr_zero(cuda::std::bit_ceil(warps > 0 ? warps : 1u));
 }
 
-// Where a task runs: the chunk's total work is spread over the resident warps, and each task gets
-// enough warps for its share, rounded up to a power of two.
+// Where a task runs: the chunk's total work (transactions) is spread over the resident warps, and each task
+// gets enough warps for its share, rounded up to a power of two. At most a warp's worth of transactions run
+// on a lane group.
 __host__ __device__ inline Placement place_task(const Task& task, const AutoTune& tune, uint64_t batch_work)
 {
-    const uint32_t   shape = tune.shape[shape_of(task.max_len)].rep;
-    const ShapeTune& st    = tune.shape[shape];
     if (tune.fixed_bin != kNone)
         return {tune.fixed_bin, 1, 0};
-    // Lane-group shapes: fewer than 32 transactions run on one warp (packed into small blocks); larger
-    // tasks get one warp per few transactions, up to full blocks and then slices.
-    const bool group = st.group != kLaneMode;
-    if (group && task.n_trans < kWarpSize)
-        return {0, 1, shape};
-    if (!group && task.n_trans <= kWarpSize)
+    if (task.n_trans <= kWarpSize)
         return {kOptSubBin + size_class(task.n_trans), 1, local_tail_task(task, tune) ? 1u : 0u};
-    const uint64_t floor    = tune.min_entries_per_warp != 0 ? tune.min_entries_per_warp : group ? kWarpMinTrans : kMinTransPerWarp;
     const uint64_t share    = batch_work / (uint64_t{tune.resident_warps} * tune.oversubscribe);
-    const uint64_t per_warp = share > floor ? share : floor;
-    const uint32_t warps    = ceil_div(task_work(task, tune), per_warp);
-    if (warps > st.max_block_warps) {
-        const uint32_t slices = ceil_div(warps, st.max_block_warps);
-        return {kOptHugeBin, slices < st.max_slices ? slices : st.max_slices, shape};
+    const uint64_t per_warp = share > kMinTransPerWarp ? share : kMinTransPerWarp;
+    const uint32_t warps    = ceil_div(task.n_trans, per_warp);
+    if (warps > tune.max_block_warps) {
+        const uint32_t slices = ceil_div(warps, tune.max_block_warps);
+        return {kOptHugeBin, slices < tune.max_slices ? slices : tune.max_slices, 0};
     }
-    return {size_class(warps), 1, shape};
+    return {size_class(warps), 1, 0};
 }
 
 } // namespace ghuim::bfs

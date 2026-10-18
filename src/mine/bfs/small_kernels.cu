@@ -15,7 +15,7 @@ constexpr uint32_t kMaxGrid = 65535;
 template <typename Mode> __device__ __forceinline__ void block_tasks_body(BatchView b, const uint32_t* order, uint32_t count)
 {
     for (uint32_t i = blockIdx.x; i < count; i += gridDim.x) {
-        process_task<Mode>(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32, true);
+        process_task<Mode>(BlockGroup{}, b, order[i], threadIdx.x / 32, blockDim.x / 32);
         __syncthreads(); // the next task reuses the block
     }
 }
@@ -57,37 +57,29 @@ __global__ void subwarp_tasks(BatchView b, const uint32_t* order, uint32_t count
 
 } // namespace
 
-void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t shape, const AutoTune& tune,
-                       cudaStream_t stream)
+void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune, cudaStream_t stream)
 {
-    const ShapeTune& st     = tune.shape[shape];
-    const uint32_t   warps  = st.packed_block_warps;
-    const uint32_t   blocks = std::min(ceil_div(count, warps), kMaxGrid);
-    with_mode(tune, st.group, [&](auto mode) {
+    const uint32_t warps  = tune.packed_block_warps;
+    const uint32_t blocks = std::min(ceil_div(count, warps), kMaxGrid);
+    with_mode(tune, [&](auto mode) {
         warp_tasks<decltype(mode)><<<blocks, warps * 32, 0, stream>>>(batch, order, count);
     });
     check_launch("launch warp-task kernel");
 }
 
-void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin, uint32_t shape,
-                        const AutoTune& tune, cudaStream_t stream)
+void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin, const AutoTune& tune,
+                        cudaStream_t stream)
 {
     if (tune.staged) {
         // The block keeps the bin's compute warps and adds the IO warps (at most 32 warps in all).
         const uint32_t warps   = std::min((1u << bin) + tune.io_warps, 32u);
-        const uint32_t dynamic = kStageBarrierBytes + tune.ring_bytes + tune.table_bytes;
-        if (tune.warp_mode)
-            block_tasks<StagedWarpTx><<<std::min(count, kMaxGrid), warps * 32, dynamic, stream>>>(batch, order, count);
-        else
-            block_tasks<StagedTx><<<std::min(count, kMaxGrid), warps * 32, dynamic, stream>>>(batch, order, count);
+        const uint32_t dynamic = kStageBarrierBytes + tune.ring_bytes;
+        block_tasks<StagedTx><<<std::min(count, kMaxGrid), warps * 32, dynamic, stream>>>(batch, order, count);
     }
-    else {
-        const uint32_t group = tune.shape[shape].group;
-        with_mode(tune, group, [&](auto mode) {
-            block_tasks<decltype(mode)><<<std::min(count, kMaxGrid), 32u << bin, group == kLaneMode ? tune.table_bytes : 0,
-                                          stream>>>(batch, order, count);
+    else
+        with_mode(tune, [&](auto mode) {
+            block_tasks<decltype(mode)><<<std::min(count, kMaxGrid), 32u << bin, 0, stream>>>(batch, order, count);
         });
-    }
     check_launch("launch block-task kernel");
 }
 
@@ -106,35 +98,26 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
     check_launch("launch sub-warp kernel");
 }
 
-const void* block_kernel(uint32_t group, bool tiled)
+const void* block_kernel(bool tiled)
 {
-    const void* kernel = nullptr;
-    if (tiled)
-        return reinterpret_cast<const void*>(block_tasks<TileTx>);
-    with_mode(group, [&](auto mode) { kernel = reinterpret_cast<const void*>(block_tasks<decltype(mode)>); });
-    return kernel;
+    return tiled ? reinterpret_cast<const void*>(block_tasks<TileTx>) : reinterpret_cast<const void*>(block_tasks<LaneTx>);
 }
 
-const void* block_kernel_staged(bool warp_mode)
+const void* block_kernel_staged()
 {
-    return warp_mode ? reinterpret_cast<const void*>(block_tasks<StagedWarpTx>)
-                     : reinterpret_cast<const void*>(block_tasks<StagedTx>);
+    return reinterpret_cast<const void*>(block_tasks<StagedTx>);
 }
 
-void prepare_staged_block_kernel(uint32_t dynamic_bytes, bool warp_mode)
+void prepare_staged_block_kernel(uint32_t dynamic_bytes)
 {
-    check_cuda(cudaFuncSetAttribute(block_kernel_staged(warp_mode), cudaFuncAttributeMaxDynamicSharedMemorySize,
+    check_cuda(cudaFuncSetAttribute(block_kernel_staged(), cudaFuncAttributeMaxDynamicSharedMemorySize,
                                     static_cast<int>(dynamic_bytes)),
                "raise staged block kernel shared memory");
 }
 
-const void* warp_kernel(uint32_t group, bool tiled)
+const void* warp_kernel(bool tiled)
 {
-    const void* kernel = nullptr;
-    if (tiled)
-        return reinterpret_cast<const void*>(warp_tasks<TileTx>);
-    with_mode(group, [&](auto mode) { kernel = reinterpret_cast<const void*>(warp_tasks<decltype(mode)>); });
-    return kernel;
+    return tiled ? reinterpret_cast<const void*>(warp_tasks<TileTx>) : reinterpret_cast<const void*>(warp_tasks<LaneTx>);
 }
 
 const void* subwarp_kernel(bool tiled, bool local_tail)
