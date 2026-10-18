@@ -57,6 +57,7 @@ survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-
 | `--index-min-trans` | BFS adaptive/static lane kernels: build shared occurrence indexes for databases with at least this many transactions; `0` disables them (default). Indexes add memory and construction work; measure before enabling |
 | `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain; `0` disables it (default), maximum 20 |
 | `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 4); try `--local-tail-items 8 --local-tail-trans 32` |
+| `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
 | `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
 | `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
 | `--output` | Write itemsets as `items... UTIL u` (BFS only); without it they are only counted |

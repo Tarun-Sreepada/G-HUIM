@@ -59,6 +59,51 @@ __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
     }
 }
 
+// Refinement rounds (see refine_items): clear, scan and rename, one launch each, repeated by the host;
+// a task that has converged returns at once.
+__global__ void huge_refine_clear(BatchView b, AutoTune, const uint32_t* order)
+{
+    const TaskView v     = open_task(b, order[blockIdx.x]);
+    const uint32_t first = v.task.item + 1, n = v.header.n_items;
+    const uint32_t kept  = v.state->child_items;
+    if (v.state->refined)
+        return;
+    if (kept == 0 || kept >= n - first) {
+        __syncthreads();
+        if (threadIdx.x == 0)
+            v.state->refined = 1;
+        return;
+    }
+    clear_kept_local(v.p, first, n, threadIdx.x, blockDim.x);
+}
+
+__global__ void huge_refine_scan(BatchView b, AutoTune tune, const uint32_t* order)
+{
+    const TaskView v      = open_task(b, order[blockIdx.x]);
+    const uint32_t slices = slices_of(b, tune, v);
+    if (blockIdx.y >= slices || v.state->refined)
+        return;
+    uint32_t from, step;
+    slice_range(slices, from, step);
+    scan_refine(v.p, Lanes(WarpGroup{}), from, step);
+}
+
+__global__ void huge_refine_rename(BatchView b, AutoTune, const uint32_t* order)
+{
+    const TaskView v = open_task(b, order[blockIdx.x]);
+    if (v.state->refined)
+        return;
+    const uint32_t kept = v.state->child_items;
+    const uint32_t next = refine_rename(BlockGroup{}, v.p, v.task.item + 1, v.header.n_items, b.minimum_utility);
+    if (threadIdx.x == 0) {
+        v.state->child_items = next;
+        if (next == kept || next == 0)
+            v.state->refined = 1;
+        if (next == 0)
+            finish_task(b, v.task, v.state->utility >= b.minimum_utility);
+    }
+}
+
 __global__ void huge_subtree(BatchView b, AutoTune tune, const uint32_t* order)
 {
     const TaskView v      = open_task(b, order[blockIdx.x]);
@@ -144,6 +189,12 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
         huge_init<<<sliced, threads, 0, stream>>>(batch, tune, part);
         huge_local<<<sliced, threads, 0, stream>>>(batch, tune, part);
         huge_rename<<<single, threads, 0, stream>>>(batch, tune, part);
+        const int32_t rounds = batch.refine_rounds < 0 ? 8 : std::min<int32_t>(batch.refine_rounds, 8);
+        for (int32_t r = 0; r < rounds; ++r) {
+            huge_refine_clear<<<single, threads, 0, stream>>>(batch, tune, part);
+            huge_refine_scan<<<sliced, threads, 0, stream>>>(batch, tune, part);
+            huge_refine_rename<<<single, threads, 0, stream>>>(batch, tune, part);
+        }
         huge_subtree<<<sliced, threads, 0, stream>>>(batch, tune, part);
         huge_allocate<<<single, threads, 0, stream>>>(batch, tune, part);
         huge_write<<<sliced, threads, 0, stream>>>(batch, tune, part);

@@ -125,6 +125,7 @@ struct TaskState
     uint32_t entry_cursor;
     uint32_t child_max_len;
     uint32_t reserved;
+    uint32_t refined; // huge tasks: refinement has converged (or is off)
     uint32_t entries_by_length[kLengthBins + 1]; // child entries per transaction-length bin (+ padding)
 };
 
