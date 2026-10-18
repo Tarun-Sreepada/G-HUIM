@@ -7,7 +7,7 @@ namespace ghuim::bfs {
 
 __device__ inline bool index_child(const BatchView& b, const TaskState& state)
 {
-    return b.index_min_trans != 0 && state.child_trans >= b.index_min_trans;
+    return wants_index(state.child_trans, state.child_entries, state.child_items, b.index_min_trans, b.index_sparsity);
 }
 
 // ---------------------------------------------------------------------------------------------

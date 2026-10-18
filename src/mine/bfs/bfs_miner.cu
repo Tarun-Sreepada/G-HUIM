@@ -194,7 +194,7 @@ class LevelMiner
 void LevelMiner::allocate()
 {
     GHUIM_RANGE("bfs: build + upload root database");
-    const std::vector<char> root = root_image(data_, tune_.tiled != 0, options_.index_min_trans);
+    const std::vector<char> root = root_image(data_, tune_.tiled != 0, options_.index_min_trans, options_.index_sparsity);
     root_bytes_                  = root.size();
     root_trans_                  = static_cast<uint32_t>(data_.transaction_count());
     root_items_                  = static_cast<uint32_t>(data_.original_item.size());
@@ -207,7 +207,8 @@ void LevelMiner::allocate()
         root_occ_counts_.resize(root_items_);
         for (uint32_t z = 0; z < root_items_; ++z)
             root_occ_counts_[z] = begin[z + 1] - begin[z];
-        spdlog::info("Occurrence indexes: databases with at least {} transactions", options_.index_min_trans);
+        spdlog::info("Occurrence indexes: databases with at least {} transactions{}", options_.index_min_trans,
+                     options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "");
     }
     if (root_bytes_ / kArenaUnit > 0xffffffffull)
         throw std::runtime_error("the input database is too large for 32-bit arena offsets");
@@ -321,6 +322,7 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          tune_.ring_bytes,
                          tune_.tiled,
                          options_.index_min_trans,
+                         options_.index_sparsity,
                          options_.local_tail_items,
                          options_.local_tail_trans,
                          options_.refine_rounds,

@@ -65,6 +65,15 @@ struct Occurrence
     uint32_t pos;
 };
 
+// Whether a database gets an occurrence index: at least `min_trans` transactions (0 = never) and, with
+// `sparsity` s != 0, at most 1/s of its transaction-item pairs present. Then an extension visits few of the
+// transactions; in a dense database the index only duplicates the entries.
+__host__ __device__ inline bool wants_index(uint64_t n_trans, uint64_t n_entries, uint64_t n_items, uint32_t min_trans,
+                                            uint32_t sparsity)
+{
+    return min_trans != 0 && n_trans >= min_trans && (sparsity == 0 || n_entries * sparsity <= n_trans * n_items);
+}
+
 __host__ __device__ inline uint64_t align_up(uint64_t value, uint64_t alignment = kArenaUnit)
 {
     return (value + alignment - 1) / alignment * alignment;

@@ -29,6 +29,7 @@ struct BatchView
     uint32_t        ring_bytes; // staged method: shared memory for the tile ring
     uint32_t        tiled;        // tile method: databases use the tile layout
     uint32_t        index_min_trans;
+    uint32_t        index_sparsity;
     uint32_t        local_tail_items;
     uint32_t        local_tail_trans;
     int32_t         refine_rounds; // bound refinement rounds per task (-1 = until none drops, 0 = off)
