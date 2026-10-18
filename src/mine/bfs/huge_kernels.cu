@@ -21,7 +21,7 @@ __device__ __forceinline__ uint32_t slices_of(const BatchView& b, const AutoTune
 }
 
 // The transactions of a slice: warp w of block y starts at (y * warps + w) units, `unit` transactions
-// per warp step (32 for lane per transaction, 32 / group size for lane groups).
+// per warp step (32: a lane per transaction).
 template <typename Mode>
 __device__ __forceinline__ void slice_range(const Projection& p, uint32_t slices, uint32_t& from, uint32_t& step)
 {
@@ -29,32 +29,6 @@ __device__ __forceinline__ void slice_range(const Projection& p, uint32_t slices
     const uint32_t unit  = Mode::unit(p, Lanes(WarpGroup{}));
     from                 = (blockIdx.y * warps + threadIdx.x / 32) * unit;
     step                 = slices * warps * unit;
-}
-
-// Shared-memory copies of the per-item tables for one slice block: local[n] and subtree[n] (64-bit)
-// followed by rename[n]. Used when the task's items fit in the block's table region; the block then
-// accumulates privately and flushes with one atomic per item.
-__device__ __forceinline__ bool use_tables(const BatchView& b, uint32_t n_items)
-{
-    return b.table_bytes != 0 && uint64_t{n_items} * 20 <= b.table_bytes;
-}
-
-__device__ __forceinline__ unsigned long long* table_region(const BatchView& b)
-{
-    return reinterpret_cast<unsigned long long*>(stage_smem + b.table_offset);
-}
-
-// Copies rename[first, n) into the shared table and returns a projection that reads it.
-__device__ __forceinline__ Projection with_shared_rename(const BatchView& b, const Projection& p, uint32_t first, uint32_t n)
-{
-    Projection q = p;
-    auto*      t = table_region(b);
-    q.subtree    = t + n;
-    q.rename     = reinterpret_cast<uint32_t*>(t + 2 * n);
-    for (uint32_t i = first + threadIdx.x; i < n; i += blockDim.x)
-        q.rename[i] = p.rename[i];
-    __syncthreads();
-    return q;
 }
 
 __global__ void huge_init(BatchView b, AutoTune tune, const uint32_t* order)
@@ -75,23 +49,8 @@ template <typename Mode> __global__ void huge_local(BatchView b, AutoTune tune, 
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    const auto     ctx   = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
-    const uint32_t first = v.task.item + 1, n = v.header.n_items;
-    if (!use_tables(b, n)) {
-        Mode::scan_local(v.p, lanes, from, step, *v.state, ctx);
-        return;
-    }
-    Projection p   = v.p;
-    auto*      loc = table_region(b);
-    p.local        = loc;
-    for (uint32_t i = first + threadIdx.x; i < n; i += blockDim.x)
-        loc[i] = 0;
-    __syncthreads();
-    Mode::scan_local(p, lanes, from, step, *v.state, ctx);
-    __syncthreads();
-    for (uint32_t i = first + threadIdx.x; i < n; i += blockDim.x)
-        if (loc[i] != 0)
-            add(v.p.local[i], loc[i]);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::scan_local(v.p, lanes, from, step, *v.state, ctx);
 }
 
 __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
@@ -158,22 +117,8 @@ template <typename Mode> __global__ void huge_subtree(BatchView b, AutoTune tune
     const Lanes lanes(WarpGroup{});
     uint32_t    from, step;
     slice_range<Mode>(v.p, slices, from, step);
-    const auto     ctx         = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
-    const uint32_t first       = v.task.item + 1, n = v.header.n_items;
-    const uint32_t child_items = v.state->child_items;
-    if (!use_tables(b, n)) {
-        Mode::scan_subtree(v.p, lanes, from, step, *v.state, ctx);
-        return;
-    }
-    Projection p = with_shared_rename(b, v.p, first, n);
-    for (uint32_t z = threadIdx.x; z < child_items; z += blockDim.x)
-        p.subtree[z] = 0;
-    __syncthreads();
-    Mode::scan_subtree(p, lanes, from, step, *v.state, ctx);
-    __syncthreads();
-    for (uint32_t z = threadIdx.x; z < child_items; z += blockDim.x)
-        if (p.subtree[z] != 0)
-            add(v.p.subtree[z], p.subtree[z]);
+    const auto ctx = Mode::make_ctx(b, v.p, blockDim.x / 32, slices, blockIdx.y);
+    Mode::scan_subtree(v.p, lanes, from, step, *v.state, ctx);
 }
 
 // Tile method: the class starts of the child's counting sort (one block per task).
@@ -230,12 +175,7 @@ template <typename Mode> __global__ void huge_write(BatchView b, AutoTune tune, 
     uint32_t    from, step;
     slice_range<Mode>(base, slices, from, step);
     const auto ctx = Mode::make_ctx(b, base, blockDim.x / 32, slices, blockIdx.y);
-    if (!use_tables(b, v.header.n_items)) {
-        Mode::write_representatives(base, lanes, from, step, *v.state, c, ctx);
-        return;
-    }
-    const Projection p = with_shared_rename(b, base, v.task.item + 1, v.header.n_items);
-    Mode::write_representatives(p, lanes, from, step, *v.state, c, ctx);
+    Mode::write_representatives(base, lanes, from, step, *v.state, c, ctx);
 }
 
 template <typename Mode> __global__ void huge_merge(BatchView b, AutoTune tune, const uint32_t* order)
@@ -252,12 +192,7 @@ template <typename Mode> __global__ void huge_merge(BatchView b, AutoTune tune, 
     uint32_t        from, step;
     slice_range<Mode>(base, slices, from, step);
     const auto ctx = Mode::make_ctx(b, base, blockDim.x / 32, slices, blockIdx.y);
-    if (!use_tables(b, v.header.n_items)) {
-        Mode::merge_duplicates(base, lanes, from, step, c, ctx);
-        return;
-    }
-    const Projection p = with_shared_rename(b, base, v.task.item + 1, v.header.n_items);
-    Mode::merge_duplicates(p, lanes, from, step, c, ctx);
+    Mode::merge_duplicates(base, lanes, from, step, c, ctx);
 }
 
 __global__ void huge_emit(BatchView b, AutoTune, const uint32_t* order)
@@ -295,27 +230,22 @@ void launch_huge_passes(const BatchView& batch, const AutoTune& tune, const uint
 
 } // namespace
 
-void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices, uint32_t shape,
+void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices,
                        const AutoTune& tune, cudaStream_t stream)
 {
-    const ShapeTune& st      = tune.shape[shape];
-    const uint32_t   threads = st.max_block_warps * 32;
+    const uint32_t threads = tune.max_block_warps * 32;
     for (uint32_t done = 0; done < count; done += kMaxGrid) {
         const uint32_t  n    = std::min(count - done, kMaxGrid);
         const uint32_t* part = order + done;
         const dim3      sliced(n, max_slices), single(n, 1);
         huge_init<<<sliced, threads, 0, stream>>>(batch, tune, part);
-        if (tune.staged && tune.warp_mode)
-            launch_huge_passes<StagedWarpTx>(batch, tune, part, sliced, single, threads,
-                                             kStageBarrierBytes + tune.ring_bytes + tune.table_bytes, stream);
-        else if (tune.staged)
-            launch_huge_passes<StagedTx>(batch, tune, part, sliced, single, threads,
-                                         kStageBarrierBytes + tune.ring_bytes + tune.table_bytes, stream);
+        if (tune.staged)
+            launch_huge_passes<StagedTx>(batch, tune, part, sliced, single, threads, kStageBarrierBytes + tune.ring_bytes,
+                                         stream);
+        else if (tune.tiled)
+            launch_huge_passes<TileTx>(batch, tune, part, sliced, single, threads, 0, stream);
         else
-            with_mode(tune, st.group, [&](auto mode) {
-                launch_huge_passes<decltype(mode)>(batch, tune, part, sliced, single, threads,
-                                                   st.group == kLaneMode ? tune.table_bytes : 0, stream);
-            });
+            launch_huge_passes<LaneTx>(batch, tune, part, sliced, single, threads, 0, stream);
         huge_emit<<<single, threads, 0, stream>>>(batch, tune, part);
         check_launch("launch huge-task kernels");
     }
@@ -335,12 +265,12 @@ template <typename Mode> void huge_handles(const void* (&kernels)[kHugeKernels])
     std::copy(std::begin(handles), std::end(handles), kernels);
 }
 
-void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group, bool tiled)
+void huge_kernels(const void* (&kernels)[kHugeKernels], bool tiled)
 {
     if (tiled)
         huge_handles<TileTx>(kernels);
     else
-        with_mode(group, [&](auto mode) { huge_handles<decltype(mode)>(kernels); });
+        huge_handles<LaneTx>(kernels);
 }
 
 void tile_huge_kernels(const void* (&kernels)[kTileHugeKernels])
@@ -349,24 +279,16 @@ void tile_huge_kernels(const void* (&kernels)[kTileHugeKernels])
     kernels[1] = reinterpret_cast<const void*>(huge_tile_assign<TileTx>);
 }
 
-template <typename Mode> void staged_handles(const void* (&kernels)[kHugeKernels])
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels])
 {
-    huge_handles<Mode>(kernels);
+    huge_handles<StagedTx>(kernels);
 }
 
-void huge_kernels_staged(const void* (&kernels)[kHugeKernels], bool warp_mode)
+void prepare_staged_kernels(uint32_t dynamic_bytes)
 {
-    if (warp_mode)
-        staged_handles<StagedWarpTx>(kernels);
-    else
-        staged_handles<StagedTx>(kernels);
-}
-
-void prepare_staged_kernels(uint32_t dynamic_bytes, bool warp_mode)
-{
-    prepare_staged_block_kernel(dynamic_bytes, warp_mode);
+    prepare_staged_block_kernel(dynamic_bytes);
     const void* kernels[kHugeKernels];
-    huge_kernels_staged(kernels, warp_mode);
+    huge_kernels_staged(kernels);
     for (uint32_t k : {1u, 3u, 5u, 6u}) // the local, subtree, write and merge passes
         check_cuda(cudaFuncSetAttribute(kernels[k], cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(dynamic_bytes)),
                    "raise staged huge kernel shared memory");

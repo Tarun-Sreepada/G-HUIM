@@ -18,7 +18,7 @@
 // in flight before it blocks. All waits are bounded: a protocol bug ends the kernel with kStageTimeout
 // instead of hanging the GPU.
 
-#include "mine/bfs/device/warp_passes.cuh"
+#include "mine/bfs/device/modes.cuh"
 
 #include <cuda/atomic>
 
@@ -334,84 +334,6 @@ struct StagedTx
             return;
         }
         run_staged_pass(p, c, merge_wants, [&](uint32_t i0, const TileSource& src) { merge_tile(p, lanes, i0, src, cv); });
-    }
-};
-
-// Lane group per transaction, staged like StagedTx: a compute warp takes a whole 32-transaction tile and
-// its lane groups split the tile's transactions (32 / size per step).
-struct StagedWarpTx
-{
-    using Ctx = StageCfg;
-    static __device__ Ctx make_ctx(const BatchView& b, const Projection& p, uint32_t warps, uint32_t slices, uint32_t slice)
-    {
-        return make_stage_cfg(b, p, warps, slices, slice);
-    }
-    static __device__ uint32_t unit(const Projection& p, const Lanes&) { return 32 / tx_group_size(p.max_len); }
-
-    // Runs `body(i, slot)` over the tile's transactions this lane group owns.
-    template <typename Body>
-    static __device__ void each_in_tile(const Projection& p, const TxGroup& g, uint32_t i0, Body body)
-    {
-        for (uint32_t j = g.index; j < kTileTx; j += g.groups) {
-            const uint32_t i = i0 + j;
-            if (i >= p.n_trans)
-                break;
-            body(i, j);
-        }
-    }
-
-    static __device__ void scan_local(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s, const Ctx& c)
-    {
-        if (!c.staged) {
-            group_scan_local(p, tx_group_size(p.max_len), from, step, s);
-            return;
-        }
-        const TxGroup g(tx_group_size(p.max_len));
-        uint64_t      utility = 0;
-        run_staged_pass(p, c, local_wants, [&](uint32_t i0, const TileSource& src) {
-            each_in_tile(p, g, i0, [&](uint32_t i, uint32_t j) { group_local_tx(p, g, i, j, src, utility); });
-        });
-        if (threadIdx.x / 32 >= c.io_warps)
-            group_local_finish(g, utility, s);
-    }
-    static __device__ void scan_subtree(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s,
-                                        const Ctx& c)
-    {
-        if (!c.staged) {
-            group_scan_subtree(p, tx_group_size(p.max_len), from, step, s);
-            return;
-        }
-        const TxGroup g(tx_group_size(p.max_len));
-        ChildSize     size;
-        run_staged_pass(p, c, subtree_wants, [&](uint32_t i0, const TileSource& src) {
-            each_in_tile(p, g, i0, [&](uint32_t i, uint32_t j) { group_subtree_tx(p, g, i, j, src, size); });
-        });
-        if (threadIdx.x / 32 >= c.io_warps)
-            group_subtree_finish(g, size, s);
-    }
-    static __device__ void write_representatives(const Projection& p, const Lanes&, uint32_t from, uint32_t step, TaskState& s,
-                                                 const ChildView& cv, const Ctx& c)
-    {
-        if (!c.staged) {
-            group_write_representatives(p, tx_group_size(p.max_len), from, step, s, cv);
-            return;
-        }
-        const TxGroup g(tx_group_size(p.max_len));
-        run_staged_pass(p, c, write_wants, [&](uint32_t i0, const TileSource& src) {
-            each_in_tile(p, g, i0, [&](uint32_t i, uint32_t j) { group_write_tx(p, g, i, j, src, s, cv); });
-        });
-    }
-    static __device__ void merge_duplicates(const Projection& p, const Lanes&, uint32_t from, uint32_t step, const ChildView& cv,
-                                            const Ctx& c)
-    {
-        if (!c.staged) {
-            group_merge_duplicates(p, tx_group_size(p.max_len), from, step, cv);
-            return;
-        }
-        const TxGroup g(tx_group_size(p.max_len));
-        run_staged_pass(p, c, merge_wants, [&](uint32_t i0, const TileSource& src) {
-            each_in_tile(p, g, i0, [&](uint32_t i, uint32_t j) { group_merge_tx(p, g, i, j, src, cv); });
-        });
     }
 };
 

@@ -15,10 +15,8 @@ enum class Method
 {
     Static,  // every task gets one block of --block-size threads
     Adaptive, // size-binned kernels: each task gets lanes, a warp, a block or several blocks to fit its work
-    Warp,     // BFS only: a group of 4-32 lanes (from the longest transaction) owns one transaction at a time
     Staged,   // BFS only: adaptive kernels with IO warps staging transactions in shared memory
-    StagedWarp, // BFS only: staged, with a lane group per transaction
-    Tile        // BFS only: adaptive scheduling over databases stored in warp tiles (entries column-major)
+    Tile      // BFS only: adaptive scheduling over databases stored in warp tiles (entries column-major)
 };
 
 inline const char* search_name(Search search)
@@ -30,9 +28,7 @@ inline const char* method_name(Method method)
 {
     switch (method) {
     case Method::Static: return "static";
-    case Method::Warp: return "warp";
     case Method::Staged: return "staged";
-    case Method::StagedWarp: return "stagedwarp";
     case Method::Tile: return "tile";
     default: return "adaptive";
     }
@@ -46,16 +42,12 @@ struct MiningOptions
     uint32_t    block_size      = 256;          // static: threads per task
     uint32_t    io_warps        = 1;            // staged: IO warps per block
     uint32_t    ring_kib        = 64;           // staged: shared memory for the tile ring
-    bool        smem_tables     = false;        // adaptive/staged: keep local/subtree/rename in shared memory
-    std::string shape_modes;                    // adaptive BFS: mode per task shape (<=4, <=8, <=16, longer): lane|group|g4|g8|g16|g32
-    uint32_t    min_entries_per_warp = 0;       // adaptive BFS: size tasks by entries (fewest entries per warp), 0 = by transactions
     uint32_t    oversubscribe   = 12;           // BFS: tasks are sized for this many times the resident warps
     bool        bin_times       = false;        // BFS: serialize bins and log the time of each
     uint32_t    index_min_trans = 0;            // BFS lane kernels: index databases at least this large; 0 = off
     uint32_t    local_tail_items = 8;           // BFS count-only: finish bounded small subtrees locally; 0 = off
     uint32_t    local_tail_trans = 32;          // maximum supporting transactions for local subtree processing
     int32_t     refine_rounds   = 1;            // bound refinement rounds per task: -1 = until no item drops, 0 = off
-    uint32_t    table_kib       = 8;            // shared memory for those tables (tasks with more items keep global ones)
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold (BFS)
     std::string output;                         // itemset file; empty = only count the itemsets (BFS)

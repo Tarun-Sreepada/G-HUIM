@@ -37,9 +37,7 @@ void configure_cli(CLI::App& app, Config& config)
     app.add_option("-M,--method", config.mining.method, "Work partitioning")
             ->transform(CLI::CheckedTransformer(
                     std::map<std::string, Method>{{"static", Method::Static}, {"adaptive", Method::Adaptive},
-                                                  {"warp", Method::Warp},
                                                   {"staged", Method::Staged},
-                                                  {"stagedwarp", Method::StagedWarp},
                                                   {"tile", Method::Tile}},
                     CLI::ignore_case))
             ->default_str("adaptive");
@@ -51,15 +49,6 @@ void configure_cli(CLI::App& app, Config& config)
             ->capture_default_str();
     app.add_option("-R,--ring-kib", config.mining.ring_kib, "Shared memory for the staged tile ring, KiB")
             ->check(CLI::Range(1, 200))
-            ->group("");
-    app.add_flag("-T,--smem-tables", config.mining.smem_tables,
-                 "Keep per-item tables in shared memory for block-sized tasks (adaptive and staged methods, BFS)");
-    app.add_option("-P,--shape-modes", config.mining.shape_modes,
-                   "BFS adaptive: comma-separated mode per task shape, longest transaction <=4,<=8,<=16,longer "
-                   "(lane, group, g4, g8, g16, g32), e.g. lane,lane,lane,g32")
-            ->group("");
-    app.add_option("-E,--min-entries-per-warp", config.mining.min_entries_per_warp,
-                   "BFS: size tasks by entries instead of transactions; fewest entries worth a warp (0 = by transactions)")
             ->group("");
     app.add_option("-O,--oversubscribe", config.mining.oversubscribe,
                    "BFS: size tasks for this many times the resident warps (more warps per task balances the load)")
@@ -82,9 +71,6 @@ void configure_cli(CLI::App& app, Config& config)
                    "Bound refinement: recompute local utilities without the items each task drops, this many rounds "
                    "(-1 = until none drops, 0 = off; huge tasks run at most 8)")
             ->check(CLI::Range(-1, 1000))->capture_default_str();
-    app.add_option("-K,--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
-            ->check(CLI::Range(1, 48))
-            ->group("");
     add_size_option(app, "-g,--total-memory,--total_memory,--memory", config.mining.memory_bytes,
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
     add_size_option(app, "-C,--stack-capacity,--stack_capacity", config.mining.stack_capacity,
@@ -114,14 +100,11 @@ void configure_cli(CLI::App& app, Config& config)
         // The default local subtrees only apply to count-only BFS adaptive lane mining; elsewhere they are
         // turned off, and only an explicit --local-tail-items is an error.
         const bool counting = mining.output.empty() || mining.output == "/dev/null";
-        if (local_tail->count() == 0 &&
-            (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting ||
-             (!mining.shape_modes.empty() && mining.shape_modes != "lane,lane,lane,lane")))
+        if (local_tail->count() == 0 && (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting))
             mining.local_tail_items = 0;
         if (mining.index_min_trans != 0 || mining.local_tail_items != 0) {
-            if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static) ||
-                (!mining.shape_modes.empty() && mining.shape_modes != "lane,lane,lane,lane"))
-                throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs BFS adaptive/static with lane modes");
+            if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static))
+                throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs BFS adaptive or static");
             if (mining.local_tail_items != 0 && !mining.output.empty() && mining.output != "/dev/null")
                 throw CLI::ValidationError("--local-tail-items", "only available for count-only mining (omit --output)");
             if (mining.local_tail_items != 0 && mining.method != Method::Adaptive)
@@ -129,15 +112,8 @@ void configure_cli(CLI::App& app, Config& config)
         }
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
-        if (mining.search == Search::Dfs && (mining.method == Method::Warp || mining.method == Method::Staged ||
-                                              mining.method == Method::StagedWarp || mining.method == Method::Tile))
-            throw CLI::ValidationError("--method", "warp, staged, stagedwarp and tile are only available with --search bfs");
-        if (!mining.shape_modes.empty() && (mining.search != Search::Bfs || mining.method != Method::Adaptive))
-            throw CLI::ValidationError("--shape-modes", "needs --search bfs with --method adaptive");
-        if (mining.smem_tables && (mining.search != Search::Bfs ||
-                                   (mining.method != Method::Adaptive && mining.method != Method::Staged &&
-                                    mining.method != Method::StagedWarp)))
-            throw CLI::ValidationError("--smem-tables", "needs --search bfs with --method adaptive, staged or stagedwarp");
+        if (mining.search == Search::Dfs && (mining.method == Method::Staged || mining.method == Method::Tile))
+            throw CLI::ValidationError("--method", "staged and tile are only available with --search bfs");
         if (mining.search == Search::Dfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });
