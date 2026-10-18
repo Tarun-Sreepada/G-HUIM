@@ -56,8 +56,15 @@ void configure_cli(CLI::App& app, Config& config)
             ->group("");
     app.add_flag("-B,--bin-times", config.mining.bin_times, "BFS: run the bins one after another and log each bin's time per level")
             ->group("");
-    app.add_option("-I,--index-min-trans", config.mining.index_min_trans,
-                   "BFS adaptive/static lanes: build occurrence indexes for databases with at least this many transactions (0 = off)");
+    CLI::Option* index =
+            app.add_option("-I,--index-min-trans", config.mining.index_min_trans,
+                           "BFS adaptive/static: build occurrence indexes for databases with at least this many transactions "
+                           "(0 = off; by default only sparse ones, see --index-sparsity)")
+                    ->capture_default_str();
+    CLI::Option* sparsity =
+            app.add_option("-D,--index-sparsity", config.mining.index_sparsity,
+                           "Index only databases at most 1/this filled (0 = any; default 0 with an explicit --index-min-trans)")
+                    ->capture_default_str();
     CLI::Option* local_tail =
             app.add_option("-k,--local-tail-items", config.mining.local_tail_items,
                            "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally "
@@ -95,13 +102,20 @@ void configure_cli(CLI::App& app, Config& config)
             ->capture_default_str();
     app.add_option("-L,--log-file", config.log_file, "Also write diagnostics to a log file");
 
-    app.callback([&config, local_tail] {
+    app.callback([&config, local_tail, index, sparsity] {
         MiningOptions& mining = config.mining;
         // The default local subtrees only apply to count-only BFS adaptive lane mining; elsewhere they are
         // turned off, and only an explicit --local-tail-items is an error.
         const bool counting = mining.output.empty() || mining.output == "/dev/null";
         if (local_tail->count() == 0 && (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting))
             mining.local_tail_items = 0;
+        // Default indexes likewise apply only to BFS adaptive/static. An explicit --index-min-trans indexes every
+        // database that large unless --index-sparsity is also given.
+        if (index->count() == 0 && (mining.search != Search::Bfs ||
+                                    (mining.method != Method::Adaptive && mining.method != Method::Static)))
+            mining.index_min_trans = 0;
+        if (index->count() != 0 && sparsity->count() == 0)
+            mining.index_sparsity = 0;
         if (mining.index_min_trans != 0 || mining.local_tail_items != 0) {
             if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static))
                 throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs BFS adaptive or static");

@@ -44,7 +44,8 @@ struct MiningOptions
     uint32_t    ring_kib        = 64;           // staged: shared memory for the tile ring
     uint32_t    oversubscribe   = 12;           // BFS: tasks are sized for this many times the resident warps
     bool        bin_times       = false;        // BFS: serialize bins and log the time of each
-    uint32_t    index_min_trans = 0;            // BFS lane kernels: index databases at least this large; 0 = off
+    uint32_t    index_min_trans = 4096;         // BFS lane kernels: index databases at least this large; 0 = off
+    uint32_t    index_sparsity  = 32;           // ... and at most 1/this filled (0 = any density)
     uint32_t    local_tail_items = 8;           // BFS count-only: finish bounded small subtrees locally; 0 = off
     uint32_t    local_tail_trans = 32;          // maximum supporting transactions for local subtree processing
     int32_t     refine_rounds   = 1;            // bound refinement rounds per task: -1 = until no item drops, 0 = off

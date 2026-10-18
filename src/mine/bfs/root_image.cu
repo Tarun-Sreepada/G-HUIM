@@ -59,13 +59,13 @@ std::vector<char> tiled_root_image(const Dataset& data)
 
 } // namespace
 
-std::vector<char> root_image(const Dataset& data, bool tiled, uint32_t index_min_trans)
+std::vector<char> root_image(const Dataset& data, bool tiled, uint32_t index_min_trans, uint32_t index_sparsity)
 {
     if (tiled)
         return tiled_root_image(data);
     const uint64_t    n_trans = data.transaction_count(), n_entries = data.items.size();
     const uint64_t    n_items = data.original_item.size();
-    const bool indexed = index_min_trans != 0 && n_trans >= index_min_trans;
+    const bool indexed = wants_index(n_trans, n_entries, n_items, index_min_trans, index_sparsity);
     const DbLayout    layout  = DbLayout::of(n_trans, n_entries, n_items, false, indexed);
     std::vector<char> image(layout.bytes, 0);
 
