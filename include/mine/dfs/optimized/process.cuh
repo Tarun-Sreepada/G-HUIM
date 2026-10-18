@@ -19,7 +19,9 @@ __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uin
     scan_local(v.p, lanes, from, step, *v.state);
     g.sync();
 
-    const uint32_t child_items = rename_items(g, v.p, first, n, b.minimum_utility);
+    uint32_t child_items = rename_items(g, v.p, first, n, b.minimum_utility);
+    if (b.refine_rounds != 0)
+        child_items = refine_items(g, lanes, v.p, first, n, child_items, b.minimum_utility, b.refine_rounds, from, step);
     if (child_items == 0) {
         if (g.rank() == 0)
             finish_task(b, v.task, v.state->utility >= b.minimum_utility);

@@ -164,7 +164,7 @@ class Miner
         phase.next("dfs: launch bins + sync");
         const BatchView view{arena_.get(),   arena_.size(), control_.get(), batch_.get(),
                              offsets_.get(), scratch_.get(), stack_.get(),  kStackCapacity,
-                             options_.minimum_utility};
+                             options_.minimum_utility, options_.refine_rounds};
         uint32_t        begin = 0;
         for (uint32_t b = 0; b < bins_.rule.bins; ++b) {
             const uint32_t  size  = control_host_.bin_count[b];

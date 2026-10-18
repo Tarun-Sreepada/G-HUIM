@@ -92,6 +92,81 @@ __device__ uint32_t rename_items(const Group& g, const Projection& p, uint32_t f
     return kept_items;
 }
 
+// Refinement: items the rename dropped still count in every other item's local utility. Recomputing
+// local utilities over the kept items only can push more items below the threshold, and so on until
+// none drops. A pass reads each transaction from the position pass 1 recorded, lane per transaction,
+// in either layout (entry d at begin + d * stride).
+__device__ inline void refine_tile(const Projection& p, const Lanes& lanes, uint32_t i0)
+{
+    const uint32_t  i      = i0 + lanes.rank;
+    const uint32_t  pos    = i < p.n_trans ? p.pos[i] : 0;
+    const Tx        tx     = pos != 0 ? p.txs[p.occ ? p.occ[i].tid : i] : Tx{0, 0, 0};
+    const uint32_t* k_item = p.eitem + tx.begin;
+    const uint32_t* k_util = p.eutil + tx.begin;
+    const uint32_t  s      = p.stride;
+    const uint32_t  rest   = pos != 0 ? tx.length - pos : 0;
+    const uint32_t  span   = lanes.max(rest);
+    const uint64_t  prefix = pos != 0 ? uint64_t{tx.utility} + k_util[(pos - 1) * s] : 0;
+    uint64_t        after  = 0;
+    for (uint32_t d = 0; d < span; ++d)
+        if (d < rest && p.rename[k_item[(pos + d) * s]] != kNone)
+            after += k_util[(pos + d) * s];
+    for (uint32_t d = 0; d < span; ++d)
+        if (d < rest && p.rename[k_item[(pos + d) * s]] != kNone)
+            add(p.local[k_item[(pos + d) * s]], prefix + after);
+}
+
+__device__ inline void scan_refine(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step)
+{
+    for (uint32_t i0 = from; i0 < p.n_trans; i0 += step)
+        refine_tile(p, lanes, i0);
+}
+
+// Zeroes the local utilities of the kept items before a refinement pass.
+__device__ inline void clear_kept_local(const Projection& p, uint32_t first, uint32_t n, uint32_t rank, uint32_t stride)
+{
+    for (uint32_t i = first + rank; i < n; i += stride)
+        if (p.rename[i] != kNone)
+            p.local[i] = 0;
+}
+
+// rename_items over the kept items: keeps those whose refined local utility meets the threshold.
+template <typename Group>
+__device__ uint32_t refine_rename(const Group& g, const Projection& p, uint32_t first, uint32_t n, uint64_t minutil)
+{
+    uint32_t kept_items = 0;
+    for (uint32_t chunk = first; chunk < n; chunk += g.size()) {
+        const uint32_t i    = chunk + g.rank();
+        const bool     keep = i < n && p.rename[i] != kNone && p.local[i] >= minutil;
+        const uint32_t scan = g.scan(keep);
+        if (i < n)
+            p.rename[i] = keep ? kept_items + scan - 1 : kNone;
+        kept_items += g.count(keep);
+    }
+    return kept_items;
+}
+
+// Up to `rounds` refinement rounds (-1: until none drops) after rename_items kept `kept` items; a
+// round runs only if the previous rename dropped an item. Lane-per-transaction coverage from/step.
+// Returns the kept count. All threads of the group must call it.
+template <typename Group>
+__device__ uint32_t refine_items(const Group& g, const Lanes& lanes, const Projection& p, uint32_t first, uint32_t n,
+                                 uint32_t kept, uint64_t minutil, int32_t rounds, uint32_t from, uint32_t step)
+{
+    for (int32_t r = 0; kept != 0 && kept < n - first && (rounds < 0 || r < rounds); ++r) {
+        g.sync();
+        clear_kept_local(p, first, n, g.rank(), g.size());
+        g.sync();
+        scan_refine(p, lanes, from, step);
+        g.sync();
+        const uint32_t next = refine_rename(g, p, first, n, minutil);
+        if (next == kept)
+            break;
+        kept = next;
+    }
+    return kept;
+}
+
 struct ChildSize
 {
     uint32_t trans = 0, entries = 0, max_len = 0;

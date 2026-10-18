@@ -136,6 +136,7 @@ struct TaskState
     uint32_t entry_cursor;
     uint32_t child_max_len;
     uint32_t reserved; // first slot of this task's children in the next level
+    uint32_t refined;  // huge tasks: refinement has converged (or is off)
 };
 
 // Tile method: hist[kTileBuckets], base[kTileBuckets], cursor[kTileBuckets], then tile_len[t / kTile + 1]

@@ -54,6 +54,7 @@ struct MiningOptions
     uint32_t    index_min_trans = 0;            // BFS lane kernels: index databases at least this large; 0 = off
     uint32_t    local_tail_items = 0;           // BFS count-only: finish bounded small subtrees locally; 0 = off
     uint32_t    local_tail_trans = 4;           // maximum supporting transactions for local subtree processing
+    int32_t     refine_rounds   = 1;            // bound refinement rounds per task: -1 = until no item drops, 0 = off
     uint32_t    table_kib       = 8;            // shared memory for those tables (tasks with more items keep global ones)
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 128ull << 20; // most tasks one level may hold (BFS)

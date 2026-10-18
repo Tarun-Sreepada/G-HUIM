@@ -42,6 +42,7 @@ struct BatchView
     Task*           stack;          // children and deferred tasks are pushed here
     uint32_t        stack_capacity;
     uint64_t        minimum_utility;
+    int32_t         refine_rounds; // adaptive-optimized: bound refinement rounds (-1 = until none drops, 0 = off)
 };
 
 // Each launcher processes tasks order[0..count) of the batch on `stream`.

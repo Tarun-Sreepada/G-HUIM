@@ -75,6 +75,10 @@ void configure_cli(CLI::App& app, Config& config)
     app.add_option("--local-tail-trans", config.mining.local_tail_trans,
                    "Maximum supporting transactions for local subtree processing")
             ->check(CLI::Range(1, 32))->capture_default_str();
+    app.add_option("--refine", config.mining.refine_rounds,
+                   "Bound refinement: recompute local utilities without the items each task drops, this many rounds "
+                   "(-1 = until none drops, 0 = off; huge tasks run at most 8)")
+            ->check(CLI::Range(-1, 1000))->capture_default_str();
     app.add_option("--table-kib", config.mining.table_kib, "Shared memory for the per-item tables, KiB")
             ->check(CLI::Range(1, 48))
             ->group("");

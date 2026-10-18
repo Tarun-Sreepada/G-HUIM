@@ -12,6 +12,8 @@ namespace ghuim::bfs {
 namespace {
 
 constexpr uint32_t kMaxGrid = 65535;
+// Refinement rounds a huge task may run (each costs three launches); -1 means this many.
+constexpr int32_t kMaxHugeRefine = 8;
 
 __device__ __forceinline__ uint32_t slices_of(const BatchView& b, const AutoTune& tune, const TaskView& v)
 {
@@ -99,6 +101,50 @@ __global__ void huge_rename(BatchView b, AutoTune, const uint32_t* order)
     if (threadIdx.x == 0) {
         v.state->child_items = child_items;
         if (child_items == 0)
+            finish_task(b, v);
+    }
+}
+
+// Refinement rounds (see refine_items): clear, scan and rename, one launch each, repeated by the host;
+// a task that has converged returns at once.
+__global__ void huge_refine_clear(BatchView b, AutoTune, const uint32_t* order)
+{
+    const TaskView v     = open_task(b, order[blockIdx.x]);
+    const uint32_t first = v.task.item + 1, n = v.header.n_items;
+    const uint32_t kept  = v.state->child_items;
+    if (v.state->refined)
+        return;
+    if (kept == 0 || kept >= n - first) {
+        __syncthreads();
+        if (threadIdx.x == 0)
+            v.state->refined = 1;
+        return;
+    }
+    clear_kept_local(v.p, first, n, threadIdx.x, blockDim.x);
+}
+
+__global__ void huge_refine_scan(BatchView b, AutoTune tune, const uint32_t* order)
+{
+    const TaskView v      = open_task(b, order[blockIdx.x]);
+    const uint32_t slices = slices_of(b, tune, v);
+    if (blockIdx.y >= slices || v.state->refined)
+        return;
+    const uint32_t warps = blockDim.x / 32;
+    scan_refine(v.p, Lanes(WarpGroup{}), (blockIdx.y * warps + threadIdx.x / 32) * 32, slices * warps * 32);
+}
+
+__global__ void huge_refine_rename(BatchView b, AutoTune, const uint32_t* order)
+{
+    const TaskView v = open_task(b, order[blockIdx.x]);
+    if (v.state->refined)
+        return;
+    const uint32_t kept = v.state->child_items;
+    const uint32_t next = refine_rename(BlockGroup{}, v.p, v.task.item + 1, v.header.n_items, b.minimum_utility);
+    if (threadIdx.x == 0) {
+        v.state->child_items = next;
+        if (next == kept || next == 0)
+            v.state->refined = 1;
+        if (next == 0)
             finish_task(b, v);
     }
 }
@@ -231,6 +277,12 @@ void launch_huge_passes(const BatchView& batch, const AutoTune& tune, const uint
 {
     huge_local<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
     huge_rename<<<single, threads, 0, stream>>>(batch, tune, part);
+    const int32_t rounds = batch.refine_rounds < 0 ? kMaxHugeRefine : std::min(batch.refine_rounds, kMaxHugeRefine);
+    for (int32_t r = 0; r < rounds; ++r) {
+        huge_refine_clear<<<single, threads, 0, stream>>>(batch, tune, part);
+        huge_refine_scan<<<sliced, threads, 0, stream>>>(batch, tune, part);
+        huge_refine_rename<<<single, threads, 0, stream>>>(batch, tune, part);
+    }
     huge_subtree<Mode><<<sliced, threads, dynamic_bytes, stream>>>(batch, tune, part);
     if constexpr (TiledMode<Mode>) {
         huge_tile_bases<<<single, threads, 0, stream>>>(batch, tune, part);
