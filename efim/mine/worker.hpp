@@ -33,11 +33,17 @@ private:
 	// mark[x] = deepest depth on the current path at which x is secondary, -1 if none.
 	// The root (depth 0) keeps every item, so it is never marked.
 	std::vector<int> mark;
-	std::vector<Utility> local, subtree;
-	std::vector<char> seen;
+	// Per-item bounds for the child being built, interleaved so an update touches one cache line.
+	// local == 0 marks an item not yet touched (utilities are >= 0; a zero-utility item can enter
+	// `touched` twice, which is harmless since its bounds stay 0 < minUtil).
+	struct Bound {
+		Utility local = 0, subtree = 0;
+	};
+	std::vector<Bound> bound;
 	std::vector<std::int32_t> slot;
 	std::vector<Item> touched, prefix_items, new_key;
 	std::vector<Util> new_val;
 	FilterFn filter;  // projection kernel (AVX-512 or scalar)
+	bool fused;       // scalar mode: filter and bound updates in one backward pass instead of `filter`
 	std::vector<std::unique_ptr<Level>> levels;  // levels[d] = reusable database at depth d
 };
