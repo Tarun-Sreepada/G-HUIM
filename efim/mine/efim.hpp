@@ -67,6 +67,12 @@ public:
 	void set_numa(bool on) { numa_ = on; }
 	// Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is).
 	void set_refine(int rounds) { refine_ = rounds; }
+	// Rewrite each child without the items it rules out (default on).
+	void set_compact(bool on) { compact_ = on; }
+	// Skip a refinement round unless the last pass dropped at least this fraction of the candidates.
+	void set_leaf(bool on) { leaf_ = on; }
+	void set_refine_min_drop(double fraction) { refine_min_drop_ = fraction; }
+
 	void set_stats(bool on) { stats_ = on; }
 	int threads() const { return threads_; }
 	// Count by default; collection must be enabled before mining to call save().
@@ -84,7 +90,8 @@ private:
 	int threads_;
 	bool numa_ = true;
 	int refine_ = -1;
-	bool stats_ = false;
+	bool stats_ = false, compact_ = true, leaf_ = true;
+	double refine_min_drop_ = 0;
 	bool collect_patterns_ = false;
 	std::size_t pattern_count_ = 0;
 	std::vector<std::string> rename_;  // rename_[id] = original item name; index 0 unused

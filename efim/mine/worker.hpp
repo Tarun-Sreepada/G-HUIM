@@ -15,6 +15,10 @@ struct SearchStats {
 	std::uint64_t refine_rounds = 0;    // rescans of a child
 	std::uint64_t refine_secondary = 0; // items dropped from secondary by refinement
 	std::uint64_t refine_primary = 0;   // items dropped from primary by refinement
+	std::uint64_t leaves = 0;           // extensions with nothing after them, summed without projecting
+	std::uint64_t compacted = 0;        // children rewritten without their ruled-out items
+	std::uint64_t compact_tx_in = 0, compact_tx_out = 0;      // their transactions before/after
+	std::uint64_t compact_items_in = 0, compact_items_out = 0;  // and item occurrences
 
 	SearchStats& operator+=(const SearchStats& o) {
 		nodes += o.nodes;
@@ -23,6 +27,12 @@ struct SearchStats {
 		refine_rounds += o.refine_rounds;
 		refine_secondary += o.refine_secondary;
 		refine_primary += o.refine_primary;
+		leaves += o.leaves;
+		compacted += o.compacted;
+		compact_tx_in += o.compact_tx_in;
+		compact_tx_out += o.compact_tx_out;
+		compact_items_in += o.compact_items_in;
+		compact_items_out += o.compact_items_out;
 		return *this;
 	}
 };
@@ -31,7 +41,7 @@ struct SearchStats {
 // after each projection via the `touched` list.
 struct Worker {
 	Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns,
-		   int refine = -1);
+		   int refine = -1, bool compact = true, double refine_min_drop = 0, bool leaf = true);
 
 	void run();
 
@@ -47,8 +57,11 @@ private:
 	// and recurses or hands the subtree to other threads.
 	void expand(const Level& db, int depth, std::size_t k);
 	// Chooses child.primary/secondary from the bounds of the `touched` items (resetting them),
-	// after `refine` rounds of rescanning `child` (the database at depth + 1) without the items ruled out.
+	// after `refine` rounds of rescanning `child` (the database at depth + 1) without the items ruled out,
+	// then (with `compact`) rewrites child without those items.
 	void select_extensions(Level& child, int depth);
+	// Replaces child's transactions by their items with mark[x] == depth, merging equal neighbours.
+	void compact_child(Level& child, int depth);
 
 	int id;
 	Utility min_util;
@@ -56,6 +69,9 @@ private:
 	Scheduler& scheduler;
 	const bool collect_patterns;
 	const int refine;  // rounds of recomputing a child's bounds without the items it rules out (-1 = until none is)
+	const bool compact;
+	const double refine_min_drop;
+	const bool leaf;  // sum leaf extensions from the occurrence index instead of projecting them
 	std::vector<std::pair<Item, Utility>> chosen;  // scratch for select_extensions
 	// mark[x] = deepest depth on the current path at which x is secondary, -1 if none.
 	// The root (depth 0) keeps every item, so it is never marked.
@@ -73,4 +89,7 @@ private:
 	FilterFn filter;  // projection kernel (AVX-512 or scalar)
 	bool fused;       // scalar mode: filter and bound updates in one backward pass instead of `filter`
 	std::vector<std::unique_ptr<Level>> levels;  // levels[d] = reusable database at depth d
+	// spare[d] = the database levels[d] was compacted from; its storage backs levels[d]'s views
+	// until the next sibling at depth d is compacted.
+	std::vector<std::unique_ptr<Level>> spare;
 };

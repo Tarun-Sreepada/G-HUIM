@@ -33,6 +33,8 @@ int main(int argc, char** argv) {
 	long long min_util = 0;
 	int threads = 1, refine = -1;
 	bool stats = false;
+	std::string compact = "on", leaf = "on";
+	double refine_min_drop = 0;
 
 	// Legacy form: efim <input> <output> <minUtil> [sep] [threads]
 	std::vector<std::string> legacy;
@@ -72,6 +74,15 @@ int main(int argc, char** argv) {
 		app.add_option("--refine", refine, "Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is)")
 			->capture_default_str()
 			->check(CLI::Range(-1, 1000));
+		app.add_option("--refine-min-drop", refine_min_drop, "Refine only while a pass drops at least this fraction of the candidates")
+			->capture_default_str()
+			->check(CLI::Range(0.0, 1.0));
+		app.add_option("--leaf", leaf, "Sum leaf extensions from the occurrence index instead of projecting them")
+			->capture_default_str()
+			->check(CLI::IsMember({"on", "off"}));
+		app.add_option("--compact", compact, "Rewrite each child without the items it rules out")
+			->capture_default_str()
+			->check(CLI::IsMember({"on", "off"}));
 		app.add_flag("--stats", stats, "Log search counters");
 		app.add_option("--log-level", log_level, "trace, debug, info, warn, error, critical or off")
 			->capture_default_str()
@@ -98,6 +109,9 @@ int main(int argc, char** argv) {
 		spdlog::debug("thp: {}", huge_pages ? "on" : "off");
 		miner.set_numa(numa == "on");
 		miner.set_refine(refine);
+		miner.set_compact(compact == "on");
+		miner.set_refine_min_drop(refine_min_drop);
+		miner.set_leaf(leaf == "on");
 		miner.set_stats(stats);
 		const bool collect_patterns = !output.empty() && output != "/dev/null";
 		miner.mine(collect_patterns);

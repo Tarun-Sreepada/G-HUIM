@@ -66,7 +66,7 @@ void Efim::mine(bool collect_patterns) {
 		if (!cpus.empty() && !pin_this_thread(cpus[w].cpu)) spdlog::warn("numa: cannot pin worker {} to cpu {}", w, cpus[w].cpu);
 		// Big arrays of this worker come from (and return to) the arena of its L3 group.
 		const ArenaBinding binding(cpus.empty() ? nullptr : Arena::get(cpus[w].l3));
-		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_, refine_);
+		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_, refine_, compact_, refine_min_drop_, leaf_);
 
 		// One copy of the root per node, shaped by the first worker of that node and filled by
 		// all of the node's workers (first touch, in parallel).
@@ -103,8 +103,11 @@ void Efim::mine(bool collect_patterns) {
 		if (collect_patterns_) results_.push_back(std::move(w->patterns));
 	}
 	if (stats_)
-		spdlog::info("stats: nodes {} primary {} secondary {} | refine rounds {} secondary -{} primary -{}", stats.nodes,
-					 stats.primary, stats.secondary, stats.refine_rounds, stats.refine_secondary, stats.refine_primary);
+		spdlog::info("stats: nodes {} primary {} secondary {} | refine rounds {} secondary -{} primary -{} | "
+					 "compacted {} txs {} -> {} items {} -> {} | leaves {}",
+					 stats.nodes, stats.primary, stats.secondary, stats.refine_rounds, stats.refine_secondary, stats.refine_primary,
+					 stats.compacted, stats.compact_tx_in, stats.compact_tx_out, stats.compact_items_in, stats.compact_items_out,
+					 stats.leaves);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		const Arena::Stats a = Arena::stats();
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
