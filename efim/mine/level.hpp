@@ -54,15 +54,17 @@ struct Level {
 	const Item* items_of(const Transaction& t) const { return t.own >= 0 ? items.data() + t.own : t.items; }
 
 	// Appends a transaction, merging it into the previous one when their items are
-	// equal. A view must point outside this Level; otherwise the data is copied.
+	// equal. A view must point outside this Level; otherwise the data is copied. n >= 1.
 	void add(const Item* it, const Util* ut, std::uint32_t n, Utility prefix, bool view) {
 		if (!txs.empty()) {
 			Transaction& last = txs.back();
-			if (last.len == n && std::equal(it, it + n, items_of(last))) {
+			// Transactions arrive in reverse-lexicographic order, so a different neighbour usually
+			// differs in its last item: test that before comparing the whole suffix.
+			const Item* last_items = items_of(last);
+			if (last.len == n && last_items[n - 1] == it[n - 1] && std::equal(it, it + n - 1, last_items)) {
 				if (last.own < 0) {
 					last.own = static_cast<std::int64_t>(items.size());
-					items.insert(items.end(), last.items, last.items + n);
-					utils.insert(utils.end(), last.utils, last.utils + n);
+					append(last.items, last.utils, n);
 				}
 				Util* dst = utils.data() + last.own;
 				for (std::uint32_t i = 0; i < n; ++i) dst[i] += ut[i];
@@ -74,9 +76,23 @@ struct Level {
 			txs.push_back({it, ut, n, prefix, -1});
 		} else {
 			txs.push_back({nullptr, nullptr, n, prefix, static_cast<std::int64_t>(items.size())});
-			items.insert(items.end(), it, it + n);
-			utils.insert(utils.end(), ut, ut + n);
+			append(it, ut, n);
 		}
+	}
+
+	// Appends n items/utilities to the owned storage. resize() leaves the new elements
+	// uninitialised (HugeAllocator default-initialises), so this is a capacity check and two copies.
+	void append(const Item* it, const Util* ut, std::uint32_t n) {
+		const std::size_t at = items.size();
+		if (at + n > items.capacity()) {
+			const std::size_t cap = std::max<std::size_t>(2 * items.capacity(), at + n);
+			items.reserve(cap);
+			utils.reserve(cap);
+		}
+		items.resize(at + n);
+		utils.resize(at + n);
+		std::copy(it, it + n, items.data() + at);
+		std::copy(ut, ut + n, utils.data() + at);
 	}
 
 	// Turns owned offsets into pointers; call once every transaction has been added.

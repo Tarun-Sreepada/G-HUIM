@@ -8,6 +8,7 @@
 #include <spdlog/spdlog.h>
 
 #include <iostream>
+#include <stdexcept>
 #include <string>
 
 // "tab" and "space" are names for separators that are awkward to type in a shell.
@@ -40,6 +41,7 @@ int main(int argc, char** argv) {
 		output = legacy[1];
 		try {
 			min_util = std::stoll(legacy[2]);
+			if (min_util < 1) throw std::invalid_argument("minUtil must be >= 1");
 			if (legacy.size() > 3) sep = legacy[3];
 			if (legacy.size() > 4) threads = std::stoi(legacy[4]);
 		} catch (const std::exception&) {
@@ -51,7 +53,7 @@ int main(int argc, char** argv) {
 		app.add_option("-i,--input", input, "Input file (items:total:utilities per line)")
 			->required()
 			->check(CLI::ExistingFile);
-		app.add_option("-m,--minutil", min_util, "Minimum utility threshold")->required();
+		app.add_option("-m,--minutil", min_util, "Minimum utility threshold (>= 1)")->required()->check(CLI::PositiveNumber);
 		app.add_option("-o,--output", output, "Output file (omit or use /dev/null to only count patterns)");
 		app.add_option("--separator", sep, "Field separator: tab, space or a literal")->capture_default_str();
 		app.add_option("-t,--threads", threads, "Worker threads (0 = all hardware threads)")
