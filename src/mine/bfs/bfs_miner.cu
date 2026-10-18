@@ -367,7 +367,8 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          options_.index_min_trans,
                          options_.local_tail_items,
                          options_.local_tail_trans,
-                         options_.refine_rounds};
+                         options_.refine_rounds,
+                         !collect_};
     cudaEvent_t     start = nullptr, stop = nullptr;
     std::vector<std::pair<uint32_t, std::pair<cudaEvent_t, cudaEvent_t>>> timed;
     for (uint32_t cell = 0; cell < kCells; ++cell) {

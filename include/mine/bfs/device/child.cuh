@@ -14,6 +14,14 @@ __device__ inline bool index_child(const BatchView& b, const TaskState& state)
 // Child database
 // ---------------------------------------------------------------------------------------------
 
+// Whether child item z gets a next-level task. Nothing follows the last child item, so its task would
+// only find its itemset's utility, which is its subtree utility: with the leaf shortcut it is counted
+// here instead (allocate_child), and a child whose only extension is that item is never written.
+__device__ __forceinline__ bool emits(const BatchView& b, const Projection& p, uint32_t z, uint32_t child_items)
+{
+    return z < child_items && p.subtree[z] >= b.minimum_utility && !(b.leaf_shortcut && z + 1 == child_items);
+}
+
 // Counts the promising extensions; one thread then allocates the exact-size child database,
 // records the task's itemset, and reserves next-level slots. All threads of the group must call it.
 template <typename Group>
@@ -23,9 +31,11 @@ __device__ void allocate_child(const Group& g, const BatchView& b, const TaskVie
     uint32_t   primaries = 0;
     for (uint32_t z0 = 0; z0 < child_items; z0 += g.size()) {
         const uint32_t z = z0 + g.rank();
-        primaries += g.count(z < child_items && v.p.subtree[z] >= b.minimum_utility);
+        primaries += g.count(emits(b, v.p, z, child_items));
     }
     if (g.rank() == 0) {
+        if (b.leaf_shortcut && child_items != 0 && v.p.subtree[child_items - 1] >= b.minimum_utility)
+            add(b.control->patterns, 1ull);
         if (primaries != 0) {
             const bool indexed = index_child(b, state);
             const DbLayout child = DbLayout::of(state.child_trans, state.child_entries, child_items, b.tiled != 0, indexed);
@@ -227,7 +237,7 @@ __device__ void emit_children(const Group& g, const BatchView& b, const TaskView
     uint32_t         emitted = 0;
     for (uint32_t z0 = 0; z0 < child_items; z0 += g.size()) {
         const uint32_t z    = z0 + g.rank();
-        const bool     emit = z < child_items && v.p.subtree[z] >= b.minimum_utility;
+        const bool     emit = emits(b, v.p, z, child_items);
         const uint32_t scan = g.scan(emit);
         const uint32_t slot = state.reserved + emitted + scan - 1;
         if (emit && slot < b.next_capacity)

@@ -27,7 +27,7 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 // `group` is a ShapeTune::group value.
 const void* block_kernel(uint32_t group, bool tiled = false);
 const void* warp_kernel(uint32_t group, bool tiled = false);
-const void* subwarp_kernel(bool tiled = false);
+const void* subwarp_kernel(bool tiled = false, bool local_tail = false);
 const void* block_kernel_staged(bool warp_mode);
 // The pass kernels of a huge task, in launch order.
 void huge_kernels(const void* (&kernels)[kHugeKernels], uint32_t group, bool tiled = false);
