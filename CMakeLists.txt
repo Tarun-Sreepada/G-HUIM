@@ -96,26 +96,11 @@ target_include_directories(efim PRIVATE efim)
 target_link_libraries(efim PRIVATE Threads::Threads CLI11::CLI11 spdlog::spdlog)
 target_compile_options(efim PRIVATE -Wall -Wextra $<$<CONFIG:Release>:-O3 -march=native>)
 
-# efim build options: link-time optimisation, and profile-guided optimisation in two phases
-# (see efim/pgo.sh): -DEFIM_PGO=generate builds an instrumented binary, -DEFIM_PGO=use rebuilds
-# with the profile it wrote to EFIM_PGO_DIR.
+# efim build option: link-time optimisation.
 option(EFIM_LTO "Link-time optimisation for efim" ON)
-set(EFIM_PGO "off" CACHE STRING "Profile-guided optimisation for efim: off, generate or use")
-set_property(CACHE EFIM_PGO PROPERTY STRINGS off generate use)
-set(EFIM_PGO_DIR "${CMAKE_BINARY_DIR}/efim-profile" CACHE PATH "Where PGO profile data lives")
-if(CMAKE_BUILD_TYPE STREQUAL "Release")
-    if(EFIM_LTO)
-        target_compile_options(efim PRIVATE -flto=auto -fno-fat-lto-objects)
-        target_link_options(efim PRIVATE -flto=auto)
-    endif()
-    if(EFIM_PGO STREQUAL "generate")
-        # Workers are threads, so counters must be updated atomically.
-        target_compile_options(efim PRIVATE -fprofile-generate=${EFIM_PGO_DIR} -fprofile-update=atomic)
-        target_link_options(efim PRIVATE -fprofile-generate=${EFIM_PGO_DIR} -fprofile-update=atomic)
-    elseif(EFIM_PGO STREQUAL "use")
-        target_compile_options(efim PRIVATE -fprofile-use=${EFIM_PGO_DIR} -fprofile-correction -Wno-missing-profile)
-        target_link_options(efim PRIVATE -fprofile-use=${EFIM_PGO_DIR} -fprofile-correction)
-    endif()
+if(CMAKE_BUILD_TYPE STREQUAL "Release" AND EFIM_LTO)
+    target_compile_options(efim PRIVATE -flto=auto -fno-fat-lto-objects)
+    target_link_options(efim PRIVATE -flto=auto)
 endif()
 
 include(CTest)

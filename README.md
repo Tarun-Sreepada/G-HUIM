@@ -29,8 +29,7 @@ prints reader phase times and per-worker steal counts.
 Both miners only count patterns when output is omitted or set to `/dev/null`;
 a real output path enables itemset collection and writing.
 Items are stored in 16 bits and utilities in 32 bits, so `efim` stops with an error if more than 65535 items
-survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-1. `build/efim` is LTO-built;
-`efim/pgo.sh <dataset>` additionally builds a profile-guided `build-pgo/efim` (about 5% faster, slow to train).
+survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-1. `build/efim` is LTO-built.
 
 ## Run
 
@@ -247,7 +246,7 @@ src/mine/                 miner entry, itemset output, scan primitives
 include/                  headers mirroring src/
   mine/bfs/, mine/dfs/    per-engine layout, placement/scheduling, device code
   cuda/                   checked buffers, libcu++ atomics
-efim/                     CPU EFIM baseline (main.cpp, pgo.sh)
+efim/                     CPU EFIM baseline (main.cpp)
   io/                       dataset reader, itemset output
   mine/                     search: levels, scheduler, workers, SIMD projection
   sys/                      NUMA, allocator, threading helpers
