@@ -9,8 +9,9 @@ constexpr std::uint32_t kPrefetchTx = 12, kPrefetchData = 5;
 }  // namespace
 
 Worker::Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns,
-			   int refine)
+			   int refine, bool compact, double refine_min_drop, bool leaf)
 	: id(id), min_util(min_util), threads(threads), scheduler(scheduler), collect_patterns(collect_patterns), refine(refine),
+	  compact(compact), refine_min_drop(refine_min_drop), leaf(leaf),
 	  mark(num_items, -1), bound(num_items),
 	  slot(num_items, -1), filter(filter_kernel()),
 	  fused(std::string_view(simd_name()) == "scalar") {}
@@ -41,6 +42,7 @@ void Worker::select_extensions(Level& child, int depth) {
 	// transactions was ruled out, so their bounds still count utility no extension can use.
 	chosen.clear();
 	bool dropped = false;
+	const std::size_t candidates = touched.size();
 	for (const Item x : touched) {
 		const Bound bx = bound[x];
 		bound[x] = {};
@@ -56,7 +58,10 @@ void Worker::select_extensions(Level& child, int depth) {
 	for (const auto& [x, su] : chosen) first_primary += su >= min_util;
 	Bound* __restrict b = bound.data();
 	int rounds = 0;
-	while (dropped && !chosen.empty() && (refine < 0 || rounds < refine)) {
+	// A pass that dropped few items rarely makes a rescan pay for itself.
+	std::size_t last_drop = candidates - chosen.size();
+	const auto worth = [&] { return static_cast<double>(last_drop) >= refine_min_drop * static_cast<double>(chosen.size() + last_drop); };
+	while (dropped && !chosen.empty() && (refine < 0 || rounds < refine) && worth()) {
 		++rounds;
 		for (const auto& [x, su] : chosen) mark[x] = next;
 		for (const auto& t : child.txs) {
@@ -84,11 +89,17 @@ void Worker::select_extensions(Level& child, int depth) {
 			}
 			chosen[w++] = {x, bx.subtree};
 		}
+		last_drop = chosen.size() - w;
 		chosen.resize(w);
 	}
 	stats.refine_rounds += rounds;
 
 	std::sort(chosen.begin(), chosen.end());
+	if (compact && chosen.size() < candidates && !chosen.empty()) {
+		for (const auto& [x, su] : chosen) mark[x] = next;
+		compact_child(child, next);
+		for (const auto& [x, su] : chosen) mark[x] = restore;
+	}
 	for (const auto& [x, su] : chosen) {
 		child.secondary.push_back(x);
 		if (su >= min_util) child.primary.push_back(x);
@@ -98,6 +109,38 @@ void Worker::select_extensions(Level& child, int depth) {
 	stats.secondary += child.secondary.size();
 }
 
+void Worker::compact_child(Level& child, int depth) {
+	while (spare.size() <= static_cast<std::size_t>(depth)) spare.push_back(std::make_unique<Level>());
+	Level& out = *spare[depth];
+	out.clear();
+	++stats.compacted;
+	stats.compact_tx_in += child.txs.size();
+	for (const auto& t : child.txs) {
+		stats.compact_items_in += t.len;
+		if (new_key.size() < t.len) {
+			new_key.resize(2 * t.len);
+			new_val.resize(2 * t.len);
+		}
+		std::uint32_t kept = 0;
+		for (std::uint32_t i = 0; i < t.len; ++i) {
+			if (mark[t.items[i]] != depth) continue;
+			new_key[kept] = t.items[i];
+			new_val[kept++] = t.utils[i];
+		}
+		if (kept == 0) continue;
+		// An unchanged transaction stays a view of the old storage (an ancestor's, or child's own,
+		// which moves to spare[depth] below and so outlives it).
+		if (kept == t.len)
+			out.add(t.items, t.utils, kept, t.prefix, true);
+		else
+			out.add(new_key.data(), new_val.data(), kept, t.prefix, false);
+	}
+	out.finalize();
+	stats.compact_tx_out += out.txs.size();
+	for (const auto& t : out.txs) stats.compact_items_out += t.len;
+	std::swap(child, out);
+}
+
 Level& Worker::level_at(std::size_t depth) {
 	while (levels.size() <= depth) levels.push_back(std::make_unique<Level>());
 	return *levels[depth];
@@ -105,6 +148,27 @@ Level& Worker::level_at(std::size_t depth) {
 
 void Worker::expand(const Level& db, int depth, std::size_t k) {
 	const Item item = db.primary[k];
+	// Leaf: no extension of the prefix comes after `item` (the root keeps every item, the largest
+	// id last), so the projection would be empty and only the itemset's utility is needed.
+	const Item top = depth == 0 ? static_cast<Item>(bound.size() - 1) : db.secondary.back();
+	if (leaf && item >= top) {
+		Utility utility = 0;
+		for (std::uint32_t o = db.occ_begin[k]; o < db.occ_begin[k + 1]; ++o) {
+			const Transaction& t = db.txs[db.occ[o].tid];
+			utility += t.prefix + t.utils[db.occ[o].pos];
+		}
+		++stats.leaves;
+		if (utility >= min_util) {
+			++pattern_count;
+			if (collect_patterns) {
+				patterns.items.insert(patterns.items.end(), prefix_items.begin(), prefix_items.end());
+				patterns.items.push_back(item);
+				patterns.begin.push_back(patterns.items.size());
+				patterns.utils.push_back(utility);
+			}
+		}
+		return;
+	}
 	Level& child = level_at(depth + 1);
 	child.clear();
 	Utility utility = 0;
