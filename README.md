@@ -21,9 +21,9 @@ cmake --build build -j 4
 ```
 
 The GPU architecture is auto-detected (`native`, sm_80 or newer); pass
-`-DCMAKE_CUDA_ARCHITECTURES=...` to override it. The build produces `build/G-HUIM` (GPU miner) and `build/efim` (CPU baseline).
+`-DCMAKE_CUDA_ARCHITECTURES=...` to override it. The build produces `build/G-HUIM` (GPU miner) and `build/refim` (CPU miner, REFIM).
 
-CPU baseline usage: `build/efim -i data.txt -m <minutil> [-o out.txt] [-t 48]`. Workers are pinned and steal work
+REFIM (CPU) usage: `build/refim -i data.txt -m <minutil> [-o out.txt] [-t 48]`. Workers are pinned and steal work
 nearest-first; `-l debug` prints reader phase times and per-worker steal counts. Both miners share `-i/--input`,
 `-m/--minutil`, `-o/--output`, `-s/--separator` (default space), `-r/--refine`, `-l/--log-level` and `-L/--log-file`.
 CPU-only options:
@@ -42,8 +42,8 @@ CPU-only options:
 
 Both miners only count patterns when output is omitted or set to `/dev/null`;
 a real output path enables itemset collection and writing.
-Items are stored in 16 bits and utilities in 32 bits, so `efim` stops with an error if more than 65535 items
-survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-1. `build/efim` is LTO-built.
+Both miners store items in 32 bits and utilities in 64 bits (`refim` stops with an error if any item's total
+utility exceeds 2^63-1, G-HUIM if the database total exceeds 2^64-1). `build/refim` is LTO-built.
 
 ## Run
 
@@ -69,10 +69,10 @@ survive TWU pruning (raise minutil) or if any item's total utility exceeds 2^31-
 | `-D`, `--index-sparsity` | Index only databases with at most 1/this of their transaction-item pairs present (default 32; `0` = any) |
 | `-k`, `--local-tail-items` | BFS adaptive, count-only: process small subtrees locally when at most this many items remain (default 8, on wherever it applies; `0` = off; maximum 31) |
 | `-j`, `--local-tail-trans` | Maximum supporting transactions for local subtree processing, 1-32 (default 32) |
-| `-V`, `--vert-items`, `-X`, `--vert-trans` | BFS adaptive, count-only: a warp mines subtrees with at most `-V` remaining items (<= 32) and `-X` transactions (<= 1024, default 256) from per-item transaction bitmaps and utility columns, without projecting (default off). `-V 16 -X 64`: retail 0.31 -> 0.19 s, accidents -6%; dense data 2-5x slower (one warp walks a whole dense subtree) |
+| `-V`, `--vert-items`, `-X`, `--vert-trans` | BFS adaptive, count-only: a warp mines subtrees with at most `-V` remaining items (<= 32) and `-X` transactions (<= 1024, default 256) from per-item transaction bitmaps and utility columns, without projecting (default off; turned off with a warning when the total utility exceeds 2^32-1, since its columns are 32-bit). `-V 16 -X 64`: retail 0.31 -> 0.19 s, accidents -6%; dense data 2-5x slower (one warp walks a whole dense subtree) |
 | `-r`, `--refine` | Bound refinement: recompute each task's local utilities without the items it drops, this many rounds (default 1; `-1` = until none drops, `0` = off; huge tasks run at most 8). Same itemsets; fewer extensions on sparse data |
 | `-g`, `--total-memory` (`--memory`) | Device memory for projected databases (`K`/`M`/`G`); default uses the free memory |
-| `-C`, `--stack-capacity` | Most tasks one level may hold (BFS; default 128M) |
+| `-C`, `--stack-capacity` | Most tasks one level may hold (BFS; default: as many as device memory allows) |
 | `-o`, `--output` | Write itemsets as `items... UTIL u` (BFS only); without it they are only counted |
 | `-s`, `--separator` | Separator between items within each SPMF field (default space) |
 | `-l`, `--log-level`, `-L`, `--log-file` | Logging verbosity and optional log file |
@@ -138,8 +138,7 @@ tell the compute warps when a tile has landed and the IO warps when a slot is fr
 so a protocol bug ends the kernel with an error and does not hang the GPU. It applies to block-sized and
 huge tasks; smaller tasks run unstaged. From pass 2 on, only transactions that contain the extension
 item are copied. `--io-warps` sets how many IO warps a block gets and `--ring-kib` how much shared
-memory the ring has, which is also the prefetch depth. Since keys became 16-bit, an IO warp copies them
-with plain loads (`cp.async` needs 4 bytes), and `staged` is about twice as slow as before.
+memory the ring has, which is also the prefetch depth. Keys and utilities are copied with `cp.async`.
 
 **`tile`.** `adaptive` scheduling, but every database is stored in tiles of 32 transactions with the entries
 column-major: entry *k* of the 32 transactions of a tile is one contiguous row, so lanes that read the same
@@ -219,7 +218,7 @@ descendants completed locally. See [measurements and validation](experiments/gpu
 ## Recent optimizations
 
 Kernel time (BFS adaptive defaults, `-g 16G`) before and after the October 19 changes, best of one
-run each; every count matches efim:
+run each; every count matches REFIM:
 
 | Dataset (minutil) | Before | After |
 | --- | ---: | ---: |
@@ -234,7 +233,8 @@ run each; every count matches efim:
 
 In order of effect: local subtrees on by default in their own scheduling cell; occurrence indexes
 by default for large sparse databases (kosarak); the last child item counted without a task;
-packed-warp kernels on the smallest full-occupancy block; 16-bit entry keys; one backward sweep in
+packed-warp kernels on the smallest full-occupancy block; 16-bit entry keys (since widened back to 32-bit
+keys with 64-bit utilities); one backward sweep in
 pass 2; the root database uploaded without a host image and indexed on the GPU (setup 72 -> 15 ms on
 accidents); sparse input item ids compacted (ecommerce loading 16 s -> 0.05 s). CPU against GPU
 across all datasets: [cpu_gpu_sweep.md](experiments/cpu_gpu_sweep.md).
@@ -245,37 +245,50 @@ across all datasets: [cpu_gpu_sweep.md](experiments/cpu_gpu_sweep.md).
 python3 experiments/compare_counts.py datasets/accidents_utility_spmf.txt 3000000
 ```
 
-Runs `efim` and `G-HUIM` for all four search/method pairs (`--configs bfs-adaptive ...` to pick), and
-fails if any pattern count differs from EFIM's.
+Runs `refim` and `G-HUIM` for all four search/method pairs (`--configs bfs-adaptive ...` to pick), and
+fails if any pattern count differs from REFIM's.
 
 ## Source layout
 
+Two self-contained projects, each with its own `CMakeLists.txt`, `include/` (headers) and `src/`
+(sources). The root `CMakeLists.txt` only adds both; either also builds alone
+(`cmake -S REFIM -B build-refim`, `cmake -S G-HUIM -B build-ghuim`). Each program's `main` is a
+short list of named steps, and every step has its own small file.
+
 ```
-src/main.cpp              entry point
-src/app/                  configuration, CLI11 options, logging
-src/data/                 dataset loading: parallel parsing, TWU pruning, renaming, rebuild
-src/mine/                 miner entry, itemset output, scan primitives
-  bfs/                    level-synchronous miner
-    bfs_miner.cu            host driver (levels, chunks, memory budget)
-    small_kernels.cu        lane-group, warp and block kernels
-    huge_kernels.cu         multi-block kernels for very large tasks
-    schedule.cu             scratch sizes and binning
-    occupancy.cu            block-size selection from kernel occupancy
-    root_image.cu           root database in arena format
-  dfs/                    depth-first miner (own database layout, in namespace ghuim::dfs)
-    dfs_miner.cu            host driver (task stack, batches, deferrals)
-    schedule.cu, bins.cu    batch selection and binning
-    arena_gc.cu             arena compaction
-    baseline/               static method: one block per task
-    optimized/              adaptive method: size-binned kernels
-    root_image.cu           root database in arena format
-include/                  headers mirroring src/
-  mine/bfs/, mine/dfs/    per-engine layout, placement/scheduling, device code
-  cuda/                   checked buffers, libcu++ atomics
-efim/                     CPU EFIM baseline (main.cpp)
-  io/                       dataset reader, itemset output
-  mine/                     search: levels, scheduler, workers, SIMD projection
-  sys/                      NUMA, allocator, threading helpers
+G-HUIM/                   GPU miner -> build/G-HUIM
+  src/main.cpp              parse_command_line, start_cuda_context, load_data, mine_data, report_totals
+  src/app/                  configuration, CLI11 options, logging; steps/ holds the main() steps
+  src/data/                 dataset loading: parallel parsing, TWU pruning, renaming, rebuild
+  src/mine/                 miner entry, itemset output, scan primitives
+    bfs/                    level-synchronous miner
+      bfs_miner.cu            mine_bfs: build the miner, run it, write the itemsets
+      host/                   auto_tune, budget, itemsets; level_miner/ has one file per step
+                              (allocate, seed_first_level, plan_chunks, mine_chunk, mine_level, run)
+      small_kernels.cu        lane-group, warp and block kernels
+      huge_kernels.cu         multi-block kernels for very large tasks
+      schedule.cu             scratch sizes and binning
+      occupancy.cu            block-size selection from kernel occupancy
+      root_image.cu           root database in arena format
+    dfs/                    depth-first miner (own database layout, in namespace ghuim::dfs)
+      dfs_miner.cu            host driver (task stack, batches, deferrals)
+      schedule.cu, bins.cu    batch selection and binning
+      arena_gc.cu             arena compaction
+      baseline/               static method: one block per task
+      optimized/              adaptive method: size-binned kernels
+      root_image.cu           root database in arena format
+  include/                  headers mirroring src/
+    mine/bfs/, mine/dfs/    per-engine layout, placement/scheduling, device code
+    mine/bfs/device/        staging/ (cp.async ring) and tile/ (tile method) are split by stage
+    cuda/                   checked buffers, libcu++ atomics
+REFIM/                    CPU miner -> build/refim
+  src/main.cpp              parse_command_line, init_logging, run
+  src/app/                  options, logging, run (read, configure, mine, save)
+  src/io/                   reader.cpp calls the steps in io/reader/ (read file, parse, rank items,
+                            rename, concatenate, sort, build root); itemset output
+  src/mine/                 search: refim.cpp, simd.cpp; worker/ has one file per step of expand
+  src/sys/                  NUMA, allocator
+  include/                  headers mirroring src/
 experiments/              benchmark, comparison and plotting scripts
 ```
 
