@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import csv
 from pathlib import Path
@@ -108,7 +109,7 @@ def run_iteration_times(
     adaptive: bool = False,
     block_size: int | None = None,
     total_memory: str = "78G",
-    method: str = "SP",
+    method: str = "adaptive",
 ) -> Dict[int, Tuple[float, int]]:
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
@@ -118,18 +119,14 @@ def run_iteration_times(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
 
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
 
     result = subprocess.run(
         cmd,
@@ -141,6 +138,7 @@ def run_iteration_times(
 
     times: Dict[int, Tuple[float, int]] = {}
     for line in result.stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             parts = line.split()
             it = int(parts[1])
@@ -316,7 +314,7 @@ def run_iteration_times(
     adaptive: bool = False,
     block_size: int | None = None,
     total_memory: str = "78G",
-    method: str = "SP",
+    method: str = "adaptive",
 ) -> Dict[int, Tuple[float, int]]:
     """Run G-HUIM once and return iteration → (time_ms, gpu_mem_mb) mapping."""
 
@@ -326,18 +324,14 @@ def run_iteration_times(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
 
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
 
     result = subprocess.run(
         cmd,
@@ -349,6 +343,7 @@ def run_iteration_times(
 
     times: Dict[int, Tuple[float, int]] = {}
     for line in result.stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             parts = line.split()
             it = int(parts[1])
@@ -483,7 +478,7 @@ def plot_for_configs(
     minutil: int,
     block_sizes: List[int],
     total_memory: str = "60G",
-    method: str = "SP",
+    method: str = "adaptive",
     include_legend: bool = False,
 ) -> None:
     """

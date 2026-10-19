@@ -1,0 +1,73 @@
+#pragma once
+// Launchers and kernel handles of the BFS miner. Each launcher processes tasks order[0..count) of
+// the chunk on `stream`.
+
+#include "mine/bfs/device/task_view.cuh"
+#include "mine/bfs/placement.cuh"
+
+#include <cuda_runtime.h>
+
+namespace ghuim::bfs {
+
+// Bin 0: one task per warp, packed into blocks of tune.packed_block_warps warps.
+void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune,
+                       cudaStream_t stream);
+// Bins 1..kOptHugeBin-1: one block of (32 << bin) threads per task.
+void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t bin, const AutoTune& tune,
+                        cudaStream_t stream);
+// Sub-warp bins: `group` lanes (a power of two <= 32) per task; `local_tail`: every task is a local
+// subtree (local_tail_task).
+void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t group, bool local_tail,
+                          const AutoTune& tune, cudaStream_t stream);
+// Vertical cell: a warp mines each task's whole subtree (vertical_kernels.cu).
+void launch_vertical_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune,
+                           cudaStream_t stream);
+// Vertical subtrees: slots per column.
+inline uint32_t vertical_slots(const AutoTune& tune)
+{
+    return (tune.vert_trans + 31) / 32 * 32;
+}
+// Vertical subtrees: scratch words per warp for `slots` slots per column.
+inline uint64_t vertical_warp_words(uint32_t slots)
+{
+    return (2 * uint64_t{kMaxVertItems} + 1 + kMaxVertItems + 1) * slots;
+}
+// Huge bin: each task is sliced over up to max_slices blocks, one launch per pass.
+void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, uint32_t max_slices,
+                       const AutoTune& tune, cudaStream_t stream);
+
+// Kernel handles for occupancy queries from another translation unit.
+const void* block_kernel(bool tiled = false);
+const void* warp_kernel(bool tiled = false);
+const void* subwarp_kernel(bool tiled = false, bool local_tail = false);
+const void* block_kernel_staged();
+// The pass kernels of a huge task, in launch order.
+void huge_kernels(const void* (&kernels)[kHugeKernels], bool tiled = false);
+// The extra kernels of a huge task in the tile method (class starts, slot assignment).
+constexpr uint32_t kTileHugeKernels = 2;
+void tile_huge_kernels(const void* (&kernels)[kTileHugeKernels]);
+void huge_kernels_staged(const void* (&kernels)[kHugeKernels]);
+void prepare_staged_block_kernel(uint32_t dynamic_bytes);
+// Raises the dynamic shared-memory limit of the staged kernels; call before querying occupancy or launching.
+void prepare_staged_kernels(uint32_t dynamic_bytes);
+
+// Fills the block-size fields of `tune` for a device with `sms` multiprocessors from kernel occupancy.
+void measure_occupancy(AutoTune& tune, uint32_t sms);
+
+// Scheduling kernels of a chunk [begin, end) of the level.
+// Return a bounded page of boundaries instead of downloading a whole level's scratch prefix.
+constexpr uint32_t kChunkPlanPage = 256;
+struct ChunkPlan
+{
+    uint32_t count;
+    uint32_t oversized;
+    uint32_t cuts[kChunkPlanPage + 1];
+    uint64_t bases[kChunkPlanPage];
+};
+void launch_plan_chunks(const uint64_t* prefix, uint32_t begin, uint32_t count, uint32_t max_tasks,
+                        uint64_t scratch_capacity, ChunkPlan* plan, cudaStream_t stream);
+void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, bool tiled, cudaStream_t stream);
+void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, uint32_t* order,
+                      const AutoTune& tune, cudaStream_t stream);
+
+} // namespace ghuim::bfs

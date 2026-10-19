@@ -1,4 +1,5 @@
 import os
+import re
 import subprocess
 import csv
 from pathlib import Path
@@ -57,7 +58,7 @@ def run_and_parse_detailed(
     input_file: str,
     minutil: int,
     total_memory: str = "60G",
-    method: str = "SP",
+    method: str = "adaptive",
     adaptive: bool = True,
     block_size: int | None = None,
 ) -> pd.DataFrame:
@@ -70,17 +71,13 @@ def run_and_parse_detailed(
         input_file,
         "--minutil",
         str(minutil),
-        "--method",
-        method,
         "--total_memory",
         total_memory,
         "--output",
         "/dev/null",
+        "--log-level",
+        "debug",
     ]
-    if adaptive:
-        cmd += ["--adaptive", "true"]
-    else:
-        cmd += ["--adaptive", "false", "--block_size", str(block_size)]
 
     print(f"Executing: {' '.join(cmd)}")
     try:
@@ -99,6 +96,7 @@ def run_and_parse_detailed(
 
     parsed_rows = []
     for line in stdout.splitlines():
+        line = re.sub(r"^\[[^]]+\]\s*", "", line)
         if line.strip().startswith("Iteration"):
             line_stripped = line.strip()
             list_start_index = line_stripped.find("[")

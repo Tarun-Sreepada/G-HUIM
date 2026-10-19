@@ -91,48 +91,15 @@ def has_run_before(
 
 
 def parse_metrics_cu(output: str) -> Tuple[float, float, float, float, int]:
-    """Extract metrics from G-HUIM stdout."""
-    metrics = {
-        "read": 0,
-        "twu": 0,
-        "parse_temp": 0,
-        "build": 0,
-        "mining": 0,
-        "patterns": 0,
-    }
-    iteration_total_ms = 0
-
-    for line in output.splitlines():
-        if not line.strip():
-            continue
-        parts = [p.strip() for p in line.split()]
-        try:
-            if "Read" in line:
-                metrics["read"] = int(parts[2])
-            elif "CalcTWU" in line:
-                metrics["twu"] = int(parts[1])
-            elif "Parse" in line:
-                metrics["parse_temp"] = int(parts[1])
-            elif "Build" in line:
-                metrics["build"] = int(parts[1])
-            elif "Mining Completed" in line:
-                metrics["mining"] = int(parts[2])
-            elif "Iteration" in line:
-                iteration_total_ms += int(parts[2])
-            elif "Number of patterns:" in line:
-                metrics["patterns"] = int(parts[-1])
-        except (IndexError, ValueError) as e:
-            logging.warning(f"Could not parse line '{line}': {e}")
-
-    parse_time = metrics["read"] + metrics["parse_temp"]
-    search_time = iteration_total_ms + metrics["mining"]
-    return (
-        parse_time,
-        metrics["twu"],
-        metrics["build"],
-        search_time,
-        metrics["patterns"],
-    )
+    """Extract (parse, twu, build, search) milliseconds and the pattern count from G-HUIM's log."""
+    loaded = re.search(r"first-level tasks \(([\d.]+) s\)", output)
+    kernels = re.search(r"kernels ([\d.]+) s", output)
+    patterns = re.search(r"Number of patterns: (\d+)", output)
+    if not (loaded and kernels and patterns):
+        logging.warning("Could not parse G-HUIM output")
+        return 0, 0, 0, 0, 0
+    # Loading (parse, TWU and database build) is one stage now; report it as parse time.
+    return float(loaded.group(1)) * 1000, 0, 0, float(kernels.group(1)) * 1000, int(patterns.group(1))
 
 
 def parse_metrics_dphim(output: str) -> Tuple[float, float, float, float, int]:
@@ -183,12 +150,14 @@ def parse_metrics_pha(output: str) -> Tuple[float, float, float, float, int]:
 
 def run_experiment(cmd: List[str], parser_func, repeats: int) -> Dict:
     """A generic function to run a command multiple times and return the best result."""
+    if parser_func is parse_metrics_cu and "--log-level" not in cmd:
+        cmd = [*cmd, "--log-level", "debug"]
     best_run = None
     for i in range(repeats):
         logging.info(f"Run {i + 1}/{repeats}: {' '.join(cmd)}")
         try:
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            p, t, b, s, patterns = parser_func(proc.stdout)
+            p, t, b, s, patterns = parser_func(proc.stdout + "\n" + proc.stderr)
             total_time = p + t + b + s
 
             if best_run is None or total_time < best_run["Total_Time"]:
@@ -212,13 +181,12 @@ def run_all_experiments(
     """Main function to orchestrate all algorithm benchmarks."""
     df = load_results(csv_path)
 
-    block_sizes = [32, 64, 128, 256, 512, 1024]
 
     for file_path, min_utils in process_data:
         base_name = os.path.splitext(os.path.basename(file_path))[0]
         for min_util in min_utils:
 
-            method_label = "SP_adaptive"
+            method_label = "bfs"
             if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
                 cmd = [
                     GHUIM_BIN,
@@ -226,10 +194,6 @@ def run_all_experiments(
                     file_path,
                     "--minutil",
                     str(min_util),
-                    "--method",
-                    "SP",
-                    "--adaptive",
-                    "true",
                     "--total_memory",
                     gpu_memory,
                     "--output",
@@ -245,39 +209,6 @@ def run_all_experiments(
                         **best_run,
                     }
                     df = update_results(df, entry, csv_path)
-
-            for block_size in block_sizes:
-                method_label = f"SP_fixed_{block_size}"
-                if not has_run_before(df, "G-HUIM", method_label, base_name, min_util):
-                    cmd = [
-                        GHUIM_BIN,
-                        "--input",
-                        file_path,
-                        "--minutil",
-                        str(min_util),
-                        "--method",
-                        "SP",
-                        "--adaptive",
-                        "false",
-                        "--pattern_memory",
-                        "2G",
-                        "--block_size",
-                        str(block_size),
-                        "--total_memory",
-                        gpu_memory,
-                        "--output",
-                        "/dev/null",
-                    ]
-                    best_run = run_experiment(cmd, parse_metrics_cu, repeats)
-                    if best_run:
-                        entry = {
-                            "Algorithm": "G-HUIM",
-                            "Method": method_label,
-                            "File": base_name,
-                            "Minimum_Utility": min_util,
-                            **best_run,
-                        }
-                        df = update_results(df, entry, csv_path)
 
             method_label = "DPHIM_dphim"
             if not has_run_before(df, "DPHIM", method_label, base_name, min_util):
