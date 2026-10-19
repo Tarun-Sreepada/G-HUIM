@@ -28,27 +28,65 @@ auto-detected; override with `-DCMAKE_CUDA_ARCHITECTURES=...`.
 
 ---
 
-## Run
+## REFIM (CPU)
+
+Multi-threaded CPU miner (refined EFIM). Workers are pinned to cores and steal work nearest-first.
+
+```bash
+./build/refim -h
+./build/refim -i datasets/accidents_utility_spmf.txt -m 3000000 -t 0              # count only, all cores
+./build/refim -i datasets/accidents_utility_spmf.txt -m 3000000 -t 16 -o out.txt  # write itemsets
+```
+
+| Option | Meaning |
+| --- | --- |
+| `-i`, `--input`, `-m`, `--minutil` | SPMF dataset and minimum utility (required) |
+| `-o`, `--output` | Write itemsets; omit (or `/dev/null`) to only count |
+| `-t`, `--threads` | Worker threads (default 1, `0` = all) |
+| `-n`, `--numa` | `on` (default): pin workers and place memory per NUMA node |
+| `-v`, `--simd` | `auto` (default), `avx512` or `scalar` |
+| `-p`, `--thp` | Transparent huge pages: `auto` (default), `on` or `off` |
+| `-r`, `--refine` | Rounds of re-bounding each child without the items it rules out (`-1` = until none, `0` = off) |
+| `-s`, `--separator`, `-l`, `--log-level`, `-L`, `--log-file` | Field separator (default space), logging |
+
+`-l debug` prints reader phase times and per-worker steal counts.
+
+---
+
+## G-HUIM (GPU)
 
 ```bash
 ./build/G-HUIM -h
-./build/G-HUIM --input datasets/accidents_utility_spmf.txt --minutil 3000000 --output results.txt
-./build/refim  --input datasets/accidents_utility_spmf.txt --minutil 3000000 --threads 0
+./build/G-HUIM -i datasets/accidents_utility_spmf.txt -m 3000000                  # count only
+./build/G-HUIM -i datasets/accidents_utility_spmf.txt -m 3000000 -o results.txt   # write itemsets (BFS)
+./build/G-HUIM -i datasets/accidents_utility_spmf.txt -m 3000000 -e dfs -M static -b 128
 ```
 
-| G-HUIM option | Meaning |
+| Option | Meaning |
 | --- | --- |
 | `-i`, `--input`, `-m`, `--minutil` | SPMF dataset and minimum utility (required) |
-| `-e`, `--search` | `bfs` (default) or `dfs` |
+| `-e`, `--search` | `bfs` (default, level by level) or `dfs` (task stack) |
 | `-M`, `--method` | `adaptive` (default), `static`, `staged` or `tile` (last two BFS only) |
 | `-b`, `--block-size` | Threads per task for `static` (32-1024, default 256) |
 | `-g`, `--total-memory` | Device memory for projected databases (`K`/`M`/`G`); default uses free memory |
 | `-C`, `--stack-capacity` | Most tasks one level may hold (BFS); default derived from device memory |
 | `-o`, `--output` | Write itemsets (BFS only); without it they are only counted |
+| `-s`, `--separator`, `-r`, `--refine`, `-l`, `--log-level`, `-L`, `--log-file` | Separator, bound refinement rounds, logging |
 
-Both miners also take `-s/--separator`, `-r/--refine`, `-l/--log-level` and `-L/--log-file`. REFIM adds
-`-t/--threads` (`0` = all), `-n/--numa`, `-v/--simd` and `-p/--thp`. See `--help` for the rest.
+How it works:
+
+- **Task** = a prefix itemset plus one extension item, with its projected database stored in a GPU memory arena.
+- **BFS** runs every task of a level before the next level; **DFS** pops tasks from a stack.
+- Each task makes passes over its transactions: local utilities, pruning by `--minutil` and renaming, writing the child database (identical transactions merged), and emitting child tasks.
+- **`adaptive`** bins tasks by size and gives each bin its own kernel on its own stream (lane groups, a warp, a block, or many blocks per task). **`static`** gives every task one fixed-size block.
+- Small subtrees can be finished inside a lane group without allocating child databases, and large sparse databases get occurrence indexes.
+- Memory is planned from free device memory and your `--total-memory` / `--stack-capacity`; no fixed task cap.
+
 Method details, tuning options and measurements: [experiments/methods_and_speeds.md](experiments/methods_and_speeds.md).
+
+---
+
+## Verify
 
 Check results against the CPU baseline (all search/method pairs must match REFIM's count):
 
