@@ -82,8 +82,6 @@ How it works:
 - Small subtrees can be finished inside a lane group without allocating child databases, and large sparse databases get occurrence indexes.
 - Memory is planned from free device memory and your `--total-memory` / `--stack-capacity`; no fixed task cap.
 
-Method details, tuning options and measurements: [experiments/methods_and_speeds.md](experiments/methods_and_speeds.md).
-
 ---
 
 ## Verify
@@ -93,6 +91,46 @@ Check results against the CPU baseline (all search/method pairs must match REFIM
 ```bash
 python3 experiments/compare_counts.py datasets/accidents_utility_spmf.txt 3000000
 ```
+
+---
+
+## Experiments
+
+`experiments/sweep.py` runs REFIM and G-HUIM one after another (so energy is not shared) over a minutil ladder per
+dataset, 2 repetitions each, and writes `experiments/results/sweep.csv`. `experiments/plot_sweep.py` plots it.
+
+```bash
+python3 experiments/sweep.py                 # all datasets, ~30 min; --only chess,connect for a subset
+python3 experiments/plot_sweep.py
+```
+
+Measured per run: miner runtime, itemset count, host peak RSS (G-HUIM also device arena + scratch), and energy
+(CPU package energy via `perf stat`, plus GPU board energy for G-HUIM). A G-HUIM run that fails (BFS arena exhausted)
+is plotted as a red cross, "didn't run".
+
+| Runtime | Itemsets |
+| --- | --- |
+| [![runtime](experiments/plots/sweep/runtime.png)](experiments/plots/sweep/runtime.png) | [![patterns](experiments/plots/sweep/patterns.png)](experiments/plots/sweep/patterns.png) |
+| **Memory** | **Energy** |
+| [![memory](experiments/plots/sweep/memory.png)](experiments/plots/sweep/memory.png) | [![energy](experiments/plots/sweep/energy.png)](experiments/plots/sweep/energy.png) |
+
+Recommended starting values (lowest minutil, then step up); each puts one miner at roughly 1-5 s on an H100 + 48-core host:
+
+| Dataset | Start minutil | Step |
+| --- | --- | --- |
+| chess | 120000 | 10000 |
+| connect | 5200000 | 10000 |
+| accidents | 1500000 | 10000 |
+| mushroom | 1500 | 100 |
+| ecommerce | 150000 | 10000 |
+| pumsb | 9200000 | 10000 |
+| kosarak | 650000 | 10000 |
+| chainstore | 90000 | 1000 |
+| BMS | 1990000 | 10000 |
+
+Notes: the default BFS runs out of arena memory on deep datasets at lower minutils (retail below ~1450, BMS below
+~1.99M, chainstore at 70000), and REFIM needs 30 s+ there; REFIM cannot read `fruithut_utility.txt` (`@ITEM` headers).
+Energy readings include other users' load on a shared host.
 
 ---
 
@@ -120,6 +158,6 @@ find G-HUIM REFIM -type f \( -name '*.hpp' -o -name '*.cuh' -o -name '*.cpp' -o 
 
 ## Datasets
 
-SPMF utility datasets (e.g. `accidents_utility_spmf.txt`) go in `datasets/`; `datasets/download_datasets.sh`
-fetches them. Each line is a transaction: items, total utility, then item utilities.
-https://www.philippe-fournier-viger.com/spmf/index.php?link=datasets.php
+Download the SPMF utility datasets (e.g. `accidents_utility_spmf.txt`) from
+https://www.philippe-fournier-viger.com/spmf/index.php?link=datasets.php and put them in `datasets/`.
+Each line is a transaction: items, total utility, then item utilities.
