@@ -1,7 +1,7 @@
 """Check G-HUIM against EFIM by number of high-utility patterns.
 
     uv run experiments/compare_counts.py datasets/accidents_utility_spmf.txt 3900000
-Runs build/efim once and build/G-HUIM for each search/method pair, prints counts and wall times,
+Runs build/refim once and build/G-HUIM for each search/method pair, prints counts and wall times,
 and exits non-zero if any count differs from EFIM's.
 """
 
@@ -38,12 +38,12 @@ def main():
 
     if args.efim_count is None:
         reference, seconds, error = run(
-            [ROOT / "build/efim", args.dataset, "/dev/null", str(args.minutil), "space", str(args.efim_threads)],
+            [ROOT / "build/refim", args.dataset, "/dev/null", str(args.minutil), "space", str(args.efim_threads)],
             r"Total number of High Utility Patterns: (\d+)",
         )
         if reference is None:
             sys.exit(f"efim failed: {error}")
-        print(f"{'efim':<20} {reference:>12} {seconds:8.2f} s")
+        print(f"{'refim':<20} {reference:>12} {seconds:8.2f} s")
     else:
         reference = args.efim_count
 
