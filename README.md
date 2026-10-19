@@ -134,6 +134,52 @@ Energy readings include other users' load on a shared host.
 
 ---
 
+## Microbenchmarks
+
+`microbenchmark/` has 13 small CUDA programs, one folder each (`NN_name/main.cu`), that check individual G-HUIM
+design choices in isolation. Each prints CSV with an `ok` column (all variants must compute the same result);
+a full run takes about 90 s on an H100, most of it the device-`malloc` runs in 12.
+
+```bash
+microbenchmark/run_all.sh            # build + run all; results/NN_name.csv   (or: run_all.sh 03 07)
+.venv/bin/python microbenchmark/plot_all.py   # plots/NN_name.png
+```
+
+`run_all.sh` builds with `nvcc -arch=sm_90` (`ARCH=sm_80` etc. to change), uses `CUDA_VISIBLE_DEVICES=0` unless set,
+and wraps each program in `timeout` (`LIMIT`, default 60 s). Shared helpers are in `microbenchmark/common/bench.cuh`.
+`thread_usage.cu` is the older block-size vs `__syncthreads` benchmark.
+
+| # | Question | Result on H100 PCIe |
+| --- | --- | --- |
+| 01 | Does the warp-wide tile layout coalesce? | Tiled (stride 8-32) scans at ~1.7 TB/s; contiguous falls to 450 GB/s at length 2048 |
+| 02 | Best item search in a sorted transaction | Thread binary search wins from 16 queries/tx; warp two-level wins at 1 query; linear scan loses fast with length |
+| 03 | Cost of the `rename[]` gather | ~145 Glookups/s while the table fits cache, 27 at 64 MB; copying a 128 KB table to shared memory per block is 3x slower than global |
+| 04 | `cp.async` ring depth | Depth 3 reaches 1.75 TB/s vs 0.47 TB/s direct; depth 4 adds nothing |
+| 05 | When is staging worth it | `cp.async` staging wins at every reuse level (up to ~2x); plain staging only at reuse 8-16 |
+| 06 | Thread, warp or block per transaction | Thread wins at length 8, warp from ~64 (6x at 4096), block never |
+| 07 | Occupancy vs block size and shared memory | Latency-bound kernel slows as shared memory cuts resident blocks (occupancy API shown alongside) |
+| 08 | Scheduling skewed (Zipf) task sizes | Persistent blocks beat block-per-task at low skew; warp queues are ~4x worse at high skew; largest-first barely helps |
+| 09 | Utility accumulation under contention | Shared-memory counters 10-100x faster than global atomics up to 4096 counters |
+| 10 | Output append | Block-scan append 4-5x faster than per-item atomics from 5% density; warp aggregation adds nothing over the compiler's own |
+| 11 | Copy / compute overlap | 2+ streams overlap well (combined time ~ copy time); one stream serialises |
+| 12 | Allocator | Bump arena ~10^4 x faster than device `malloc` |
+| 13 | Tensor-core equality (`[k\|~k]` AND+popc) | ~10% slower than plain 64-bit compares, so not worth it for lookups |
+
+
+| | |
+| --- | --- |
+| **Tiled vs contiguous layout**<br>[![01_tiled_layout](microbenchmark/plots/01_tiled_layout.png)](microbenchmark/plots/01_tiled_layout.png) | **Item search in a transaction**<br>[![02_search_methods](microbenchmark/plots/02_search_methods.png)](microbenchmark/plots/02_search_methods.png) |
+| **`rename[]` gather**<br>[![03_rename_gather](microbenchmark/plots/03_rename_gather.png)](microbenchmark/plots/03_rename_gather.png) | **`cp.async` ring depth**<br>[![04_cp_async_ring](microbenchmark/plots/04_cp_async_ring.png)](microbenchmark/plots/04_cp_async_ring.png) |
+| **Staging vs direct reads**<br>[![05_staging_reuse](microbenchmark/plots/05_staging_reuse.png)](microbenchmark/plots/05_staging_reuse.png) | **Thread / warp / block per transaction**<br>[![06_thread_warp_block](microbenchmark/plots/06_thread_warp_block.png)](microbenchmark/plots/06_thread_warp_block.png) |
+| **Occupancy**<br>[![07_occupancy](microbenchmark/plots/07_occupancy.png)](microbenchmark/plots/07_occupancy.png) | **Scheduling skewed tasks**<br>[![08_load_imbalance](microbenchmark/plots/08_load_imbalance.png)](microbenchmark/plots/08_load_imbalance.png) |
+| **Utility accumulation**<br>[![09_utility_accum](microbenchmark/plots/09_utility_accum.png)](microbenchmark/plots/09_utility_accum.png) | **Output append**<br>[![10_output_append](microbenchmark/plots/10_output_append.png)](microbenchmark/plots/10_output_append.png) |
+| **Copy / compute overlap**<br>[![11_stream_overlap](microbenchmark/plots/11_stream_overlap.png)](microbenchmark/plots/11_stream_overlap.png) | **Device malloc vs bump arena**<br>[![12_arena_alloc](microbenchmark/plots/12_arena_alloc.png)](microbenchmark/plots/12_arena_alloc.png) |
+| **Tensor-core equality**<br>[![13_bmma_equality](microbenchmark/plots/13_bmma_equality.png)](microbenchmark/plots/13_bmma_equality.png) |  |
+
+Numbers are single runs on a shared GPU, so gaps of a few percent are noise.
+
+---
+
 ## Layout
 
 Two self-contained projects, each with its own `CMakeLists.txt`, `include/` and `src/`. Drivers are short
@@ -143,6 +189,7 @@ lists of named steps, one small file per step.
 G-HUIM/   GPU miner: src/app (CLI, main steps), src/data (loading), src/mine/{bfs,dfs} (engines)
 REFIM/    CPU miner: src/app (options, run), src/io (reader steps), src/mine (search, workers), src/sys
 experiments/   benchmark, comparison and plotting scripts
+microbenchmark/   13 single-purpose CUDA micro-benchmarks with a runner and plot script
 ```
 
 ---
