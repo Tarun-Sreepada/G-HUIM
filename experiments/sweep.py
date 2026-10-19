@@ -34,7 +34,7 @@ SWEEP = {
     "mushroom_utility_spmf.txt": ladder(10, 10, 6),
     "ecommerce_utility_no_timestamps.txt": ladder(50_000, 10_000),
     "pumsb_utility_spmf.txt": ladder(8_800_000, 100_000),
-    "kosarak_utility_spmf.txt": ladder(640_000, 10_000),
+    "kosarak_utility_spmf.txt": ladder(640_000, 1_000),
     "chainstore.txt": ladder(71_000, 1_000),
     "BMS_utility_spmf.txt": ladder(1_989_000, 1_000),
 }
