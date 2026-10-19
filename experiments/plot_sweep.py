@@ -35,6 +35,8 @@ def panel(ax, data, metric):
             ax.plot(ok.index, ok[metric], "o-", color=COLORS[miner], label=miner)
         failed[miner] = g[g.status != "ok"].minutil.unique()
     ax.set_yscale("log")
+    # log axis can't reach 0: start at 10^0 = 1 (lower only if data dips below, e.g. sub-second runtimes)
+    ax.set_ylim(bottom=min(1, ax.dataLim.y0 * 0.8))
     for miner, xs in failed.items():
         if len(xs):
             ax.plot(xs, [ax.get_ylim()[0]] * len(xs), "x", color="red", ms=9, mew=2, label=f"{miner} didn't run", clip_on=False)
