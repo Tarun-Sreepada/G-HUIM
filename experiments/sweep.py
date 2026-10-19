@@ -26,17 +26,17 @@ def ladder(start, step, points=5):
     return [start + step * i for i in range(points)]
 
 
-# Each ladder starts at a minutil where one of the miners runs 1-5 s, then steps up.
+# Each ladder starts at a low minutil (long runs) and steps up.
 SWEEP = {
-    "chess_utility_spmf.txt": ladder(120_000, 10_000),
-    "connect_utility_spmf.txt": ladder(5_200_000, 10_000),
-    "accidents_utility_spmf.txt": ladder(1_500_000, 10_000),
-    "mushroom_utility_spmf.txt": ladder(1_500, 100),
-    "ecommerce_utility_no_timestamps.txt": ladder(150_000, 10_000),
-    "pumsb_utility_spmf.txt": ladder(9_200_000, 10_000),
-    "kosarak_utility_spmf.txt": ladder(650_000, 10_000),
-    "chainstore.txt": ladder(90_000, 1_000),
-    "BMS_utility_spmf.txt": ladder(1_990_000, 10_000),
+    "chess_utility_spmf.txt": ladder(50_000, 10_000, 6),
+    "connect_utility_spmf.txt": ladder(3_000_000, 500_000),
+    "accidents_utility_spmf.txt": ladder(900_000, 100_000),
+    "mushroom_utility_spmf.txt": ladder(10, 10, 6),
+    "ecommerce_utility_no_timestamps.txt": ladder(50_000, 10_000),
+    "pumsb_utility_spmf.txt": ladder(8_800_000, 100_000),
+    "kosarak_utility_spmf.txt": ladder(640_000, 10_000),
+    "chainstore.txt": ladder(71_000, 1_000),
+    "BMS_utility_spmf.txt": ladder(1_989_000, 1_000),
 }
 
 PATTERNS = {

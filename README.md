@@ -158,6 +158,7 @@ find G-HUIM REFIM -type f \( -name '*.hpp' -o -name '*.cuh' -o -name '*.cpp' -o 
 
 ## Datasets
 
-Download the SPMF utility datasets (e.g. `accidents_utility_spmf.txt`) from
-https://www.philippe-fournier-viger.com/spmf/index.php?link=datasets.php and put them in `datasets/`.
+`python3 experiments/download_datasets.py` fetches the SPMF utility datasets into `datasets/` (`--only chess,connect`
+for a subset, `--all` for extras). They come from
+https://www.philippe-fournier-viger.com/spmf/index.php?link=datasets.php.
 Each line is a transaction: items, total utility, then item utilities.
