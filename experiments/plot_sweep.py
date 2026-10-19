@@ -5,6 +5,7 @@ A G-HUIM run that failed (e.g. BFS arena exhausted) is drawn as a red cross on t
 """
 
 import argparse
+import math
 from pathlib import Path
 
 import matplotlib
@@ -35,8 +36,8 @@ def panel(ax, data, metric):
             ax.plot(ok.index, ok[metric], "o-", color=COLORS[miner], label=miner)
         failed[miner] = g[g.status != "ok"].minutil.unique()
     ax.set_yscale("log")
-    # log axis can't reach 0: start at 10^0 = 1 (lower only if data dips below, e.g. sub-second runtimes)
-    ax.set_ylim(bottom=min(1, ax.dataLim.y0 * 0.8))
+    # log axis can't reach 0: floor at the decade below the smallest data point (min 10^0 = 1)
+    ax.set_ylim(bottom=10 ** min(0, math.floor(math.log10(ax.dataLim.y0))))
     for miner, xs in failed.items():
         if len(xs):
             ax.plot(xs, [ax.get_ylim()[0]] * len(xs), "x", color="red", ms=9, mew=2, label=f"{miner} didn't run", clip_on=False)
