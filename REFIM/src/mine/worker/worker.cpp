@@ -12,7 +12,7 @@ Worker::Worker(int id, std::size_t num_items, std::uint64_t min_util, int thread
 	: id(id), min_util(min_util), threads(threads), scheduler(scheduler), collect_patterns(collect_patterns), refine(refine),
 	  compact(compact), refine_min_drop(refine_min_drop), leaf(leaf),
 	  mark(num_items, -1), bound(num_items),
-	  slot(num_items, -1), filter(filter_kernel()),
+	  slot(num_items, -1), filter(filter_kernel()), keep_table(needs_keep_table()),
 	  fused(std::string_view(simd_name()) == "scalar") {}
 
 void Worker::run() {

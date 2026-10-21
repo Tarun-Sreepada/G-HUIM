@@ -10,6 +10,10 @@ Util Worker::project_child(const Level& db, int depth, std::size_t k, Level& chi
 	child.clear();
 	Util utility = 0;
 	++stats.nodes;
+	if (keep_table && depth > 0) {
+		const int* m = mark.data();
+		for (std::size_t x = 0; x < mark.size(); ++x) keep[x] = m[x] >= depth ? 0xFF : 0;
+	}
 
 	const std::uint32_t occ_end = db.occ_begin[k + 1];
 	for (std::uint32_t o = db.occ_begin[k]; o < occ_end; ++o) {
@@ -78,7 +82,7 @@ Util Worker::project_child(const Level& db, int depth, std::size_t k, Level& chi
 					new_key.resize(2 * n + kSimdSlack);
 					new_val.resize(2 * n + kSimdSlack);
 				}
-				kept = filter(items, utils, n, mark.data(), depth, new_key.data(), new_val.data(), &s);
+				kept = filter(items, utils, n, mark.data(), depth, keep, new_key.data(), new_val.data(), &s);
 				if (kept == 0) continue;
 				if (kept != n) {
 					kept_items = new_key.data();

@@ -69,7 +69,7 @@ class GpuSampler:
 
 def command(miner, data, minutil):
     if miner == "REFIM":
-        return [str(ROOT / "build/refim"), "-i", data, "-m", str(minutil), "-t", "0"]
+        return [str(ROOT / "build/REFIM"), "-i", data, "-m", str(minutil), "-t", "0"]
     return [str(ROOT / "build/G-HUIM"), "-i", data, "-m", str(minutil)]
 
 

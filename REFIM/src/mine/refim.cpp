@@ -1,6 +1,7 @@
 #include "mine/refim.hpp"
 
 #include "io/reader.hpp"
+#include "sys/perf.hpp"
 #include "sys/util.hpp"
 
 #include <chrono>
@@ -69,11 +70,16 @@ void Refim::mine(bool collect_patterns) {
 	patterns_.reset();
 	rename_.clear();
 
+	PerfCounters perf;
+	perf.start();
 	Transactions input = read_transactions(input_file_, sep_, min_util_, rename_, search_.threads);
+	perf.report("read");
 	const Widths widths = choose_widths(input, key_bits_, util_bits_);
 	spdlog::info("widths: {}-bit ids ({} items), {}-bit utilities (largest TWU {})", widths.key_bits, input.num_items,
 				 widths.util_bits, input.max_twu);
+	perf.start();
 	SearchResult result = search_with(widths, input, search_);
+	perf.report("mine");
 	pattern_count_ = result.pattern_count;
 	patterns_ = std::move(result.patterns);
 

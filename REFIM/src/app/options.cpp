@@ -9,7 +9,7 @@
 
 namespace {
 
-// Legacy form: refim <input> <output> <minUtil> [sep] [threads]
+// Legacy form: REFIM <input> <output> <minUtil> [sep] [threads]
 bool parse_legacy(int argc, char** argv, Options& o) {
 	std::vector<std::string> legacy;
 	for (int i = 1; i < argc; ++i) legacy.emplace_back(argv[i]);
@@ -40,9 +40,9 @@ void declare_options(CLI::App& app, Options& o) {
 	app.add_option("-n,--numa", o.numa, "Pin workers, place memory per node, steal nearest-first")
 		->capture_default_str()
 		->check(CLI::IsMember({"on", "off"}));
-	app.add_option("-v,--simd", o.simd, "Vector kernels: auto, avx512 or scalar")
+	app.add_option("-v,--simd", o.simd, "Vector kernels: auto, avx512vbmi (8-bit item ids), avx512, avx2 or scalar")
 		->capture_default_str()
-		->check(CLI::IsMember({"auto", "avx512", "scalar"}));
+		->check(CLI::IsMember({"auto", "avx512vbmi", "avx512", "avx2", "scalar"}));
 	app.add_option("-p,--thp", o.thp, "Transparent huge pages for big arrays: auto (off above 3/4 of the hardware threads), on or off")
 		->capture_default_str()
 		->check(CLI::IsMember({"auto", "on", "off"}));

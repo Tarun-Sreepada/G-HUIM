@@ -98,7 +98,9 @@ private:
 	std::vector<std::int32_t> slot;
 	std::vector<Item> touched, prefix_items, new_key;
 	std::vector<Util> new_val;
-	FilterFn filter;  // projection kernel (AVX-512 or scalar)
+	FilterFn filter;  // projection kernel (AVX-512 VBMI, AVX-512, AVX2 or scalar)
+	bool keep_table;  // `filter` reads `keep`: keep[x] = 0xFF if mark[x] >= depth, for the projection in progress
+	alignas(64) std::uint8_t keep[256] = {};
 	bool fused;       // scalar mode: filter and bound updates in one backward pass instead of `filter`
 	std::vector<std::unique_ptr<Level>> levels;  // levels[d] = reusable database at depth d
 	// spare[d] = the database levels[d] was compacted from; its storage backs levels[d]'s views

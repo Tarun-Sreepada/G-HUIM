@@ -22,7 +22,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -- -j"$(nproc)"
 ```
 
-Produces `build/G-HUIM` and `build/refim`. Each project also builds alone
+Produces `build/G-HUIM` and `build/REFIM`. Each project also builds alone
 (`cmake -S G-HUIM -B build-ghuim`, `cmake -S REFIM -B build-refim`). The GPU architecture is
 auto-detected; override with `-DCMAKE_CUDA_ARCHITECTURES=...`.
 
@@ -33,9 +33,9 @@ auto-detected; override with `-DCMAKE_CUDA_ARCHITECTURES=...`.
 Multi-threaded CPU miner (refined EFIM). Workers are pinned to cores and steal work nearest-first.
 
 ```bash
-./build/refim -h
-./build/refim -i datasets/accidents_utility_spmf.txt -m 3000000 -t 0              # count only, all cores
-./build/refim -i datasets/accidents_utility_spmf.txt -m 3000000 -t 16 -o out.txt  # write itemsets
+./build/REFIM -h
+./build/REFIM -i datasets/accidents_utility_spmf.txt -m 3000000 -t 0              # count only, all cores
+./build/REFIM -i datasets/accidents_utility_spmf.txt -m 3000000 -t 16 -o out.txt  # write itemsets
 ```
 
 | Option | Meaning |
@@ -189,7 +189,7 @@ lists of named steps, one small file per step.
 G-HUIM/   GPU miner: src/app (CLI, main steps), src/data (loading), src/mine/{bfs,dfs} (engines)
 REFIM/    CPU miner: src/app (options, run), src/io (reader steps), src/mine (search, workers), src/sys
 experiments/   benchmark, comparison and plotting scripts
-microbenchmark/   13 single-purpose CUDA micro-benchmarks with a runner and plot script
+microbenchmark/   14 single-purpose CUDA micro-benchmarks with a runner and plot script
 ```
 
 ---

@@ -7,10 +7,10 @@
 // Input format (one transaction per line, items/utilities split by `sep`):
 //     a c d:8:5 1 2
 //
-// Usage: refim -i <input> -m <minUtil> [-o <output>] [-s space|tab|<literal>] [-t <threads>] [-r <rounds>]
-//             [-n on|off] [-v auto|avx512|scalar] [-l <level>] [-L <file>]  (refim --help lists all; G-HUIM shares
+// Usage: REFIM -i <input> -m <minUtil> [-o <output>] [-s space|tab|<literal>] [-t <threads>] [-r <rounds>]
+//             [-n on|off] [-v auto|avx512|scalar] [-l <level>] [-L <file>]  (REFIM --help lists all; G-HUIM shares
 //             -i -m -o -s -r -l -L)
-//        (legacy positional form: refim <input> <output> <minUtil> [sep] [threads])
+//        (legacy positional form: REFIM <input> <output> <minUtil> [sep] [threads])
 //     threads defaults to 1 (0 = all) and is capped at the hardware thread count.
 //
 // Widths: item ids and utilities are 8/16/32 and 16/32/64 bits, the narrowest that hold the kept items and

@@ -24,7 +24,7 @@ bool use_huge_pages(const std::string& thp, int threads) {
 
 void select_vector_kernels(const std::string& simd) {
 	if (!select_simd(simd)) throw std::runtime_error("--simd " + simd + " is not supported by this CPU");
-	spdlog::debug("simd: {}", simd_name());
+	spdlog::debug("simd: {} (cpu supports {})", simd_name(), simd_supported());
 }
 
 void configure(Refim& miner, const Options& o) {
