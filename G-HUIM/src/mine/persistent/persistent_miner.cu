@@ -369,30 +369,28 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
                  ms, control.wide_levels, total.wide_tasks, total.tasks, total.work[1], total.work[2], total.work[3],
                  total.steals_dsmem, total.steals_near, total.steals_far, 100 * total.busy_ns / wall_ns,
                  100 * total.idle_ns / wall_ns);
-    spdlog::info("Persistent: nodes by block {}, warp {}, lane {} | blocks in warp mode {:.1f}%",
+    const auto per = [](uint64_t a, uint64_t b) { return static_cast<double>(a) / std::max<uint64_t>(1, b); };
+    spdlog::info("Persistent: nodes by block {}, warp {}, lane {} | lane pool: {} batches, {} jobs | {} siblings "
+                 "borrowed from the block's loops",
                  total.work[1] - total.work[4] - total.work[5] - total.wide_tasks, total.work[4], total.work[5],
-                 100 * total.work[6] / wall_ns);
-    int clock_khz = 0;
-    check_cuda(cudaDeviceGetAttribute(&clock_khz, cudaDevAttrClockRate, device), "query clock");
-    const double warp_cycles = std::max<uint64_t>(1, total.work[16]); // percentages: of warp-mode time
-    (void)clock_khz;
-    spdlog::info("Persistent: warp time in lane mode {:.1f}% (lanes busy {:.1f}% of it), expanding {:.1f}% | "
-                 "{:.0f} cycles per lane node, {:.0f} per warp node",
-                 100 * total.work[7] / warp_cycles, 100.0 * total.work[8] / std::max<uint64_t>(1, 32 * total.work[7]),
-                 100 * total.work[9] / warp_cycles, double(total.work[8]) / std::max<uint64_t>(1, total.work[5]),
-                 double(total.work[9]) / std::max<uint64_t>(1, total.work[4]));
-    spdlog::info("Persistent: lane pool: {} batches, {} jobs taken | {} siblings borrowed from the block's loops",
                  total.work[21], total.work[20], total.work[22]);
-    spdlog::info("Persistent: warp time waiting at the end of warp mode {:.1f}%, taking work {:.1f}%, finding none "
-                 "{:.1f}%, deciding {:.1f}% (eligibility included)",
-                 100 * total.work[15] / warp_cycles, 100 * total.work[17] / warp_cycles, 100 * total.work[19] / warp_cycles,
-                 100 * total.work[18] / warp_cycles);
-    spdlog::info("Persistent: warp time checking lane eligibility {:.1f}%, waiting {:.1f}% | lane converting {:.1f}% of "
-                 "lane mining | {} lane subtrees in {} batches ({:.1f} per batch, {:.1f} nodes each)",
-                 100 * total.work[10] / warp_cycles, 100 * total.work[12] / warp_cycles,
-                 100.0 * total.work[11] / std::max<uint64_t>(1, total.work[8]), total.work[13], total.work[14],
-                 double(total.work[13]) / std::max<uint64_t>(1, total.work[14]),
-                 double(total.work[5]) / std::max<uint64_t>(1, total.work[13]));
+#ifdef GHUIM_TIMERS
+    // Percentages of the warps' time in warp mode.
+    const uint64_t warp_cycles = total.work[16];
+    spdlog::info("Persistent: blocks in warp mode {:.1f}% | warp time: lane mode {:.1f}% (lanes busy {:.1f}% of it), "
+                 "expanding {:.1f}%, checking lane eligibility {:.1f}%, deciding {:.1f}% (eligibility included), "
+                 "taking work {:.1f}%, finding none {:.1f}% (sleeping {:.1f}%), at the end {:.1f}%",
+                 100 * total.work[6] / wall_ns, 100 * per(total.work[7], warp_cycles),
+                 100 * per(total.work[8], 32 * total.work[7]), 100 * per(total.work[9], warp_cycles),
+                 100 * per(total.work[10], warp_cycles), 100 * per(total.work[18], warp_cycles),
+                 100 * per(total.work[17], warp_cycles), 100 * per(total.work[19], warp_cycles),
+                 100 * per(total.work[12], warp_cycles), 100 * per(total.work[15], warp_cycles));
+    spdlog::info("Persistent: {:.0f} cycles per lane node, {:.0f} per warp node | lane converting {:.1f}% of lane "
+                 "mining | {} lane subtrees in {} batches ({:.1f} per batch, {:.1f} nodes each)",
+                 per(total.work[8], total.work[5]), per(total.work[9], total.work[4]),
+                 100 * per(total.work[11], total.work[8]), total.work[13], total.work[14],
+                 per(total.work[13], total.work[14]), per(total.work[5], total.work[13]));
+#endif
 
     result.patterns  = total.work[0];
     result.tasks     = total.work[1];

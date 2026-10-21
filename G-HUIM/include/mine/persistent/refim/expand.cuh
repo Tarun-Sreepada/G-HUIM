@@ -19,7 +19,7 @@
 //
 // Work counters (BlockStats::work, added atomically: a block's warps share them): [0] patterns, [1] nodes
 // (projections), [2] children counted without search, [3] children split or offered as tasks, [4] nodes expanded by
-// a warp, [5] nodes mined by a lane, [6] ns blocks spent in warp mode; cycles of [7] warps in lane mode, [8] lanes mining
+// a warp, [5] nodes mined by a lane, [6] ns blocks spent in warp mode; with timers (kTimers), cycles of [7] warps in lane mode, [8] lanes mining
 // (summed per thread), [9] warps expanding, [10] lane 0 checking lane eligibility, [11] lanes converting (per
 // thread), [12] warps waiting for work; [13] lane subtrees mined, [14] lane-mode batches, [15]
 // warps waiting at the end of warp mode for the block's other warps, [16] warps in warp mode, [20] lane jobs taken
@@ -42,6 +42,28 @@ using persistent::Heap;
 __device__ inline void add_stat(uint64_t& counter, uint64_t v)
 {
     atomicAdd(reinterpret_cast<unsigned long long*>(&counter), static_cast<unsigned long long>(v));
+}
+
+// Timing counters (the cycle counts in BlockStats::work), compiled in with -DGHUIM_TIMERS=ON.
+#ifdef GHUIM_TIMERS
+constexpr bool kTimers = true;
+#else
+constexpr bool kTimers = false;
+#endif
+
+__device__ inline uint64_t timer()
+{
+    if constexpr (kTimers)
+        return clock64();
+    else
+        return 0;
+}
+
+// Adds the cycles since `start` (a timer() value) to counter.
+__device__ inline void add_time(uint64_t& counter, uint64_t start)
+{
+    if constexpr (kTimers)
+        add_stat(counter, clock64() - start);
 }
 
 // Exclusive scan of in[0, n) into out[0, n] and cursor[0, n), by one whole block.

@@ -340,10 +340,11 @@ struct LaneMiner
             return;
         LaneFrame frames[kLaneItems + 1];
         uint64_t       top = 0;
-        const uint64_t c0  = clock64();
+        const uint64_t c0  = timer();
         ++subtrees;
         const bool converted = convert(D, k, lo, items, m, top);
-        convert_cycles += clock64() - c0;
+        if constexpr (kTimers)
+            convert_cycles += clock64() - c0;
         if (!converted)
             return;
         uint32_t nf  = 0;

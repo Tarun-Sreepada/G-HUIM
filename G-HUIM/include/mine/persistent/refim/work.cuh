@@ -314,9 +314,9 @@ struct Work
             if (action == kAgain)
                 continue;
             if (action == kWarps) {
-                const uint64_t t0 = persistent::global_ns();
+                const uint64_t t0 = kTimers ? persistent::global_ns() : 0;
                 run_warps(cur, &warp_next, warp_end, frames, nf - 1, stk, spawn, stats);
-                if (leader)
+                if (kTimers && leader)
                     add_stat(stats.work[6], persistent::global_ns() - t0);
                 continue;
             }
@@ -476,7 +476,7 @@ struct Work
             __syncwarp();
             const uint32_t n    = wjobs_n[warp];
             const uint32_t lane = g.rank();
-            const uint64_t c0   = clock64();
+            const uint64_t c0   = timer();
             if (lane < n) {
                 const uint32_t job = wjobs[warp][lane], b = job >> 16, k = job & 0xffff;
                 LaneMiner      miner{set,
@@ -501,15 +501,15 @@ struct Work
                     }
                 }
             }
-            add_stat(stats.work[8], clock64() - c0);
+            add_time(stats.work[8], c0);
             __syncwarp();
             if (leader) {
-                add_stat(stats.work[7], clock64() - c0);
+                add_time(stats.work[7], c0);
                 add_stat(stats.work[14], 1);
                 add_stat(stats.work[20], n);
             }
         };
-        const uint64_t c_begin = clock64();
+        const uint64_t c_begin = timer();
         if (threadIdx.x == 0) {
             lock = deque_lock = queued = busy = waiting = 0;
             batch_free = kPoolBatches == 32 ? ~0u : (1u << kPoolBatches) - 1;
@@ -525,7 +525,7 @@ struct Work
             // (others are busy), 0 warp mode is over.
             uint32_t       got    = 0;
             Task           t{};
-            const uint64_t c_take = clock64();
+            const uint64_t c_take = timer();
             if (leader) {
                 acquire(&lock);
                 if (pool_n >= 32) { // a full warp's worth of lane jobs first: they keep the pool moving
@@ -571,7 +571,7 @@ struct Work
             }
             got = __shfl_sync(~0u, got, 0);
             if (leader)
-                add_stat(stats.work[got == 3 ? 19 : 17], clock64() - c_take);
+                add_time(stats.work[got == 3 ? 19 : 17], c_take);
             if (got == 0)
                 break;
             if (got == 4) {
@@ -584,10 +584,10 @@ struct Work
                 continue;
             }
             if (got == 3) {
-                const uint64_t c0 = clock64();
+                const uint64_t c0 = timer();
                 __nanosleep(256);
                 if (leader)
-                    add_stat(stats.work[12], clock64() - c0);
+                    add_time(stats.work[12], c0);
                 continue;
             }
             if (leader) {
@@ -603,7 +603,7 @@ struct Work
             }
             for (;;) {
                 __syncwarp();
-                const uint64_t c_decide = clock64();
+                const uint64_t c_decide = timer();
                 if (leader) {
                     wact[warp] = kWDone;
                     if (wnf[warp] != 0 && !persistent::aborted(control)) {
@@ -620,9 +620,9 @@ struct Work
                             // Lane mode for a tiny database, else vertical mode for a small dense one, else the
                             // warp's passes. Each check runs once per loop.
                             if (lane_arena != nullptr && !f.no_lane) {
-                                const uint64_t c0       = clock64();
+                                const uint64_t c0       = timer();
                                 const bool     eligible = lane_eligible(Db::view(f.db), lane_items[warp], lane_m[warp]);
-                                add_stat(stats.work[10], clock64() - c0);
+                                add_time(stats.work[10], c0);
                                 if (eligible) {
                                     // Its remaining siblings go to the lanes, a subtree each: through the pool
                                     // when it has room (a database on this warp's stack is copied to the heap),
@@ -691,7 +691,7 @@ struct Work
                 }
                 __syncwarp();
                 if (leader)
-                    add_stat(stats.work[18], clock64() - c_decide);
+                    add_time(stats.work[18], c_decide);
                 uint32_t act = wact[warp];
                 if (act == kWPool) {
                     // The database, in the heap or borrowed: the batch can outlive this warp's frame.
@@ -763,17 +763,17 @@ struct Work
                                             (static_cast<uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x) * kLaneArena,
                                     kLaneArena};
                     const Db       D  = Db::view(lane_db[warp]);
-                    const uint64_t c0 = clock64();
+                    const uint64_t c0 = timer();
                     for (;;) {
                         const uint32_t k = atomicAdd(&lane_next[warp], 1u);
                         if (k >= lane_end[warp] || persistent::aborted(control))
                             break;
                         miner.mine(D, k, lane_items[warp], lane_m[warp]);
                     }
-                    add_stat(stats.work[8], clock64() - c0);
+                    add_time(stats.work[8], c0);
                     __syncwarp();
                     if (leader)
-                        add_stat(stats.work[7], clock64() - c0);
+                        add_time(stats.work[7], c0);
                     add_stat(stats.work[0], miner.patterns);
                     add_stat(stats.work[1], miner.nodes);
                     add_stat(stats.work[2], miner.counted);
@@ -820,10 +820,10 @@ struct Work
                 }
                 const Frame    cur  = wcur[warp];
                 const uint64_t mark = wtop[warp];
-                const uint64_t c0   = clock64();
+                const uint64_t c0   = timer();
                 expand(g, set, heap, s, &wc[warp], Db::view(cur.db), cur.next, cur.depth, false, &stk, stats);
                 if (leader)
-                    add_stat(stats.work[9], clock64() - c0);
+                    add_time(stats.work[9], c0);
                 if (leader) {
                     Counters&      c      = wc[warp];
                     char* const    child  = reinterpret_cast<char*>(c.child);
@@ -848,11 +848,11 @@ struct Work
                 release_lock(&lock);
             }
         }
-        const uint64_t c_end = clock64();
+        const uint64_t c_end = timer();
         __syncthreads(); // every warp is done before the block goes on (its stack slices are free again)
         if (leader) {
-            add_stat(stats.work[15], clock64() - c_end);
-            add_stat(stats.work[16], clock64() - c_begin);
+            add_time(stats.work[15], c_end);
+            add_time(stats.work[16], c_begin);
         }
     }
 

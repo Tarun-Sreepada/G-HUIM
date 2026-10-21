@@ -86,6 +86,8 @@ set(GHUIM_WIDTH_SOURCES
 # -lineinfo keeps source lines in optimized SASS, so Nsight Compute can attribute stalls to code.
 # -DGHUIM_PROFILE=ON also prints registers, spills and shared memory per kernel at build time.
 option(GHUIM_PROFILE "Print per-kernel resource usage while compiling" OFF)
+# -DGHUIM_TIMERS=ON: the persistent search times its warp-mode phases (clock64) and logs where warp time goes.
+option(GHUIM_TIMERS "Persistent search: log where warp time goes" OFF)
 set(GHUIM_CUDA_OPTIONS
     $<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>
     $<$<AND:$<BOOL:${GHUIM_PROFILE}>,$<COMPILE_LANGUAGE:CUDA>>:--resource-usage>
@@ -113,7 +115,8 @@ foreach(widths IN LISTS GHUIM_WIDTHS)
     target_link_libraries(${variant} PUBLIC CUDA::cudart CUDA::cuda_driver spdlog::spdlog)
     target_include_directories(${variant} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_compile_options(${variant} PRIVATE ${GHUIM_CUDA_OPTIONS})
-    target_compile_definitions(${variant} PRIVATE GHUIM_KEY_BITS=${key} GHUIM_UTIL_BITS=${util} $<$<CONFIG:Debug>:DEBUG>)
+    target_compile_definitions(${variant} PRIVATE GHUIM_KEY_BITS=${key} GHUIM_UTIL_BITS=${util} $<$<CONFIG:Debug>:DEBUG>
+                               $<$<BOOL:${GHUIM_TIMERS}>:GHUIM_TIMERS=1>)
     target_link_libraries(ghuim_core PRIVATE ${variant})
     string(APPEND GHUIM_BUILT_WIDTHS " X(${key}, ${util})")
 endforeach()
