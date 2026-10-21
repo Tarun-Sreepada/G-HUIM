@@ -269,6 +269,8 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
     p.work.lane_arena       = lane ? lane_arena.get() : nullptr;
     // Vertical mode is off by default: on dense data it is several times slower than the lane and warp paths.
     p.work.vert_on          = env_or("GHUIM_VERT", 0) != 0;
+    // Warp mask mode is off by default: about even with lane mode, 1.5x slower on chainstore and ecommerce.
+    p.work.warp_mask        = env_or("GHUIM_WARP_MASK", 0) != 0;
     p.work.control          = control_d.get();
     p.control               = control_d.get();
     p.headers               = headers.get();
@@ -369,13 +371,13 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
                  ms, control.wide_levels, total.wide_tasks, total.tasks, total.work[1], total.work[2], total.work[3],
                  total.steals_dsmem, total.steals_near, total.steals_far, 100 * total.busy_ns / wall_ns,
                  100 * total.idle_ns / wall_ns);
-    const auto per = [](uint64_t a, uint64_t b) { return static_cast<double>(a) / std::max<uint64_t>(1, b); };
-    spdlog::info("Persistent: nodes by block {}, warp {}, lane {} | lane pool: {} batches, {} jobs | {} siblings "
+    spdlog::info("Persistent: nodes by block {}, warp {}, lane {}, warp mask {} | lane pool: {} batches, {} jobs | {} siblings "
                  "borrowed from the block's loops",
-                 total.work[1] - total.work[4] - total.work[5] - total.wide_tasks, total.work[4], total.work[5],
-                 total.work[21], total.work[20], total.work[22]);
+                 total.work[1] - total.work[4] - total.work[5] - total.work[23] - total.wide_tasks, total.work[4],
+                 total.work[5], total.work[23], total.work[21], total.work[20], total.work[22]);
 #ifdef GHUIM_TIMERS
     // Percentages of the warps' time in warp mode.
+    const auto per = [](uint64_t a, uint64_t b) { return static_cast<double>(a) / std::max<uint64_t>(1, b); };
     const uint64_t warp_cycles = total.work[16];
     spdlog::info("Persistent: blocks in warp mode {:.1f}% | warp time: lane mode {:.1f}% (lanes busy {:.1f}% of it), "
                  "expanding {:.1f}%, checking lane eligibility {:.1f}%, deciding {:.1f}% (eligibility included), "

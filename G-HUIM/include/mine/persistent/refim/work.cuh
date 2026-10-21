@@ -17,6 +17,7 @@
 #include "mine/persistent/refim/expand.cuh"
 #include "mine/persistent/refim/lane.cuh"
 #include "mine/persistent/refim/vertical.cuh"
+#include "mine/persistent/refim/warp_mask.cuh"
 
 namespace ghuim::inline GHUIM_WIDTHS::refim {
 
@@ -107,6 +108,8 @@ struct Work
     unsigned char* lane_arena;
     // Vertical mode (refim/vertical.cuh) for small dense databases.
     bool vert_on;
+    // Warp mask mode (refim/warp_mask.cuh): lane mode's databases are mined by whole warps instead of single lanes.
+    bool warp_mask;
 
     __device__ static unsigned char* dynamic_smem()
     {
@@ -410,6 +413,7 @@ struct Work
         __shared__ Task     wout[kMaxWarps][kWarpChunks];
         __shared__ Task     queue[kQueue];
         __shared__ uint32_t lock, deque_lock, queued, busy, waiting;
+        __shared__ uint32_t no_ancestors; // no ancestor loop has work for a warp (they only close during warp mode)
         __shared__ uint32_t lane_items[kMaxWarps][kLaneItems], lane_m[kMaxWarps], lane_next[kMaxWarps],
                 lane_end[kMaxWarps];
         __shared__ char*    lane_db[kMaxWarps];
@@ -471,13 +475,57 @@ struct Work
             wjobs_n[warp] = n;
             return n;
         };
-        // Every lane: mines the job it was given (if any); the last job of a batch releases it.
+        // Warp mask mode's miner over this warp's lanes' arenas (lane mode's, unused meanwhile).
+        const auto mask_miner = [&] {
+            unsigned char* const a = lane_arena + (static_cast<uint64_t>(blockIdx.x) * blockDim.x + warp * 32) * kLaneArena;
+            const uint64_t       cap = 32 * kLaneArena - kLaneItems * sizeof(unsigned long long);
+            return WarpMaskMiner{set, a, cap, reinterpret_cast<unsigned long long*>(a + cap)};
+        };
+        const auto mask_stats = [&](const WarpMaskMiner& miner) {
+            if (leader) {
+                add_stat(stats.work[0], miner.patterns);
+                add_stat(stats.work[1], miner.nodes);
+                add_stat(stats.work[2], miner.counted);
+                add_stat(stats.work[23], miner.nodes);
+            }
+        };
+        // Every lane: mines the jobs it was given, a lane each (lane mode) or one after another by the whole warp
+        // (warp mask mode); the last job of a batch releases it.
         const auto mine_jobs = [&] {
             __syncwarp();
             const uint32_t n    = wjobs_n[warp];
             const uint32_t lane = g.rank();
             const uint64_t c0   = timer();
-            if (lane < n) {
+            if (warp_mask) {
+                WarpMaskMiner miner = mask_miner();
+                uint32_t      prev  = ~0u;
+                bool          ready = false;
+                for (uint32_t i = 0; i < n; ++i) {
+                    const uint32_t job = wjobs[warp][i], b = job >> 16, k = job & 0xffff;
+                    if (!check(b < kPoolBatches, set))
+                        continue;
+                    const Db   D    = Db::view(batch_db[b]);
+                    const bool stop = __any_sync(~0u, persistent::aborted(control));
+                    if (b != prev) { // the batch's database, converted once for its consecutive jobs
+                        prev  = b;
+                        ready = !stop && miner.prepare(D, batch_items[b], batch_m[b]);
+                    }
+                    if (ready && !stop && check(k < D.h->n_primary, set))
+                        miner.mine(D.primary[k], batch_items[b], batch_m[b]);
+                    __syncwarp();
+                    if (leader) {
+                        __threadfence_block(); // done reading the batch before it can be released
+                        if (atomicSub(&batch_left[b], 1u) == 1) {
+                            if (batch_ref[b])
+                                release(batch_db[b]);
+                            __threadfence_block();
+                            atomicOr(&batch_free, 1u << b);
+                        }
+                    }
+                }
+                mask_stats(miner);
+            }
+            else if (lane < n) {
                 const uint32_t job = wjobs[warp][lane], b = job >> 16, k = job & 0xffff;
                 LaneMiner      miner{set,
                                 lane_arena + (static_cast<uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x) * kLaneArena,
@@ -511,7 +559,7 @@ struct Work
         };
         const uint64_t c_begin = timer();
         if (threadIdx.x == 0) {
-            lock = deque_lock = queued = busy = waiting = 0;
+            lock = deque_lock = queued = busy = waiting = no_ancestors = 0;
             batch_free = kPoolBatches == 32 ? ~0u : (1u << kPoolBatches) - 1;
             pool_n     = 0;
         }
@@ -526,7 +574,14 @@ struct Work
             uint32_t       got    = 0;
             Task           t{};
             const uint64_t c_take = timer();
-            if (leader) {
+            // A waiting warp first looks without the lock (idle warps spinning on it slow everyone down).
+            const bool nothing = leader && counted_waiting && load_relaxed_u32(&pool_n) == 0 &&
+                                 load_relaxed_u32(next) >= end && load_relaxed_u32(&queued) == 0 &&
+                                 load_relaxed_u32(&no_ancestors) != 0 && load_relaxed_u32(&busy) != 0 &&
+                                 !persistent::aborted(control);
+            if (nothing)
+                got = 3;
+            else if (leader) {
                 acquire(&lock);
                 if (pool_n >= 32) { // a full warp's worth of lane jobs first: they keep the pool moving
                     take_jobs();
@@ -557,8 +612,10 @@ struct Work
                     ++busy;
                     add_stat(stats.work[22], 1);
                 }
-                else
-                    got = busy == 0 || persistent::aborted(control) ? 0 : 3;
+                else {
+                    no_ancestors = 1;
+                    got          = busy == 0 || persistent::aborted(control) ? 0 : 3;
+                }
                 release_lock(&lock);
                 if (got == 3 && !counted_waiting) {
                     atomicAdd(&waiting, 1u);
@@ -757,6 +814,23 @@ struct Work
                     break;
                 if (act == kWAgain)
                     continue;
+                if (act == kWLane && warp_mask) {
+                    WarpMaskMiner miner = mask_miner();
+                    const Db      D     = Db::view(lane_db[warp]);
+                    const uint64_t c0   = timer();
+                    if (miner.prepare(D, lane_items[warp], lane_m[warp]))
+                        for (uint32_t k = lane_next[warp]; k < lane_end[warp]; ++k) {
+                            if (__any_sync(~0u, persistent::aborted(control)))
+                                break;
+                            miner.mine(D.primary[k], lane_items[warp], lane_m[warp]);
+                        }
+                    if (leader) {
+                        add_time(stats.work[7], c0);
+                        add_stat(stats.work[14], 1);
+                    }
+                    mask_stats(miner);
+                    continue;
+                }
                 if (act == kWLane) {
                     LaneMiner miner{set,
                                     lane_arena +

@@ -24,7 +24,7 @@
 // thread), [12] warps waiting for work; [13] lane subtrees mined, [14] lane-mode batches, [15]
 // warps waiting at the end of warp mode for the block's other warps, [16] warps in warp mode, [20] lane jobs taken
 // from the pool, [21] batches pooled, [22] siblings
-// borrowed from the block's loops.
+// borrowed from the block's loops, [23] nodes mined in warp mask mode.
 
 #include "cuda/atomics.cuh"
 #include "mine/persistent/control.cuh"
