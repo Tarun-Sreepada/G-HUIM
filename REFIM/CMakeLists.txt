@@ -73,6 +73,7 @@ set(REFIM_WIDTH_SOURCES
     src/mine/worker/select_extensions.cpp
     src/mine/worker/compact_child.cpp
     src/mine/worker/descend.cpp
+    src/mine/worker/count_single.cpp
     src/mine/simd.cpp)
 set(REFIM_BUILT_WIDTHS "")
 set(REFIM_VARIANTS "")

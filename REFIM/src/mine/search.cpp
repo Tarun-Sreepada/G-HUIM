@@ -116,10 +116,10 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 	}
 	if (options.stats)
 		spdlog::info("stats: nodes {} primary {} secondary {} | refine rounds {} secondary -{} primary -{} | "
-					 "compacted {} txs {} -> {} items {} -> {} | leaves {}",
+					 "compacted {} txs {} -> {} items {} -> {} | leaves {} | single {} patterns {} | full lower {} exact {} patterns {}",
 					 stats.nodes, stats.primary, stats.secondary, stats.refine_rounds, stats.refine_secondary, stats.refine_primary,
 					 stats.compacted, stats.compact_tx_in, stats.compact_tx_out, stats.compact_items_in, stats.compact_items_out,
-					 stats.leaves);
+					 stats.leaves, stats.single, stats.single_patterns, stats.full_lower, stats.full_exact, stats.full_patterns);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		const Arena::Stats a = Arena::stats();
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);

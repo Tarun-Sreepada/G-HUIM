@@ -17,8 +17,12 @@ void Worker::expand(const Level& db, int depth, std::size_t k) {
 	Level& child = level_at(depth + 1);
 	if (collect_patterns) prefix_items.push_back(item);
 	record_pattern(project_child(db, depth, k, child));
+	if (count_single(child)) {
+		if (collect_patterns) prefix_items.pop_back();
+		return;
+	}
 	select_extensions(child, depth);
-	descend(child, depth);
+	if (!count_full(child)) descend(child, depth);
 	if (collect_patterns) prefix_items.pop_back();
 }
 

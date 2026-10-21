@@ -18,6 +18,11 @@ struct SearchStats {
 	std::uint64_t refine_secondary = 0; // items dropped from secondary by refinement
 	std::uint64_t refine_primary = 0;   // items dropped from primary by refinement
 	std::uint64_t leaves = 0;           // extensions with nothing after them, summed without projecting
+	std::uint64_t single = 0;           // children of one transaction, counted without searching
+	std::uint64_t single_patterns = 0;  // patterns those counts found
+	std::uint64_t full_lower = 0;       // children whose transactions holding every extension qualify them all
+	std::uint64_t full_exact = 0;       // children whose transactions all hold every extension, counted exactly
+	std::uint64_t full_patterns = 0;    // patterns those two found
 	std::uint64_t compacted = 0;        // children rewritten without their ruled-out items
 	std::uint64_t compact_tx_in = 0, compact_tx_out = 0;      // their transactions before/after
 	std::uint64_t compact_items_in = 0, compact_items_out = 0;  // and item occurrences
@@ -30,6 +35,11 @@ struct SearchStats {
 		refine_secondary += o.refine_secondary;
 		refine_primary += o.refine_primary;
 		leaves += o.leaves;
+		single += o.single;
+		single_patterns += o.single_patterns;
+		full_lower += o.full_lower;
+		full_exact += o.full_exact;
+		full_patterns += o.full_patterns;
 		compacted += o.compacted;
 		compact_tx_in += o.compact_tx_in;
 		compact_tx_out += o.compact_tx_out;
@@ -72,6 +82,14 @@ private:
 	// after `refine` rounds of rescanning `child` (the database at depth + 1) without the items ruled out,
 	// then (with `compact`) rewrites child without those items.
 	void select_extensions(Level& child, int depth);
+	// Counts child's patterns directly when it holds a single transaction (and patterns are not kept);
+	// returns false, leaving child untouched, otherwise.
+	bool count_single(Level& child);
+	// After select_extensions: counts child's whole subtree when the transactions holding every secondary
+	// item already qualify all extensions, or when every transaction holds them all; false otherwise.
+	bool count_full(const Level& child);
+	// Nonempty subsets of `tail` (utilities, reordered) reaching min_util - prefix.
+	std::uint64_t count_tail(Util prefix);
 	// Replaces child's transactions by their items with mark[x] == depth, merging equal neighbours.
 	void compact_child(Level& child, int depth);
 
@@ -97,7 +115,8 @@ private:
 	std::vector<Bound> bound;
 	std::vector<std::int32_t> slot;
 	std::vector<Item> touched, prefix_items, new_key;
-	std::vector<Util> new_val;
+	std::vector<Util> new_val, tail;
+	std::vector<std::uint64_t> tail_rest;  // scratch for count_single
 	FilterFn filter;  // projection kernel (AVX-512 VBMI, AVX-512, AVX2 or scalar)
 	bool keep_table;  // `filter` reads `keep`: keep[x] = 0xFF if mark[x] >= depth, for the projection in progress
 	alignas(64) std::uint8_t keep[256] = {};
