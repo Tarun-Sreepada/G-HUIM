@@ -8,7 +8,8 @@ namespace ghuim {
 enum class Search
 {
     Bfs, // level-synchronous: every task of a level runs before any task of the next
-    Dfs  // task stack: batches are popped from the top, so few projected databases are live
+    Dfs, // task stack: batches are popped from the top, so few projected databases are live
+    Persistent // REFIM on the GPU: one megakernel, a block per SM running subtrees depth first, work stealing
 };
 
 enum class Method
@@ -21,7 +22,7 @@ enum class Method
 
 inline const char* search_name(Search search)
 {
-    return search == Search::Bfs ? "bfs" : "dfs";
+    return search == Search::Bfs ? "bfs" : search == Search::Dfs ? "dfs" : "persistent";
 }
 
 inline const char* method_name(Method method)

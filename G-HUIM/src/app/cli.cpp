@@ -32,7 +32,8 @@ void configure_cli(CLI::App& app, Config& config)
             ->check(CLI::PositiveNumber);
     app.add_option("-e,--search", config.mining.search, "Search order")
             ->transform(CLI::CheckedTransformer(
-                    std::map<std::string, Search>{{"bfs", Search::Bfs}, {"dfs", Search::Dfs}}, CLI::ignore_case))
+                    std::map<std::string, Search>{
+                            {"bfs", Search::Bfs}, {"dfs", Search::Dfs}, {"persistent", Search::Persistent}}, CLI::ignore_case))
             ->default_str("bfs");
     app.add_option("-M,--method", config.mining.method, "Work partitioning")
             ->transform(CLI::CheckedTransformer(
@@ -144,9 +145,9 @@ void configure_cli(CLI::App& app, Config& config)
             throw CLI::ValidationError("--vert-items", "needs BFS count-only mining");
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
-        if (mining.search == Search::Dfs && (mining.method == Method::Staged || mining.method == Method::Tile))
+        if (mining.search != Search::Bfs && (mining.method == Method::Staged || mining.method == Method::Tile))
             throw CLI::ValidationError("--method", "staged and tile are only available with --search bfs");
-        if (mining.search == Search::Dfs && !mining.output.empty())
+        if (mining.search != Search::Bfs && !mining.output.empty())
             throw CLI::ValidationError("--output", "itemsets can only be written by --search bfs");
     });
 }

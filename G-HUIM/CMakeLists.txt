@@ -80,7 +80,8 @@ set(GHUIM_WIDTH_SOURCES
     src/mine/dfs/bins.cu
     src/mine/dfs/root_image.cu
     src/mine/dfs/arena_gc.cu
-    src/mine/dfs/dfs_miner.cu)
+    src/mine/dfs/dfs_miner.cu
+    src/mine/persistent/persistent_miner.cu)
 
 # -lineinfo keeps source lines in optimized SASS, so Nsight Compute can attribute stalls to code.
 # -DGHUIM_PROFILE=ON also prints registers, spills and shared memory per kernel at build time.
@@ -142,4 +143,15 @@ include(CTest)
 if(BUILD_TESTING)
     add_test(NAME cli_help_without_gpu COMMAND GHUIM --help)
     set_tests_properties(cli_help_without_gpu PROPERTIES ENVIRONMENT "CUDA_VISIBLE_DEVICES=")
+
+    # Persistent-miner scheduler on a synthetic tree, verified against a host walk. Needs a GPU (label gpu):
+    # the kernel's own watchdog aborts after 5 s and CTest kills the process after 60 s.
+    add_executable(persistent_skeleton tests/persistent_skeleton.cu)
+    target_include_directories(persistent_skeleton PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+    target_compile_options(persistent_skeleton PRIVATE ${GHUIM_CUDA_OPTIONS})
+    add_test(NAME persistent_skeleton COMMAND persistent_skeleton --depth 18 --timeout-ms 5000)
+    add_test(NAME persistent_skeleton_clusters COMMAND persistent_skeleton --depth 18 --cluster 8 --timeout-ms 5000)
+    add_test(NAME persistent_skeleton_global_only COMMAND persistent_skeleton --depth 18 --local-deque 0 --timeout-ms 5000)
+    set_tests_properties(persistent_skeleton persistent_skeleton_clusters persistent_skeleton_global_only
+                         PROPERTIES LABELS gpu TIMEOUT 60)
 endif()

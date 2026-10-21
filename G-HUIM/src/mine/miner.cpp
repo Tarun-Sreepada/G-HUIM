@@ -16,6 +16,7 @@ namespace ghuim {
     inline namespace GHUIM_WIDTH_NAME(key, util) {                                                                     \
     MiningResult mine_bfs(const Dataset& data, const MiningOptions& options);                                         \
     MiningResult mine_dfs(const Dataset& data, const MiningOptions& options);                                         \
+    MiningResult mine_persistent(const Dataset& data, const MiningOptions& options);                                  \
     }
 GHUIM_FOR_EACH_BUILT_WIDTH(GHUIM_DECLARE_MINERS)
 #undef GHUIM_DECLARE_MINERS
@@ -86,10 +87,13 @@ MiningResult mine(const Dataset& data, const MiningOptions& options)
     const Widths widths = choose_widths(data, options);
     spdlog::info("Widths: {}-bit keys ({} items), {}-bit utilities (largest TWU {})", widths.key_bits,
                  data.original_item.size(), widths.util_bits, data.max_twu);
-    const bool bfs = options.search == Search::Bfs;
 #define GHUIM_DISPATCH(key, util)                                                                                      \
     if (widths.key_bits == key && widths.util_bits == util)                                                            \
-        return bfs ? GHUIM_WIDTH_NAME(key, util)::mine_bfs(data, options) : GHUIM_WIDTH_NAME(key, util)::mine_dfs(data, options);
+        switch (options.search) {                                                                                      \
+        case Search::Bfs: return GHUIM_WIDTH_NAME(key, util)::mine_bfs(data, options);                                \
+        case Search::Dfs: return GHUIM_WIDTH_NAME(key, util)::mine_dfs(data, options);                                \
+        default: return GHUIM_WIDTH_NAME(key, util)::mine_persistent(data, options);                                  \
+        }
     GHUIM_FOR_EACH_BUILT_WIDTH(GHUIM_DISPATCH)
 #undef GHUIM_DISPATCH
     throw std::logic_error("unreachable: chosen widths were not built");
