@@ -56,7 +56,7 @@ struct LaneMiner
     const Settings& set;
     unsigned char*  arena;
     uint64_t        capacity;
-    uint64_t        patterns = 0, nodes = 0, counted = 0;
+    uint64_t        patterns = 0, nodes = 0, counted = 0, convert_cycles = 0, subtrees = 0;
 
     __device__ LaneLevel* level(uint64_t off) const
     {
@@ -339,8 +339,12 @@ struct LaneMiner
         if (!check(lo < m && items[lo] == D.primary[k], set))
             return;
         LaneFrame frames[kLaneItems + 1];
-        uint64_t  top = 0;
-        if (!convert(D, k, lo, items, m, top))
+        uint64_t       top = 0;
+        const uint64_t c0  = clock64();
+        ++subtrees;
+        const bool converted = convert(D, k, lo, items, m, top);
+        convert_cycles += clock64() - c0;
+        if (!converted)
             return;
         uint32_t nf  = 0;
         frames[nf++] = {0, uint64_t{1} << lo, 0};

@@ -61,7 +61,7 @@ struct BlockStats
     uint64_t idle_ns;      // looking for work
     uint64_t max_local;    // largest shared-memory deque seen after a push
     uint64_t max_global;   // largest global deque seen after a push
-    uint64_t work[4];      // Work-defined counters, summed by the host (e.g. patterns found)
+    uint64_t work[24];     // Work-defined counters, summed by the host (e.g. patterns found)
 };
 
 } // namespace ghuim::persistent
