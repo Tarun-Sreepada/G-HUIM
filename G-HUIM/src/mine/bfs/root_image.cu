@@ -18,7 +18,7 @@ namespace {
 // The root database in the tile layout: transactions sorted by length, 32 to a tile, entries column-major.
 // With `indexed`, the occurrence index follows (built here: each item's occurrences in slot order, padding
 // left out), and `occ_counts` receives every item's occurrence count.
-std::vector<char> tiled_root_image(const Dataset& data, bool indexed, std::vector<uint32_t>& occ_counts)
+std::vector<char> tiled_root_image(const Dataset& data, bool indexed, uint32_t occ_shift, std::vector<uint32_t>& occ_counts)
 {
     if (data.original_item.size() > kMaxDbItems)
         throw std::runtime_error("too many items for " + std::to_string(8 * sizeof(Key)) + "-bit keys (raise --minutil)");
@@ -83,18 +83,18 @@ std::vector<char> tiled_root_image(const Dataset& data, bool indexed, std::vecto
         begin[n_items] = run;
         for (uint32_t slot = 0; slot < n_trans; ++slot)
             for (uint32_t k = 0; k < txs[slot].length; ++k)
-                occ[cursor[eitem[txs[slot].begin + uint64_t{k} * stride]]++] = Occurrence{slot, k};
+                occ[cursor[eitem[txs[slot].begin + uint64_t{k} * stride]]++] = make_occurrence(slot, k, occ_shift);
     }
     return image;
 }
 
-// Occurrence of entry e of transaction t at position p, packed as an Occurrence {t, p}.
-__global__ void entry_occurrences(const Tx* txs, uint32_t n_trans, unsigned long long* occ)
+// Occurrence of entry e of transaction t at position p, packed (layout.cuh).
+__global__ void entry_occurrences(const Tx* txs, uint32_t n_trans, uint32_t occ_shift, Occurrence* occ)
 {
     for (uint32_t t = blockIdx.x * blockDim.x + threadIdx.x; t < n_trans; t += gridDim.x * blockDim.x) {
         const Tx tx = txs[t];
         for (uint32_t pos = 0; pos < tx.length; ++pos)
-            occ[tx.begin + pos] = uint64_t{t} | uint64_t{pos} << 32;
+            occ[tx.begin + pos] = make_occurrence(t, pos, occ_shift);
     }
 }
 
@@ -106,16 +106,17 @@ __global__ void count_items(const Key* eitem, uint64_t n_entries, uint32_t* coun
 
 // The root's occurrence index, on the device: every entry's (transaction, position), sorted stably by item
 // so each item's occurrences stay in transaction order, and the exclusive prefix of the item counts.
-void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint32_t n_entries, uint32_t n_items)
+void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint32_t n_entries, uint32_t n_items,
+                      uint32_t occ_shift)
 {
     auto*          eitem = reinterpret_cast<const Key*>(root + layout.eitem);
-    auto*          occ   = reinterpret_cast<unsigned long long*>(root + layout.occ);
+    auto*          occ   = reinterpret_cast<Occurrence*>(root + layout.occ);
     auto*          begin = reinterpret_cast<uint32_t*>(root + layout.occ_begin);
     const uint32_t grid  = std::min<uint64_t>((n_entries + 255) / 256 + 1, 65535);
-    DeviceBuffer<unsigned long long> unsorted(n_entries);
+    DeviceBuffer<Occurrence>         unsorted(n_entries);
     DeviceBuffer<Key>                keys(n_entries);
     DeviceBuffer<uint32_t>           count(n_items + 1);
-    entry_occurrences<<<grid, 256>>>(reinterpret_cast<const Tx*>(root + layout.tx), n_trans, unsorted.get());
+    entry_occurrences<<<grid, 256>>>(reinterpret_cast<const Tx*>(root + layout.tx), n_trans, occ_shift, unsorted.get());
     check_cuda(cudaMemset(count.get(), 0, (n_items + 1) * sizeof(uint32_t)), "clear item counts");
     count_items<<<grid, 256>>>(eitem, n_entries, count.get());
     check_launch("launch root index kernels");
@@ -132,6 +133,17 @@ void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint
     synchronize("build root index");
 }
 
+// Position bits of the run's packed occurrences; with an index, this build's occurrence word must hold them
+// above the root's transaction slots (no projected database has more transactions or longer ones).
+uint32_t occurrence_shift(uint64_t n_trans, uint32_t max_len, bool indexed)
+{
+    const uint32_t shift = occurrence_pos_bits(max_len);
+    if (indexed && occurrence_bits_for(n_trans, max_len) > 8 * sizeof(Occurrence))
+        throw std::runtime_error(std::to_string(n_trans) + " transactions of up to " + std::to_string(max_len) +
+                                 " items do not fit " + std::to_string(8 * sizeof(Occurrence)) + "-bit occurrences");
+    return shift;
+}
+
 } // namespace
 
 RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_trans, uint32_t index_sparsity)
@@ -140,7 +152,8 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     if (tiled) {
         const bool indexed = wants_index(data.transaction_count(), data.items.size(), data.original_item.size(),
                                          index_min_trans, index_sparsity);
-        const std::vector<char> image = tiled_root_image(data, indexed, root.occ_counts);
+        root.occ_shift                = occurrence_shift(data.transaction_count(), data.max_length, indexed);
+        const std::vector<char> image = tiled_root_image(data, indexed, root.occ_shift, root.occ_counts);
         root.header                   = *reinterpret_cast<const DbHeader*>(image.data());
         root.buffer                   = DeviceBuffer<char>(image.size());
         upload(root.buffer.get(), image.data(), image.size());
@@ -167,6 +180,7 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     root.header = DbHeader{static_cast<uint32_t>(n_trans), static_cast<uint32_t>(n_entries), static_cast<uint32_t>(n_items),
                            max_len, layout.bytes, indexed};
     *reinterpret_cast<DbHeader*>(head.data()) = root.header;
+    root.occ_shift                            = occurrence_shift(n_trans, max_len, indexed);
     auto* globals = reinterpret_cast<uint32_t*>(head.data() + layout.items);
     for (uint32_t i = 0; i < n_items; ++i)
         globals[i] = i;
@@ -178,7 +192,7 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     upload_as(reinterpret_cast<Util*>(base + layout.eutil), data.utilities.data(), n_entries);
     if (indexed) {
         build_root_index(base, layout, static_cast<uint32_t>(n_trans), static_cast<uint32_t>(n_entries),
-                         static_cast<uint32_t>(n_items));
+                         static_cast<uint32_t>(n_items), root.occ_shift);
         std::vector<uint32_t> begin(n_items + 1);
         download(begin.data(), reinterpret_cast<const uint32_t*>(base + layout.occ_begin), n_items + 1);
         root.occ_counts.resize(n_items);

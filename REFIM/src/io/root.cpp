@@ -28,7 +28,7 @@ void make_root(Transactions& input, std::uint64_t min_util, int threads, Level& 
 
 	find_primary(root, input.num_items, min_util, threads);
 	std::vector<std::int32_t> slot(input.num_items + 1, -1);
-	root.index(slot, threads);
+	root.index(slot, occurrence_pos_bits(input.max_length), threads);
 	lap("subtree+index");
 }
 

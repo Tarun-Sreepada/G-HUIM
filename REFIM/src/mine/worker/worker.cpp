@@ -28,6 +28,7 @@ void Worker::run() {
 
 void Worker::execute(const Task& task) {
 	if (collect_patterns) prefix_items = task.prefix;
+	occ_shift = task.level->occ_shift;
 	if (task.depth > 0)
 		for (const Item x : task.level->secondary) mark[x] = task.depth;
 	expand(*task.level, task.depth, task.slot);

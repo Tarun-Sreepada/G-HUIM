@@ -125,6 +125,7 @@ private:
 	// spare[d] = the database levels[d] was compacted from; its storage backs levels[d]'s views
 	// until the next sibling at depth d is compacted.
 	std::vector<std::unique_ptr<Level>> spare;
+	std::uint32_t occ_shift = 0;  // position bits of an occurrence (the same for every database of the search)
 };
 
 }  // namespace REFIM_WIDTHS

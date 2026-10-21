@@ -79,9 +79,10 @@ public:
 	// Skip a refinement round unless the last pass dropped at least this fraction of the candidates.
 	void set_refine_min_drop(double fraction) { search_.refine_min_drop = fraction; }
 	// Item id and utility widths (0 = the narrowest that holds the dataset).
-	void set_widths(int key_bits, int util_bits) {
+	void set_widths(int key_bits, int util_bits, int occ_bits = 0) {
 		key_bits_ = key_bits;
 		util_bits_ = util_bits;
+		occ_bits_ = occ_bits;
 	}
 
 	void set_stats(bool on) { search_.stats = on; }
@@ -99,7 +100,7 @@ private:
 	std::int64_t min_util_;
 	std::string sep_;
 	SearchOptions search_;
-	int key_bits_ = 0, util_bits_ = 0;
+	int key_bits_ = 0, util_bits_ = 0, occ_bits_ = 0;
 	std::size_t pattern_count_ = 0;
 	std::vector<std::string> rename_;         // rename_[id] = original item name; index 0 unused
 	std::unique_ptr<FoundPatterns> patterns_;  // with collect_patterns

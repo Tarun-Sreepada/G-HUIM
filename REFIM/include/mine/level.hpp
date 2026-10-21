@@ -23,10 +23,17 @@ struct Transaction {
 	std::int64_t own;  // offset into Level::items/utils, or -1 for a view
 };
 
-struct Occurrence {
-	std::uint32_t tid;
-	std::uint32_t pos;
-};
+// An occurrence index entry: transaction `tid` and position `pos` of an item, packed as tid << shift | pos
+// into one OccWord. The shift is occurrence_pos_bits(longest input transaction) for the whole search.
+using Occurrence = OccWord;
+
+inline Occurrence make_occurrence(std::uint32_t tid, std::uint32_t pos, std::uint32_t shift) {
+	return static_cast<Occurrence>(Occurrence{tid} << shift | pos);
+}
+inline std::uint32_t occurrence_tid(Occurrence o, std::uint32_t shift) { return static_cast<std::uint32_t>(o >> shift); }
+inline std::uint32_t occurrence_pos(Occurrence o, std::uint32_t shift) {
+	return static_cast<std::uint32_t>(o & ((Occurrence{1} << shift) - 1));
+}
 
 // A (projected) database plus the occurrence index used to project it further.
 struct Level {
@@ -37,6 +44,7 @@ struct Level {
 	std::vector<Item> secondary;  // items kept in deeper projections (local utility >= minUtil)
 	std::vector<std::uint32_t> occ_begin;  // primary[k] occurs at occ[occ_begin[k], occ_begin[k + 1])
 	HugeVector<Occurrence> occ;
+	std::uint32_t occ_shift = 0;        // position bits of an occurrence
 	std::vector<std::uint32_t> cursor;  // scratch for the serial index()
 
 	void clear() {
@@ -102,10 +110,11 @@ struct Level {
 		}
 	}
 
-	// Builds the occurrence index for `primary`. `slot` is indexed by item and must be
-	// all -1; it is left that way. With threads > 1 the transactions are counted and
-	// placed in parallel ranges; occurrences stay in ascending transaction order.
-	void index(std::vector<std::int32_t>& slot, int threads = 1) {
+	// Builds the occurrence index for `primary`, packing positions into the low `shift` bits. `slot` is
+	// indexed by item and must be all -1; it is left that way. With threads > 1 the transactions are
+	// counted and placed in parallel ranges; occurrences stay in ascending transaction order.
+	void index(std::vector<std::int32_t>& slot, std::uint32_t shift, int threads = 1) {
+		occ_shift = shift;
 		for (std::size_t k = 0; k < primary.size(); ++k) slot[primary[k]] = static_cast<std::int32_t>(k);
 		const std::size_t K = primary.size();
 		if (threads <= 1 || txs.size() < 4096) {
@@ -119,7 +128,7 @@ struct Level {
 			for (std::uint32_t tid = 0; tid < txs.size(); ++tid) {
 				const auto& t = txs[tid];
 				for (std::uint32_t i = 0; i < t.len; ++i)
-					if (const std::int32_t s = slot[t.items[i]]; s >= 0) occ[cursor[s]++] = {tid, i};
+					if (const std::int32_t s = slot[t.items[i]]; s >= 0) occ[cursor[s]++] = make_occurrence(tid, i, shift);
 			}
 			for (const Item x : primary) slot[x] = -1;
 			return;
@@ -150,7 +159,7 @@ struct Level {
 				const auto& t = txs[tid];
 				for (std::uint32_t i = 0; i < t.len; ++i)
 					if (const std::int32_t s = slot[t.items[i]]; s >= 0)
-						occ[count[p][s]++] = {static_cast<std::uint32_t>(tid), i};
+						occ[count[p][s]++] = make_occurrence(static_cast<std::uint32_t>(tid), i, shift);
 			}
 		});
 		for (const Item x : primary) slot[x] = -1;
@@ -165,6 +174,7 @@ struct Level {
 		copy->utils.resize(utils.size());
 		copy->txs.resize(txs.size());
 		copy->occ.resize(occ.size());
+		copy->occ_shift = occ_shift;
 		copy->primary = primary;
 		copy->secondary = secondary;
 		copy->occ_begin = occ_begin;
@@ -204,6 +214,7 @@ struct Level {
 		copy->secondary = secondary;
 		copy->occ_begin = occ_begin;
 		copy->occ = occ;
+		copy->occ_shift = occ_shift;
 		return copy;
 	}
 };

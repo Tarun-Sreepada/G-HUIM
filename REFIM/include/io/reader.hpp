@@ -11,6 +11,9 @@ struct Transactions {
 	std::vector<Chunk> chunks;   // renamed transactions, items ascending
 	std::size_t num_items = 0;   // items keep ids 1..num_items
 	std::uint64_t max_twu = 0;   // largest TWU of a kept item over the renamed transactions; bounds every utility sum
+	// Renamed (nonempty) transactions and the longest of them: set the occurrence width (mine/widths.hpp).
+	std::uint64_t num_transactions = 0;
+	std::uint32_t max_length = 0;
 };
 
 // Reads the input, removes items with TWU < min_util and renames items so a larger id means a larger TWU.

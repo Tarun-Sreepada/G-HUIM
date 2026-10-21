@@ -21,6 +21,7 @@ struct Chunk {
 	std::vector<std::uint64_t> vals;
 	std::vector<std::uint64_t> twu;  // per renamed item: sum of its transactions' utilities over this chunk
 	std::vector<std::size_t> tx_begin;  // tx_begin[t]..tx_begin[t + 1]; tx_begin[0] = 0
+	std::uint32_t max_length = 0;       // longest renamed transaction
 	bool failed = false;
 	bool bad_util = false;  // a negative utility
 	bool overflow = false;  // a sum of utilities above 64 bits

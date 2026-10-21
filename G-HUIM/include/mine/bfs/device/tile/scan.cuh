@@ -30,7 +30,7 @@ __device__ inline void tile_local(const Projection& p, const Lanes& lanes, uint3
     const Tx        tx     = i < p.n_trans ? p.txs[tx_slot(p, i)] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
-    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(p.occ[i].pos) : -1)
+    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(occurrence_pos(p.occ[i], p.occ_shift)) : -1)
                                    : find_item_tiled(k_item, tx.length, p.item, p.stride);
     if (i < p.n_trans)
         p.pos[i] = static_cast<uint32_t>(k + 1);

@@ -7,13 +7,32 @@ inline namespace REFIM_WIDTHS {
 
 namespace {
 
-// Subsets of u[i, n) (sorted descending, rest[i] = their sum) whose sum reaches `need`.
-std::uint64_t count_subsets(const Util* u, const std::uint64_t* rest, std::uint32_t n, std::uint32_t i, std::uint64_t need) {
-	if (need == 0) return std::uint64_t{1} << (n - i);
-	if (rest[i] < need) return 0;
-	// rest[i] >= need > 0, so i < n.
-	const std::uint64_t take = u[i] >= need ? std::uint64_t{1} << (n - i - 1) : count_subsets(u, rest, n, i + 1, need - u[i]);
-	return take + count_subsets(u, rest, n, i + 1, need);
+// Subsets of u[0, n) (sorted descending, rest[i] = sum of u[i, n)) whose sum reaches `need`; n < 64.
+// Iterative, so its speed does not hinge on how far the compiler inlines a recursion (which under LTO
+// depends on the size of the whole binary). A frame (i, need) walks the subsets skipping u[i], u[i+1], ...
+// and pushes a frame for each u[j] taken that leaves need > 0. Frames are pushed with increasing i on top
+// of a smaller one, so the stack holds at most n frames.
+std::uint64_t count_subsets(const Util* u, const std::uint64_t* rest, std::uint32_t n, std::uint64_t need) {
+	if (need == 0) return std::uint64_t{1} << n;
+	struct Frame {
+		std::uint32_t i;
+		std::uint64_t need;
+	};
+	Frame stack[64];
+	int top = 0;
+	stack[top++] = {0, need};
+	std::uint64_t found = 0;
+	while (top > 0) {
+		auto [i, left] = stack[--top];
+		// rest[i] >= left > 0, so i < n.
+		for (; rest[i] >= left; ++i) {
+			if (u[i] >= left)
+				found += std::uint64_t{1} << (n - i - 1);
+			else
+				stack[top++] = {i + 1, left - u[i]};
+		}
+	}
+	return found;
 }
 
 }  // namespace
@@ -26,7 +45,7 @@ std::uint64_t Worker::count_tail(Util prefix) {
 	for (std::uint32_t i = n; i-- > 0;) tail_rest[i] = tail_rest[i + 1] + tail[i];
 	const std::uint64_t need = prefix >= min_util ? 0 : min_util - prefix;
 	// The empty subset is the prefix itself, already recorded.
-	return count_subsets(tail.data(), tail_rest.data(), n, 0, need) - (need == 0);
+	return count_subsets(tail.data(), tail_rest.data(), n, need) - (need == 0);
 }
 
 bool Worker::count_full(const Level& child) {

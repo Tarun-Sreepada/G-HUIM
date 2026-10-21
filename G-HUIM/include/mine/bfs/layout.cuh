@@ -56,7 +56,7 @@ struct DbHeader
     uint32_t n_items;
     uint32_t max_len; // longest transaction
     uint64_t bytes;
-    uint32_t indexed = 0; // occurrence offsets and (transaction, position) pairs follow the entry arrays
+    uint32_t indexed = 0; // occurrence offsets and packed (transaction, position) occurrences follow the entry arrays
 };
 
 struct Tx
@@ -66,11 +66,24 @@ struct Tx
     Util     utility; // utility of the database's prefix itemset in this transaction
 };
 
-struct Occurrence
+// An occurrence index entry: transaction slot `tid` and position `pos` of an entry, packed as tid << shift | pos
+// into one OccWord. The shift is occurrence_pos_bits(root max_len) for the whole run (mine/widths.hpp).
+using Occurrence = OccWord;
+
+__host__ __device__ __forceinline__ Occurrence make_occurrence(uint32_t tid, uint32_t pos, uint32_t shift)
 {
-    uint32_t tid;
-    uint32_t pos;
-};
+    return static_cast<Occurrence>(Occurrence{tid} << shift | pos);
+}
+
+__host__ __device__ __forceinline__ uint32_t occurrence_tid(Occurrence o, uint32_t shift)
+{
+    return static_cast<uint32_t>(o >> shift);
+}
+
+__host__ __device__ __forceinline__ uint32_t occurrence_pos(Occurrence o, uint32_t shift)
+{
+    return static_cast<uint32_t>(o & ((Occurrence{1} << shift) - 1));
+}
 
 // Whether a database gets an occurrence index: at least `min_trans` transactions (0 = never) and, with
 // `sparsity` s != 0, at most 1/s of its transaction-item pairs present. Then an extension visits few of the

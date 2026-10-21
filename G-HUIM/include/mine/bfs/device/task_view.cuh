@@ -30,6 +30,7 @@ struct BatchView
     uint32_t        tiled;        // tile method: databases use the tile layout
     uint32_t        index_min_trans;
     uint32_t        index_sparsity;
+    uint32_t        occ_shift;     // position bits of a packed occurrence (layout.cuh)
     uint32_t        local_tail_items;
     uint32_t        local_tail_trans;
     int32_t         refine_rounds; // bound refinement rounds per task (-1 = until none drops, 0 = off)
@@ -108,6 +109,7 @@ struct Projection
 {
     const Tx*           txs;
     const Occurrence*   occ; // this extension's occurrences, or null for a full database scan
+    uint32_t            occ_shift; // position bits of an occurrence
     const Key*          eitem;   // entry keys (local item names)
     const Util*         eutil;   // entry utilities
     uint32_t            n_trans;
@@ -136,7 +138,7 @@ struct Projection
 // Database slot of visited transaction `i`: through the occurrence index when the database has one.
 __device__ __forceinline__ uint32_t tx_slot(const Projection& p, uint32_t i)
 {
-    return p.occ ? p.occ[i].tid : i;
+    return p.occ ? occurrence_tid(p.occ[i], p.occ_shift) : i;
 }
 
 struct TaskView
@@ -167,6 +169,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.txs            = reinterpret_cast<const Tx*>(v.base + v.layout.tx);
     p.occ            = v.header.indexed ? reinterpret_cast<const Occurrence*>(v.base + v.layout.occ) +
                             reinterpret_cast<const uint32_t*>(v.base + v.layout.occ_begin)[v.task.item] : nullptr;
+    p.occ_shift      = b.occ_shift;
     p.eitem          = reinterpret_cast<const Key*>(v.base + v.layout.eitem);
     p.eutil          = reinterpret_cast<const Util*>(v.base + v.layout.eutil);
     p.n_trans        = trans;

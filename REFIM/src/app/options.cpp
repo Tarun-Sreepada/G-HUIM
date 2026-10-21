@@ -64,6 +64,11 @@ void declare_options(CLI::App& app, Options& o) {
 	app.add_option("--util-bits", o.util_bits, "Utility width: 16, 32, 64, or auto (the narrowest that holds the largest TWU)")
 		->transform(CLI::CheckedTransformer(std::map<std::string, int>{{"auto", 0}, {"16", 16}, {"32", 32}, {"64", 64}}))
 		->default_str("auto");
+	app.add_option("--occ-bits", o.occ_bits,
+				   "Occurrence width (packed transaction and position): 32, 64, or auto (the narrowest that holds the "
+				   "transaction count and the longest transaction)")
+		->transform(CLI::CheckedTransformer(std::map<std::string, int>{{"auto", 0}, {"32", 32}, {"64", 64}}))
+		->default_str("auto");
 	app.add_flag("-S,--stats", o.stats, "Log search counters");
 	app.add_option("-l,--log-level", o.log_level, "trace, debug, info, warn, error, critical or off")
 		->capture_default_str()

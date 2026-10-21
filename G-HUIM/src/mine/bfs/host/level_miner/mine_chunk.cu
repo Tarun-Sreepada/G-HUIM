@@ -38,6 +38,7 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
                          tune_.tiled,
                          options_.index_min_trans,
                          options_.index_sparsity,
+                         root_occ_shift_,
                          options_.local_tail_items,
                          options_.local_tail_trans,
                          options_.refine_rounds,

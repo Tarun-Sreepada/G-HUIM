@@ -104,6 +104,7 @@ void rebuild_transactions(const RawInput& in, const std::vector<uint32_t>& renam
         }
         out_tx[t] = static_cast<uint32_t>(data.tx_begin.size() - 1);
         total_items += kept[t];
+        data.max_length = std::max(data.max_length, kept[t]);
         if (total_items >= std::numeric_limits<uint32_t>::max())
             throw std::runtime_error("too many item occurrences for 32-bit offsets");
         data.tx_begin.push_back(static_cast<uint32_t>(total_items));

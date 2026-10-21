@@ -229,7 +229,7 @@ __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t ch
         for (uint32_t pos = 0; pos < tx.length; ++pos) {
             const uint32_t z = c.eitem[tx.begin + pos * c.stride];
             const uint32_t slot = c.occ_begin[z] + fetch_add(v.p.rename[z], 1u);
-            c.occ[slot] = Occurrence{t, pos};
+            c.occ[slot] = make_occurrence(t, pos, v.p.occ_shift);
         }
     }
     g.sync();

@@ -29,7 +29,7 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
     const Tx        tx     = i < p.n_trans ? src.tx(i, lanes.rank) : Tx{0, 0, 0};
     const auto*     k_item = src.keys(tx, lanes.rank);
     const Util*     k_util = src.utils(tx, lanes.rank);
-    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(p.occ[i].pos) : -1)
+    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(occurrence_pos(p.occ[i], p.occ_shift)) : -1)
                                   : find_item(k_item, tx.length, p.item);
     if (i < p.n_trans)
         p.pos[i] = static_cast<uint32_t>(k + 1);
@@ -100,7 +100,7 @@ __device__ inline void refine_tile(const Projection& p, const Lanes& lanes, uint
 {
     const uint32_t  i      = i0 + lanes.rank;
     const uint32_t  pos    = i < p.n_trans ? p.pos[i] : 0;
-    const Tx        tx     = pos != 0 ? p.txs[p.occ ? p.occ[i].tid : i] : Tx{0, 0, 0};
+    const Tx        tx     = pos != 0 ? p.txs[p.occ ? occurrence_tid(p.occ[i], p.occ_shift) : i] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
     const uint32_t  s      = p.stride;
@@ -215,7 +215,7 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
                     size.entries += kept;
                     break;
                 }
-                const Tx o = p.txs[p.occ ? p.occ[other].tid : other];
+                const Tx o = p.txs[p.occ ? occurrence_tid(p.occ[other], p.occ_shift) : other];
                 if (same_kept_items(p.eitem + o.begin, o.length, p.pos[other], k_item, tx.length, pos, p.rename)) {
                     p.rep[i] = other;
                     break;

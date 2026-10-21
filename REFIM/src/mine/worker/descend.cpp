@@ -4,7 +4,7 @@ inline namespace REFIM_WIDTHS {
 
 void Worker::descend(Level& child, int depth) {
 	if (child.primary.empty()) return;
-	child.index(slot);
+	child.index(slot, occ_shift);
 
 	const int next = depth + 1;
 	const std::uint64_t work = std::uint64_t{child.occ.size()} * child.primary.size();

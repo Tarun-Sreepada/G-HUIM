@@ -22,6 +22,8 @@ struct Dataset
     // Largest TWU over the kept items, from the rebuilt transactions: bounds every utility the miners store or
     // sum, so it sets the utility width (mine/widths.hpp).
     uint64_t              max_twu            = 0;
+    // Longest kept transaction: with the transaction count, sets the BFS occurrence width (mine/widths.hpp).
+    uint32_t              max_length         = 0;
     std::vector<std::pair<const char*, double>> timings; // preprocessing stage -> milliseconds
 
     size_t transaction_count() const

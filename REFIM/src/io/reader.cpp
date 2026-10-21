@@ -30,6 +30,10 @@ Transactions read_transactions(const std::string& input_file_, const std::string
 	input.num_items = rename_.size() - 1;
 	rename_transactions(input.chunks, new_id, input.num_items);
 	input.max_twu = check_utilities(input.chunks, input.num_items);
+	for (const Chunk& c : input.chunks) {
+		input.num_transactions += c.tx_begin.size() - 1;
+		input.max_length = std::max(input.max_length, c.max_length);
+	}
 	for (Chunk& c : input.chunks) c.table = {};  // its names point into `buf`
 	lap("rename+sort items");
 	return input;

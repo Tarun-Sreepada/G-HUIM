@@ -68,6 +68,7 @@ class LevelMiner
 
     uint64_t                       root_bytes_ = 0;
     uint32_t                       root_trans_ = 0, root_items_ = 0, root_max_len_ = 0, root_entries_ = 0;
+    uint32_t                       root_occ_shift_ = 0; // position bits of a packed occurrence
     std::vector<uint32_t>           root_occ_counts_;
     Task*                          current_ = nullptr;
     Task*                          next_    = nullptr;

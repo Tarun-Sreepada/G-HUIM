@@ -26,13 +26,16 @@ void LevelMiner::allocate()
     root_items_   = root.header.n_items;
     root_max_len_ = root.header.max_len;
     root_entries_ = root.header.n_entries;
+    root_occ_shift_ = root.occ_shift;
     if (root_bytes_ / kArenaUnit > 0xffffffffull)
         throw std::runtime_error("the input database is too large for 32-bit arena offsets");
     root_            = std::move(root.buffer);
     root_occ_counts_ = std::move(root.occ_counts);
     if (root.header.indexed)
-        spdlog::info("Occurrence indexes: databases with at least {} transactions{}", options_.index_min_trans,
-                     options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "");
+        spdlog::info("Occurrence indexes: databases with at least {} transactions{}; {}-bit occurrences ({} position bits)",
+                     options_.index_min_trans,
+                     options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "",
+                     8 * sizeof(Occurrence), root_occ_shift_);
 
     const uint64_t capacity = budget_.capacity;
     level_a_                = DeviceBuffer<Task>(capacity);

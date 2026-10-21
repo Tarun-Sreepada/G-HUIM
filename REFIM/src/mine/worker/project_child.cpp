@@ -15,19 +15,19 @@ Util Worker::project_child(const Level& db, int depth, std::size_t k, Level& chi
 		for (std::size_t x = 0; x < mark.size(); ++x) keep[x] = m[x] >= depth ? 0xFF : 0;
 	}
 
-	const std::uint32_t occ_end = db.occ_begin[k + 1];
+	const std::uint32_t occ_end = db.occ_begin[k + 1], shift = db.occ_shift;
 	for (std::uint32_t o = db.occ_begin[k]; o < occ_end; ++o) {
 		// Occurrences point at scattered transactions: pull the descriptor a few steps ahead and
 		// the item/utility data (whose address needs the descriptor) a little closer.
-		if (o + kPrefetchTx < occ_end) __builtin_prefetch(&db.txs[db.occ[o + kPrefetchTx].tid], 0, 3);
+		if (o + kPrefetchTx < occ_end) __builtin_prefetch(&db.txs[occurrence_tid(db.occ[o + kPrefetchTx], shift)], 0, 3);
 		if (o + kPrefetchData < occ_end) {
-			const Occurrence& next = db.occ[o + kPrefetchData];
-			const Transaction& nt = db.txs[next.tid];
-			__builtin_prefetch(nt.items + next.pos, 0, 3);
-			__builtin_prefetch(nt.utils + next.pos, 0, 3);
+			const Occurrence next = db.occ[o + kPrefetchData];
+			const Transaction& nt = db.txs[occurrence_tid(next, shift)];
+			__builtin_prefetch(nt.items + occurrence_pos(next, shift), 0, 3);
+			__builtin_prefetch(nt.utils + occurrence_pos(next, shift), 0, 3);
 		}
-		const Transaction& t = db.txs[db.occ[o].tid];
-		const std::uint32_t pos = db.occ[o].pos;
+		const Transaction& t = db.txs[occurrence_tid(db.occ[o], shift)];
+		const std::uint32_t pos = occurrence_pos(db.occ[o], shift);
 		const Util curr = t.utils[pos] + t.prefix;
 		utility += curr;
 		if (pos + 1 == t.len) continue;

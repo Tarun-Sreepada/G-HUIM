@@ -23,7 +23,7 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
     int position[kMaxLocalTailItems + 1];
     uint32_t pending[kMaxLocalTailItems + 1];
     const uint32_t s = v.p.stride;
-    position[0] = valid ? (v.p.occ ? static_cast<int>(v.p.occ[g.rank()].pos) : find_item_strided(keys, tx.length, v.p.item, s)) : -1;
+    position[0] = valid ? (v.p.occ ? static_cast<int>(occurrence_pos(v.p.occ[g.rank()], v.p.occ_shift)) : find_item_strided(keys, tx.length, v.p.item, s)) : -1;
     utility[0] = position[0] >= 0 ? tx.utility + utils[position[0] * s] : 0;
     uint64_t found = 0;
     uint32_t depth = 0;
@@ -93,7 +93,7 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
         const Key* keys = v.p.eitem + tx.begin;
         const Util* utils = v.p.eutil + tx.begin;
         const uint32_t s = v.p.stride;
-        const int pos = v.p.occ ? static_cast<int>(v.p.occ[0].pos) : find_item_strided(keys, tx.length, v.p.item, s);
+        const int pos = v.p.occ ? static_cast<int>(occurrence_pos(v.p.occ[0], v.p.occ_shift)) : find_item_strided(keys, tx.length, v.p.item, s);
         uint64_t count = 0;
         if (pos >= 0) {
             const uint32_t remaining = tx.length - pos - 1;

@@ -56,6 +56,7 @@ struct MiningOptions
     uint64_t    stack_capacity  = 0;            // most tasks one level may hold (BFS); 0 = whatever device memory allows
     uint32_t    key_bits        = 0;            // entry key width: 8, 16 or 32; 0 = the narrowest that holds the items
     uint32_t    util_bits       = 0;            // utility width: 16, 32 or 64; 0 = the narrowest that holds the largest TWU
+    uint32_t    occ_bits        = 0;            // BFS occurrence width: 32 or 64; 0 = the narrowest that holds the database
     std::string output;                         // itemset file; empty = only count the itemsets (BFS)
 };
 

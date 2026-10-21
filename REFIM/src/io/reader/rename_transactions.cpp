@@ -10,6 +10,7 @@ void rename_transactions(std::vector<Chunk>& chunks, const std::vector<std::uint
 		std::vector<std::pair<std::uint32_t, std::uint64_t>> transaction;
 		c.tx_begin.assign(1, 0);
 		c.twu.assign(num_items + 1, 0);
+		c.max_length = 0;
 		for (std::size_t t = 0; t + 1 < c.raw_begin.size(); ++t) {
 			transaction.clear();
 			for (std::size_t i = c.raw_begin[t]; i < c.raw_begin[t + 1]; ++i)
@@ -35,6 +36,7 @@ void rename_transactions(std::vector<Chunk>& chunks, const std::vector<std::uint
 			}
 			for (std::size_t i = first; i < c.keys.size(); ++i)
 				c.overflow |= __builtin_add_overflow(c.twu[c.keys[i]], utility, &c.twu[c.keys[i]]);
+			c.max_length = std::max(c.max_length, static_cast<std::uint32_t>(c.keys.size() - first));
 			c.tx_begin.push_back(c.keys.size());
 		}
 		std::vector<std::int32_t>().swap(c.raw_names);

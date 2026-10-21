@@ -64,7 +64,7 @@ __global__ void __launch_bounds__(kVertBlockWarps * 32)
             const uint32_t st = v.p.stride; // entry e at e * st (tile layout)
             const Key*     keys  = v.p.eitem + tx.begin;
             const Util*    util  = v.p.eutil + tx.begin; // 32-bit columns: the largest TWU fits
-            const int k = i < v.p.n_trans ? (v.p.occ ? static_cast<int>(v.p.occ[i].pos) : find_item_strided(keys, tx.length, v.p.item, st)) : -1;
+            const int k = i < v.p.n_trans ? (v.p.occ ? static_cast<int>(occurrence_pos(v.p.occ[i], v.p.occ_shift)) : find_item_strided(keys, tx.length, v.p.item, st)) : -1;
             const uint32_t has = __ballot_sync(kFullMask, k >= 0);
             const uint32_t c   = n + __popc(has & ((1u << lane) - 1));
             n += __popc(has);
