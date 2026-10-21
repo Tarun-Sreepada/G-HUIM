@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 std::vector<char> root_image(const Dataset& data)
 {
@@ -31,8 +31,8 @@ std::vector<char> root_image(const Dataset& data)
     for (size_t t = 0; t < n_trans; ++t)
         txs[t] = Tx{data.tx_begin[t], data.tx_begin[t + 1] - data.tx_begin[t], 0};
     for (size_t i = 0; i < n_entries; ++i)
-        entries[i] = Entry{data.items[i], data.utilities[i]};
+        entries[i] = Entry{static_cast<Key>(data.items[i]), static_cast<Util>(data.utilities[i])};
     return image;
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

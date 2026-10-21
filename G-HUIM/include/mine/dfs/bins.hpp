@@ -4,7 +4,7 @@
 #include "app/config.hpp"
 #include "mine/dfs/schedule.cuh"
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 struct Bins
 {
@@ -22,4 +22,4 @@ struct Bins
 // Measures the device (adaptive only) and returns the bins of `method`.
 Bins bins_for(Method method);
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

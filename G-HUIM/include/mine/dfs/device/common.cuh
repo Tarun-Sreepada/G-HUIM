@@ -8,7 +8,7 @@
 
 #include <cuda/std/limits>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 constexpr uint32_t kNone = cuda::std::numeric_limits<uint32_t>::max();
 
@@ -70,4 +70,4 @@ __device__ inline void push_task(const BatchView& b, const Task& task)
         fetch_or(b.control->error, kStackExhausted);
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

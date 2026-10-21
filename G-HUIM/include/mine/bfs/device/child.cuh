@@ -3,7 +3,7 @@
 
 #include "mine/bfs/device/passes.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 __device__ inline bool index_child(const BatchView& b, const TaskState& state)
 {
@@ -116,7 +116,7 @@ __device__ inline void write_tile(const Projection& p, const Lanes& lanes, uint3
         const uint32_t slot  = fetch_add(state.tx_cursor, 1u);
         const uint32_t begin = fetch_add(state.entry_cursor, kept);
         p.slot_of[i]         = slot;
-        c.txs[slot]          = Tx{begin, kept, tx.utility + k_util[k]};
+        c.txs[slot]          = Tx{begin, kept, static_cast<Util>(tx.utility + k_util[k])};
         out_item             = c.eitem + begin;
         out_util             = c.eutil + begin;
     }
@@ -187,9 +187,8 @@ __device__ inline void merge_duplicates(const Projection& p, const Lanes& lanes,
         merge_tile(p, lanes, i0, src, c);
 }
 
-// Writes one next-level task per promising extension into the reserved slots (group scan).
-// Build once per child database, then share the index among all its extensions. The local
-// utility table is dead after projection, so reuse it for scatter cursors.
+// Builds the child's occurrence index once, shared by all its extensions. The rename table is dead once
+// the child is written, so it holds the scatter cursors (a count needs 32 bits, which a Util may not have).
 template <typename Group>
 __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t child_items, const ChildView& c)
 {
@@ -211,7 +210,7 @@ __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t ch
         const uint32_t inclusive = g.scan(count);
         if (z < child_items) {
             c.occ_begin[z] = total + inclusive - count;
-            v.p.local[z] = 0;
+            v.p.rename[z]  = 0;
         }
         total += g.last(inclusive);
     }
@@ -222,13 +221,14 @@ __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t ch
         const Tx tx = c.txs[t];
         for (uint32_t pos = 0; pos < tx.length; ++pos) {
             const uint32_t z = c.eitem[tx.begin + pos];
-            const uint32_t slot = c.occ_begin[z] + static_cast<uint32_t>(fetch_add(v.p.local[z], 1ull));
+            const uint32_t slot = c.occ_begin[z] + fetch_add(v.p.rename[z], 1u);
             c.occ[slot] = Occurrence{t, pos};
         }
     }
     g.sync();
 }
 
+// Writes one next-level task per promising extension into the reserved slots (group scan).
 template <typename Group>
 __device__ void emit_children(const Group& g, const BatchView& b, const TaskView& v, uint32_t child_items,
                               const ChildView& c)
@@ -253,4 +253,4 @@ __device__ void emit_children(const Group& g, const BatchView& b, const TaskView
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

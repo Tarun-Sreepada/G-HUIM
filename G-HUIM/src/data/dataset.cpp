@@ -130,6 +130,33 @@ void rebuild_transactions(const RawInput& in, const std::vector<uint32_t>& renam
     });
 }
 
+// Transaction-weighted utilities of the kept items over the rebuilt transactions (their utility sums, not the
+// input's totals): an item's TWU bounds every utility sum of the itemsets containing it. Returns the largest.
+uint64_t max_pruned_twu(const Dataset& data)
+{
+    const size_t items_n     = data.original_item.size();
+    const size_t twu_workers = worker_count(data.items.size() / std::max<size_t>(items_n, 1), 1);
+    std::vector<std::vector<uint64_t>> partial(twu_workers, std::vector<uint64_t>(items_n, 0));
+    std::vector<char>                  overflow(twu_workers, 0);
+    parallel_for(twu_workers, data.transaction_count(), [&](size_t w, size_t begin, size_t end) {
+        auto& hist = partial[w];
+        for (size_t t = begin; t < end; ++t) {
+            uint64_t tu = 0;
+            for (uint32_t i = data.tx_begin[t]; i < data.tx_begin[t + 1]; ++i)
+                overflow[w] |= __builtin_add_overflow(tu, data.utilities[i], &tu);
+            for (uint32_t i = data.tx_begin[t]; i < data.tx_begin[t + 1]; ++i)
+                overflow[w] |= __builtin_add_overflow(hist[data.items[i]], tu, &hist[data.items[i]]);
+        }
+    });
+    bool overflowed = std::find(overflow.begin(), overflow.end(), 1) != overflow.end();
+    for (size_t w = 1; w < twu_workers; ++w)
+        for (size_t b = 0; b < items_n; ++b)
+            overflowed |= __builtin_add_overflow(partial[0][b], partial[w][b], &partial[0][b]);
+    if (overflowed)
+        throw std::runtime_error("an item's transaction-weighted utility exceeds 64 bits");
+    return items_n == 0 ? 0 : *std::max_element(partial[0].begin(), partial[0].end());
+}
+
 // Subtree utility of each item in the revised database selects the first-level extensions.
 void select_primary_items(Dataset& data, uint64_t minimum_utility)
 {
@@ -197,6 +224,10 @@ Dataset load_dataset(const std::string& path, char separator, uint64_t minimum_u
     phase.next("load: rebuild + sort transactions");
     rebuild_transactions(input, rename, data);
     stage("rebuild + sort transactions");
+
+    phase.next("load: pruned TWU");
+    data.max_twu = max_pruned_twu(data);
+    stage("pruned TWU");
 
     phase.next("load: subtree utilities");
     select_primary_items(data, minimum_utility);

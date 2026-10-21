@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 constexpr uint32_t kMaxGrid = 65535;
@@ -128,4 +128,4 @@ const void* subwarp_kernel(bool tiled, bool local_tail)
                  : reinterpret_cast<const void*>(subwarp_tasks<LaneTx>);
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -5,7 +5,7 @@
 #include "mine/bfs/device/tile_passes.cuh"
 #include "mine/bfs/device/local_tail.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // One group (lanes of a warp, a warp, or a block whose warps split the transactions) processes one
 // whole task.
@@ -64,4 +64,4 @@ __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uin
     emit_children(g, b, v, child_items, c);
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

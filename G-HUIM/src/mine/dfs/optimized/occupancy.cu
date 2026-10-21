@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 void measure_optimized_occupancy(AutoTune& tune, uint32_t sms)
 {
@@ -56,4 +56,4 @@ void measure_optimized_occupancy(AutoTune& tune, uint32_t sms)
     tune.subwarp_block_warps = warp_block(opt::subwarp_kernel());
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

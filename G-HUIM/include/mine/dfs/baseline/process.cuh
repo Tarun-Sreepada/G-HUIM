@@ -8,7 +8,7 @@
 #include "mine/dfs/baseline/groups.cuh"
 #include "mine/dfs/baseline/phases.cuh"
 
-namespace ghuim::dfs::baseline {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline {
 
 template <typename Group> __device__ void process_task(Group g, const BatchView& b, uint32_t t)
 {
@@ -46,4 +46,4 @@ template <typename Group> __device__ void process_task(Group g, const BatchView&
     emit_children(g, b, f, c);
 }
 
-} // namespace ghuim::dfs::baseline
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline

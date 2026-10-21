@@ -4,7 +4,7 @@
 #include "app/config.hpp"
 #include "mine/bfs/placement.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 struct Budget
 {
@@ -17,4 +17,4 @@ struct Budget
 
 Budget plan_budget(const MiningOptions& options, const AutoTune& tune, uint64_t first_level_tasks);
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

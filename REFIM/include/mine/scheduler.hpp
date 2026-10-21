@@ -10,6 +10,8 @@
 #include <thread>
 #include <vector>
 
+inline namespace REFIM_WIDTHS {
+
 // Subtrees are split into tasks for other threads only when their database * extension count
 // is large enough to be worth the copy: always near the top of the search, and deeper whenever
 // some worker is idle (so the tail of the run stays balanced).
@@ -22,7 +24,7 @@ constexpr std::uint64_t kHungryWork = std::uint64_t{1} << 14;
 struct Patterns {
 	HugeVector<Item> items;
 	HugeVector<std::size_t> begin{0};
-	HugeVector<Utility> utils;
+	HugeVector<Util> utils;
 
 	std::size_t size() const { return utils.size(); }
 };
@@ -151,3 +153,5 @@ private:
 	std::atomic<unsigned> epoch_{0};           // bumped on every push / completion, for waiting
 	std::atomic<int> idle_{0};
 };
+
+}  // namespace REFIM_WIDTHS

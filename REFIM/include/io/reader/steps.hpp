@@ -1,22 +1,16 @@
 #pragma once
-// The stages of read_database(), in the order it runs them. Each is implemented in src/io/reader/.
+// The stages of read_transactions(), in the order it runs them. Each is implemented in src/io/reader/.
+// The root build that follows (make_root, io/root.hpp) has its own stages in io/reader/root_steps.hpp.
 
 #include "io/reader/chunk.hpp"
-#include "mine/level.hpp"
 
 #include <cstdint>
-#include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
 
-// The transactions of every chunk back to back; transaction t is keys/vals[begin[t]..begin[t + 1]).
-struct Flat {
-	std::unique_ptr<Item[]> keys;
-	std::unique_ptr<Util[]> vals;
-	std::unique_ptr<std::size_t[]> begin;
-	std::size_t num_tx = 0;
-};
+// Items keep ids 1..num_items, and the widest item width is 32 bits.
+constexpr std::size_t kMaxItems = 0xFFFFFFFEu;
 
 // Reads the whole file with parallel pread()s.
 std::string read_all(const std::string& path, int threads);
@@ -28,16 +22,9 @@ void parse_chunks(std::string_view text, const std::string& sep, std::vector<Chu
 NameTable merge_names(std::vector<Chunk>& chunks);
 // Keeps items with TWU >= min_util, ids by TWU ascending (a larger id is a larger TWU).
 // Returns the old-name index -> new id map (0 = pruned) and fills rename[id].
-std::vector<Item> rank_items(const NameTable& names, Utility min_util, std::vector<std::string>& rename);
-// Renamed transactions per chunk, items ascending.
-void rename_transactions(std::vector<Chunk>& chunks, const std::vector<Item>& new_id, std::size_t num_items);
-// Throws if a utility is negative or an item's total utility overflows the stored width.
-void check_utilities(const std::vector<Chunk>& chunks, std::size_t num_items, const std::vector<std::string>& rename);
-// Concatenates the chunks into global arrays and frees them.
-Flat concatenate(std::vector<Chunk>& chunks);
-// Transaction order, reverse-lexicographic (compare from the last item).
-std::vector<std::uint32_t> sort_transactions(const Flat& flat, int threads);
-// Builds the root level from the sorted order, merging equal transactions.
-void build_root(const Flat& flat, const std::vector<std::uint32_t>& order, int threads, Level& root);
-// Primary items: those whose subtree utility is >= min_util.
-void find_primary(Level& root, std::size_t num_items, Utility min_util, int threads);
+std::vector<std::uint32_t> rank_items(const NameTable& names, std::int64_t min_util, std::vector<std::string>& rename);
+// Renamed transactions per chunk, items ascending, and each chunk's TWU of every kept item.
+void rename_transactions(std::vector<Chunk>& chunks, const std::vector<std::uint32_t>& new_id, std::size_t num_items);
+// Throws if a utility is negative or a sum of utilities overflows 64 bits; returns the largest TWU of a kept
+// item over the renamed transactions.
+std::uint64_t check_utilities(const std::vector<Chunk>& chunks, std::size_t num_items);

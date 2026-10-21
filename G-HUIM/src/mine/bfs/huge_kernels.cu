@@ -8,7 +8,7 @@
 
 #include <algorithm>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 constexpr uint32_t kMaxGrid = 65535;
@@ -294,4 +294,4 @@ void prepare_staged_kernels(uint32_t dynamic_bytes)
                    "raise staged huge kernel shared memory");
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

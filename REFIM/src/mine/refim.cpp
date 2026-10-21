@@ -1,134 +1,90 @@
 #include "mine/refim.hpp"
 
-#include "io/output.hpp"
 #include "io/reader.hpp"
-#include "mine/worker.hpp"
-#include "sys/alloc.hpp"
-#include "sys/numa.hpp"
-#include "sys/parallel.hpp"
 #include "sys/util.hpp"
 
-#include <barrier>
 #include <chrono>
 #include <iostream>
 #include <spdlog/spdlog.h>
-#include <memory>
 #include <stdexcept>
+#include <string>
+
+// The searches of every built width pair (src/mine/search.cpp).
+#define REFIM_DECLARE_SEARCH(item, util) \
+	inline namespace REFIM_WIDTH_NAME(item, util) { SearchResult search(Transactions& input, const SearchOptions& options); }
+REFIM_FOR_EACH_BUILT_WIDTH(REFIM_DECLARE_SEARCH)
+#undef REFIM_DECLARE_SEARCH
+
+namespace {
+
+struct Widths {
+	int key_bits, util_bits;
+};
+
+// Items keep ids 1..num_items; every utility is at most the largest TWU (mine/widths.hpp).
+int key_bits_for(std::size_t num_items) { return num_items < (1u << 8) ? 8 : num_items < (1u << 16) ? 16 : 32; }
+int util_bits_for(std::uint64_t max_twu) { return max_twu <= UINT16_MAX ? 16 : max_twu <= UINT32_MAX ? 32 : 64; }
+
+// --key-bits/--util-bits when given (they must hold the dataset), else the narrowest built pair that holds
+// it: fewest bytes per entry, then the narrower utilities.
+Widths choose_widths(const Transactions& input, int key_bits, int util_bits) {
+	const int key_needed = key_bits_for(input.num_items), util_needed = util_bits_for(input.max_twu);
+	if (key_bits != 0 && key_bits < key_needed)
+		throw std::runtime_error("--key-bits " + std::to_string(key_bits) + " is too narrow: " + std::to_string(input.num_items) +
+								 " items need " + std::to_string(key_needed) + "-bit ids");
+	if (util_bits != 0 && util_bits < util_needed)
+		throw std::runtime_error("--util-bits " + std::to_string(util_bits) + " is too narrow: the largest TWU " +
+								 std::to_string(input.max_twu) + " needs " + std::to_string(util_needed) + "-bit utilities");
+	Widths best{0, 0};
+	const auto consider = [&](int key, int util) {
+		if (key_bits != 0 ? key != key_bits : key < key_needed) return;
+		if (util_bits != 0 ? util != util_bits : util < util_needed) return;
+		const int bits = key + util, best_bits = best.key_bits + best.util_bits;
+		if (best.key_bits == 0 || bits < best_bits || (bits == best_bits && util < best.util_bits)) best = {key, util};
+	};
+#define REFIM_CONSIDER(item, util) consider(item, util);
+	REFIM_FOR_EACH_BUILT_WIDTH(REFIM_CONSIDER)
+#undef REFIM_CONSIDER
+	if (best.key_bits == 0)
+		throw std::runtime_error("no search was built for " + std::to_string(key_bits ? key_bits : key_needed) + "-bit ids and " +
+								 std::to_string(util_bits ? util_bits : util_needed) + "-bit utilities (see CMake option REFIM_WIDTHS)");
+	return best;
+}
+
+SearchResult search_with(const Widths& widths, Transactions& input, const SearchOptions& options) {
+#define REFIM_DISPATCH(item, util) \
+	if (widths.key_bits == item && widths.util_bits == util) return REFIM_WIDTH_NAME(item, util)::search(input, options);
+	REFIM_FOR_EACH_BUILT_WIDTH(REFIM_DISPATCH)
+#undef REFIM_DISPATCH
+	throw std::logic_error("unreachable: chosen widths were not built");
+}
+
+}  // namespace
 
 void Refim::mine(bool collect_patterns) {
 	const auto start = std::chrono::steady_clock::now();
-	collect_patterns_ = collect_patterns;
+	search_.collect_patterns = collect_patterns;
+	search_.min_util = static_cast<std::uint64_t>(min_util_);
 	pattern_count_ = 0;
-	results_.clear();
+	patterns_.reset();
 	rename_.clear();
 
-	auto root = std::make_shared<Level>();
-	read_database(input_file_, sep_, min_util_, *root, rename_, threads_);
-
-
-	// Placement: pin worker w to cpus[w] and group workers by NUMA node.
-	std::vector<CpuInfo> cpus;
-	int nodes = 1;
-	if (numa_ && threads_ > 1) {
-		const Topology topology = detect_topology();
-		if (topology.valid) {
-			cpus = pick_cpus(topology, threads_);
-			if (static_cast<int>(cpus.size()) == threads_) {
-				nodes = topology.nodes;
-				spdlog::debug("numa: {} nodes, {} L3 groups, pinning {} workers", topology.nodes, topology.l3_groups, threads_);
-			} else {
-				cpus.clear();
-			}
-		}
-		if (cpus.empty()) spdlog::warn("numa: topology unavailable, workers are not pinned");
-	}
-	const auto node_of = [&](int w) { return cpus.empty() ? 0 : cpus[w].node; };
-
-	// Steal order per worker: same L3 group, then same node, then remote; nearest index first.
-	std::vector<std::vector<int>> victims(threads_);
-	for (int w = 0; w < threads_; ++w) {
-		for (int k = 1; k < threads_; ++k) victims[w].push_back((w + k) % threads_);
-		if (!cpus.empty())
-			std::stable_sort(victims[w].begin(), victims[w].end(), [&](int a, int b) {
-				const auto dist = [&](int v) { return cpus[v].l3 == cpus[w].l3 && cpus[v].node == cpus[w].node ? 0 : cpus[v].node == cpus[w].node ? 1 : 2; };
-				return dist(a) < dist(b);
-			});
-	}
-
-	Scheduler scheduler(std::move(victims));
-	std::vector<std::unique_ptr<Worker>> workers(threads_);
-	std::vector<std::shared_ptr<const Level>> replicas(nodes);
-	std::barrier sync(threads_);
-	const std::size_t roots = root->primary.size();
-
-	const auto mine_start = std::chrono::steady_clock::now();
-	const auto body = [&](int w) {
-		if (!cpus.empty() && !pin_this_thread(cpus[w].cpu)) spdlog::warn("numa: cannot pin worker {} to cpu {}", w, cpus[w].cpu);
-		// Big arrays of this worker come from (and return to) the arena of its L3 group.
-		const ArenaBinding binding(cpus.empty() ? nullptr : Arena::get(cpus[w].l3));
-		workers[w] = std::make_unique<Worker>(w, rename_.size(), min_util_, threads_, scheduler, collect_patterns_, refine_, compact_, refine_min_drop_, leaf_);
-
-		// One copy of the root per node, shaped by the first worker of that node and filled by
-		// all of the node's workers (first touch, in parallel).
-		const int node = node_of(w);
-		int rank = 0, peers = 0;
-		for (int v = 0; v < threads_; ++v) {
-			if (node_of(v) != node) continue;
-			if (v < w) ++rank;
-			++peers;
-		}
-		if (nodes > 1) {
-			if (rank == 0) replicas[node] = root->shape_copy();
-			sync.arrive_and_wait();
-			std::const_pointer_cast<Level>(replicas[node])->fill_part(*root, rank, peers);
-		}
-		sync.arrive_and_wait();
-		const std::shared_ptr<const Level>& mine = nodes > 1 ? replicas[node] : root;
-		for (std::size_t k = roots; k-- > 0;)
-			if (k % threads_ == static_cast<std::size_t>(w)) scheduler.seed(w, {mine, 0, static_cast<std::uint32_t>(k), {}});
-		sync.arrive_and_wait();
-		if (w == 0) {
-			spdlog::debug("mine: setup {:.3f} s", std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count());
-			root.reset();
-			replicas.clear();
-		}
-		workers[w]->run();
-	};
-	parallel_run(threads_, body);
-	const double mine_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count();
-	SearchStats stats;
-	for (auto& w : workers) {
-		stats += w->stats;
-		pattern_count_ += w->pattern_count;
-		if (collect_patterns_) results_.push_back(std::move(w->patterns));
-	}
-	if (stats_)
-		spdlog::info("stats: nodes {} primary {} secondary {} | refine rounds {} secondary -{} primary -{} | "
-					 "compacted {} txs {} -> {} items {} -> {} | leaves {}",
-					 stats.nodes, stats.primary, stats.secondary, stats.refine_rounds, stats.refine_secondary, stats.refine_primary,
-					 stats.compacted, stats.compact_tx_in, stats.compact_tx_out, stats.compact_items_in, stats.compact_items_out,
-					 stats.leaves);
-	if (spdlog::should_log(spdlog::level::debug)) {
-		const Arena::Stats a = Arena::stats();
-		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
-	}
-	if (spdlog::should_log(spdlog::level::debug)) {
-		double busy = 0;
-		for (int w = 0; w < threads_; ++w) {
-			spdlog::debug("worker {}: {} patterns, {} steals, busy {:.3f} s", w, workers[w]->pattern_count, scheduler.steals(w), workers[w]->busy_seconds);
-			busy += workers[w]->busy_seconds;
-		}
-		spdlog::debug("mine: {:.3f} s wall, workers busy {:.0f}%", mine_seconds, 100 * busy / (mine_seconds * threads_));
-	}
+	Transactions input = read_transactions(input_file_, sep_, min_util_, rename_, search_.threads);
+	const Widths widths = choose_widths(input, key_bits_, util_bits_);
+	spdlog::info("widths: {}-bit ids ({} items), {}-bit utilities (largest TWU {})", widths.key_bits, input.num_items,
+				 widths.util_bits, input.max_twu);
+	SearchResult result = search_with(widths, input, search_);
+	pattern_count_ = result.pattern_count;
+	patterns_ = std::move(result.patterns);
 
 	runtime_ = std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count();
 	memory_rss_ = peak_rss_bytes();
 }
 
 void Refim::save(const std::string& out_file) const {
-	if (!collect_patterns_) throw std::logic_error("cannot save patterns after count-only mining");
+	if (!search_.collect_patterns) throw std::logic_error("cannot save patterns after count-only mining");
 	const auto start = std::chrono::steady_clock::now();
-	const std::size_t bytes = write_patterns(out_file, results_, rename_);
+	const std::size_t bytes = patterns_->write(out_file, rename_);
 	spdlog::info("Wrote {} patterns ({} bytes) to {} in {:.3f} s", pattern_count(), bytes, out_file,
 				 std::chrono::duration<double>(std::chrono::steady_clock::now() - start).count());
 }

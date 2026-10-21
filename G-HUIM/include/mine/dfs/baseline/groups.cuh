@@ -1,10 +1,12 @@
 #pragma once
 // Thread groups that cooperatively process one task (static-parallelism kernels).
 
+#include "mine/widths.hpp"
+
 #include <cuda_runtime.h>
 #include <cstdint>
 
-namespace ghuim::dfs::baseline {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline {
 
 struct BlockGroup
 {
@@ -20,4 +22,4 @@ struct WarpGroup
     __device__ void     sync() const { __syncwarp(); }
 };
 
-} // namespace ghuim::dfs::baseline
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline

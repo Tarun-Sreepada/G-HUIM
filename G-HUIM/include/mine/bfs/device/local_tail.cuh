@@ -4,7 +4,7 @@
 #include "mine/bfs/device/groups.cuh"
 #include "mine/bfs/placement.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 
 // A bounded cooperative DFS. Each lane owns one immutable parent transaction; the
@@ -19,16 +19,16 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
     const Key* keys = v.p.eitem + tx.begin;
     const Util* utils = v.p.eutil + tx.begin;
     const uint32_t first = v.p.item + 1;
-    uint64_t utility[kMaxLocalTailItems + 1];
+    Util utility[kMaxLocalTailItems + 1];
     int position[kMaxLocalTailItems + 1];
     uint32_t pending[kMaxLocalTailItems + 1];
     position[0] = valid ? (v.p.occ ? static_cast<int>(v.p.occ[g.rank()].pos) : find_item(keys, tx.length, v.p.item)) : -1;
-    utility[0] = position[0] >= 0 ? uint64_t{tx.utility} + utils[position[0]] : 0;
+    utility[0] = position[0] >= 0 ? tx.utility + utils[position[0]] : 0;
     uint64_t found = 0;
     uint32_t depth = 0;
     for (;;) {
         uint32_t suffix = 0;
-        uint64_t upper = utility[depth];
+        Util upper = utility[depth];
         if (position[depth] >= 0) {
             for (uint32_t pos = position[depth] + 1; pos < tx.length; ++pos) {
                 suffix |= 1u << (keys[pos] - first);
@@ -36,11 +36,11 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
             }
         }
         const uint32_t candidates = __reduce_or_sync(lanes.mask, suffix);
-        const uint64_t total = lanes.sum(utility[depth]);
-        const uint64_t bound = lanes.sum(upper);
+        const Util total = lanes.sum(utility[depth]);
+        const Util bound = lanes.sum(upper);
         // Transactions containing the whole remaining union also support every subset.
         // If their prefix utilities alone qualify, all 2^k completions qualify.
-        const uint64_t lower = lanes.sum(suffix == candidates ? utility[depth] : uint64_t{0});
+        const Util lower = lanes.sum(suffix == candidates ? utility[depth] : Util{0});
         pending[depth] = 0;
         if (lower >= b.minimum_utility)
             found += uint64_t{1} << __popc(candidates);
@@ -96,11 +96,11 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
         if (pos >= 0) {
             const uint32_t remaining = tx.length - pos - 1;
             const uint32_t subsets = 1u << remaining;
-            uint64_t utility = uint64_t{tx.utility} + utils[pos];
+            Util utility = tx.utility + utils[pos];
             if (utility >= b.minimum_utility)
                 count = subsets;
             else {
-                uint64_t upper = utility;
+                Util upper = utility;
                 for (uint32_t k = 0; k < remaining; ++k)
                     upper += utils[pos + 1 + k];
                 if (upper >= b.minimum_utility) {
@@ -109,7 +109,7 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
                     for (uint32_t k = 1; k < subsets; ++k) {
                         const uint32_t next = k ^ (k >> 1);
                         const uint32_t changed = next ^ previous;
-                        const uint64_t value = utils[pos + 1 + (__ffs(changed) - 1)];
+                        const Util value = utils[pos + 1 + (__ffs(changed) - 1)];
                         if (next & changed)
                             utility += value;
                         else
@@ -130,4 +130,4 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
     return true;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

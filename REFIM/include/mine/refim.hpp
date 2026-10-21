@@ -13,8 +13,9 @@
 //        (legacy positional form: refim <input> <output> <minUtil> [sep] [threads])
 //     threads defaults to 1 (0 = all) and is capped at the hardware thread count.
 //
-// Limits: items are uint32 and stored utilities int64 (no item's total utility may exceed
-// INT64_MAX); the reader fails with an error otherwise.
+// Widths: item ids and utilities are 8/16/32 and 16/32/64 bits, the narrowest that hold the kept items and
+// the largest TWU (--key-bits/--util-bits override; mine/widths.hpp). Utilities must be non-negative and every
+// TWU must fit 64 bits; the reader fails with an error otherwise.
 //
 // Differences from efim.py: the search is depth-first instead of level-by-level
 // (same patterns, far less memory). Workers are pinned one per core (spread over L3 groups and
@@ -42,11 +43,10 @@
 
 #pragma once
 
-#include "mine/level.hpp"
-#include "mine/scheduler.hpp"
-#include "mine/worker.hpp"
+#include "mine/search.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -56,10 +56,10 @@
 
 class Refim {
 public:
-	Refim(std::string input_file, Utility min_util, std::string sep = "\t", int threads = 1)
-		: input_file_(std::move(input_file)), min_util_(min_util), sep_(std::move(sep)),
-		  threads_(std::clamp(threads, 1, max_threads())) {
+	Refim(std::string input_file, std::int64_t min_util, std::string sep = "\t", int threads = 1)
+		: input_file_(std::move(input_file)), min_util_(min_util), sep_(std::move(sep)) {
 		if (sep_.empty()) throw std::invalid_argument("separator must not be empty");
+		search_.threads = std::clamp(threads, 1, max_threads());
 	}
 
 	// Hardware thread count; hardware_concurrency() may return 0 when unknown.
@@ -69,17 +69,23 @@ public:
 	}
 
 	// Pin workers to cores, place memory node-locally and steal nearest-first (default on).
-	void set_numa(bool on) { numa_ = on; }
+	void set_numa(bool on) { search_.numa = on; }
 	// Rounds of recomputing each child's bounds without the items it rules out (-1 = until none is).
-	void set_refine(int rounds) { refine_ = rounds; }
+	void set_refine(int rounds) { search_.refine = rounds; }
 	// Rewrite each child without the items it rules out (default on).
-	void set_compact(bool on) { compact_ = on; }
+	void set_compact(bool on) { search_.compact = on; }
+	// Sum leaf extensions from the occurrence index instead of projecting them (default on).
+	void set_leaf(bool on) { search_.leaf = on; }
 	// Skip a refinement round unless the last pass dropped at least this fraction of the candidates.
-	void set_leaf(bool on) { leaf_ = on; }
-	void set_refine_min_drop(double fraction) { refine_min_drop_ = fraction; }
+	void set_refine_min_drop(double fraction) { search_.refine_min_drop = fraction; }
+	// Item id and utility widths (0 = the narrowest that holds the dataset).
+	void set_widths(int key_bits, int util_bits) {
+		key_bits_ = key_bits;
+		util_bits_ = util_bits;
+	}
 
-	void set_stats(bool on) { stats_ = on; }
-	int threads() const { return threads_; }
+	void set_stats(bool on) { search_.stats = on; }
+	int threads() const { return search_.threads; }
 	// Count by default; collection must be enabled before mining to call save().
 	void mine(bool collect_patterns = false);
 	void save(const std::string& out_file) const;
@@ -90,17 +96,13 @@ public:
 
 private:
 	std::string input_file_;
-	Utility min_util_;
+	std::int64_t min_util_;
 	std::string sep_;
-	int threads_;
-	bool numa_ = true;
-	int refine_ = -1;
-	bool stats_ = false, compact_ = true, leaf_ = true;
-	double refine_min_drop_ = 0;
-	bool collect_patterns_ = false;
+	SearchOptions search_;
+	int key_bits_ = 0, util_bits_ = 0;
 	std::size_t pattern_count_ = 0;
-	std::vector<std::string> rename_;  // rename_[id] = original item name; index 0 unused
-	std::vector<Patterns> results_;    // one per worker
+	std::vector<std::string> rename_;         // rename_[id] = original item name; index 0 unused
+	std::unique_ptr<FoundPatterns> patterns_;  // with collect_patterns
 	double runtime_ = 0;
 	std::size_t memory_rss_ = 0;
 };

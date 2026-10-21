@@ -2,12 +2,13 @@
 // The CUDA streams the BFS miner runs its bins on.
 
 #include "cuda/buffer.cuh"
+#include "mine/widths.hpp"
 
 #include <array>
 #include <cstddef>
 #include <cuda_runtime.h>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 constexpr uint32_t kStreams = 4;
 
@@ -35,4 +36,4 @@ class Streams
     std::array<cudaStream_t, kStreams> streams_{};
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

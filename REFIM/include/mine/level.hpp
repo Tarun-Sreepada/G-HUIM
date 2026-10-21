@@ -1,6 +1,7 @@
 #pragma once
 // Databases of the EFIM search: transactions, and the occurrence index used to project them.
 
+#include "mine/widths.hpp"
 #include "sys/alloc.hpp"
 #include "sys/parallel.hpp"
 
@@ -10,10 +11,7 @@
 #include <numeric>
 #include <vector>
 
-using Item = std::uint32_t;  // renamed item id, 1..numItems (larger id = larger TWU); numItems <= kMaxItems
-using Util = std::int64_t;   // stored per-item utility
-using Utility = std::int64_t;  // sums of utilities (prefix, patterns, bounds)
-constexpr std::size_t kMaxItems = 0xFFFFFFFEu;
+inline namespace REFIM_WIDTHS {
 
 // A transaction of a (projected) database, items sorted ascending. A view points into
 // an ancestor's storage; an owned transaction lives in its own Level's storage.
@@ -21,7 +19,7 @@ struct Transaction {
 	const Item* items;
 	const Util* utils;
 	std::uint32_t len;
-	Utility prefix;    // utility of the current prefix itemset in this transaction
+	Util prefix;       // utility of the current prefix itemset in this transaction
 	std::int64_t own;  // offset into Level::items/utils, or -1 for a view
 };
 
@@ -55,7 +53,7 @@ struct Level {
 
 	// Appends a transaction, merging it into the previous one when their items are
 	// equal. A view must point outside this Level; otherwise the data is copied. n >= 1.
-	void add(const Item* it, const Util* ut, std::uint32_t n, Utility prefix, bool view) {
+	void add(const Item* it, const Util* ut, std::uint32_t n, Util prefix, bool view) {
 		if (!txs.empty()) {
 			Transaction& last = txs.back();
 			// Transactions arrive in reverse-lexicographic order, so a different neighbour usually
@@ -209,3 +207,5 @@ struct Level {
 		return copy;
 	}
 };
+
+}  // namespace REFIM_WIDTHS

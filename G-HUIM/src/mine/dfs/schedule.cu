@@ -3,7 +3,7 @@
 #include "mine/primitives.cuh"
 #include "mine/dfs/schedule.cuh"
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 namespace {
 
 constexpr uint32_t kSelectBlock = 1024;
@@ -262,4 +262,4 @@ void remap_tasks(Task* stack, uint32_t stack_size, const uint32_t* live, const u
     check_cuda(cudaGetLastError(), "launch remap");
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

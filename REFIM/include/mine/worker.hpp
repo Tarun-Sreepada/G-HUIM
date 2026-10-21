@@ -7,6 +7,8 @@
 #include <memory>
 #include <vector>
 
+inline namespace REFIM_WIDTHS {
+
 // Search counters, summed over workers for --stats.
 struct SearchStats {
 	std::uint64_t nodes = 0;            // projections
@@ -40,7 +42,7 @@ struct SearchStats {
 // Per-thread search state. Scratch arrays are indexed by item id and reset
 // after each projection via the `touched` list.
 struct Worker {
-	Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns,
+	Worker(int id, std::size_t num_items, std::uint64_t min_util, int threads, Scheduler& scheduler, bool collect_patterns,
 		   int refine = -1, bool compact = true, double refine_min_drop = 0, bool leaf = true);
 
 	void run();
@@ -58,12 +60,12 @@ private:
 	void expand(const Level& db, int depth, std::size_t k);
 	// expand(), step by step:
 	// sums the utility of db.primary[k] from the occurrence index, without projecting.
-	Utility leaf_utility(const Level& db, std::size_t k) const;
+	Util leaf_utility(const Level& db, std::size_t k) const;
 	// fills `child` with the projection of db on db.primary[k] and bounds the extensions; returns the
 	// utility of the itemset.
-	Utility project_child(const Level& db, int depth, std::size_t k, Level& child);
+	Util project_child(const Level& db, int depth, std::size_t k, Level& child);
 	// counts the itemset (and keeps it with --output) if its utility reaches min_util.
-	void record_pattern(Utility utility);
+	void record_pattern(Util utility);
 	// expands each primary item of `child`, or hands siblings to idle threads.
 	void descend(Level& child, int depth);
 	// Chooses child.primary/secondary from the bounds of the `touched` items (resetting them),
@@ -74,7 +76,7 @@ private:
 	void compact_child(Level& child, int depth);
 
 	int id;
-	Utility min_util;
+	std::uint64_t min_util;
 	int threads;
 	Scheduler& scheduler;
 	const bool collect_patterns;
@@ -82,7 +84,7 @@ private:
 	const bool compact;
 	const double refine_min_drop;
 	const bool leaf;  // sum leaf extensions from the occurrence index instead of projecting them
-	std::vector<std::pair<Item, Utility>> chosen;  // scratch for select_extensions
+	std::vector<std::pair<Item, Util>> chosen;  // scratch for select_extensions
 	// mark[x] = deepest depth on the current path at which x is secondary, -1 if none.
 	// The root (depth 0) keeps every item, so it is never marked.
 	std::vector<int> mark;
@@ -90,7 +92,7 @@ private:
 	// local == 0 marks an item not yet touched (utilities are >= 0; a zero-utility item can enter
 	// `touched` twice, which is harmless since its bounds stay 0 < minUtil).
 	struct Bound {
-		Utility local = 0, subtree = 0;
+		Util local = 0, subtree = 0;
 	};
 	std::vector<Bound> bound;
 	std::vector<std::int32_t> slot;
@@ -103,3 +105,5 @@ private:
 	// until the next sibling at depth d is compacted.
 	std::vector<std::unique_ptr<Level>> spare;
 };
+
+}  // namespace REFIM_WIDTHS

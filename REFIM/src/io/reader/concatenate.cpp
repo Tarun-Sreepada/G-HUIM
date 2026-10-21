@@ -1,8 +1,10 @@
-#include "io/reader/steps.hpp"
+#include "io/reader/root_steps.hpp"
 
 #include "sys/parallel.hpp"
 
 #include <algorithm>
+
+inline namespace REFIM_WIDTHS {
 
 Flat concatenate(std::vector<Chunk>& chunks) {
 	const int n = static_cast<int>(chunks.size());
@@ -30,3 +32,5 @@ Flat concatenate(std::vector<Chunk>& chunks) {
 	flat.num_tx = tx_off.back();
 	return flat;
 }
+
+}  // namespace REFIM_WIDTHS

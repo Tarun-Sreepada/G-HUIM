@@ -7,7 +7,7 @@
 #include <spdlog/spdlog.h>
 #include <string>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 MiningResult LevelMiner::run()
 {
@@ -54,4 +54,4 @@ MiningResult LevelMiner::run()
     return result_;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

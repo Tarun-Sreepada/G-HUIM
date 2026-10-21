@@ -1,12 +1,14 @@
 #include "mine/worker.hpp"
 
+inline namespace REFIM_WIDTHS {
+
 namespace {
 constexpr std::uint32_t kPrefetchTx = 12, kPrefetchData = 5;
 }  // namespace
 
-Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& child) {
+Util Worker::project_child(const Level& db, int depth, std::size_t k, Level& child) {
 	child.clear();
-	Utility utility = 0;
+	Util utility = 0;
 	++stats.nodes;
 
 	const std::uint32_t occ_end = db.occ_begin[k + 1];
@@ -22,7 +24,7 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 		}
 		const Transaction& t = db.txs[db.occ[o].tid];
 		const std::uint32_t pos = db.occ[o].pos;
-		const Utility curr = t.utils[pos] + t.prefix;
+		const Util curr = t.utils[pos] + t.prefix;
 		utility += curr;
 		if (pos + 1 == t.len) continue;
 
@@ -45,7 +47,7 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 			Util* const out_utils = new_val.data();
 			const bool filtering = depth > 0;
 			std::uint32_t at = n;
-			Utility suffix = 0;
+			Util suffix = 0;
 			for (std::uint32_t i = n; i-- > 0;) {
 				const Item x = items[i];
 				if (filtering && mark[x] < depth) continue;
@@ -62,7 +64,7 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 				kept_items = out_items + at;
 				kept_utils = out_utils + at;
 			}
-			const Utility base = suffix + curr;
+			const Util base = suffix + curr;
 			for (std::uint32_t i = 0; i < kept; ++i) {
 				const Item x = kept_items[i];
 				if (b[x].local == 0) touched.push_back(x);
@@ -70,7 +72,7 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 			}
 		} else {
 			// Items that are no longer extensions (not secondary at this depth) are dropped.
-			Utility s = 0;
+			Util s = 0;
 			if (depth > 0) {
 				if (new_key.size() < n + kSimdSlack) {
 					new_key.resize(2 * n + kSimdSlack);
@@ -85,8 +87,8 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 			} else {
 				for (std::uint32_t i = 0; i < n; ++i) s += utils[i];
 			}
-			const Utility base = s + curr;
-			Utility temp = 0;
+			const Util base = s + curr;
+			Util temp = 0;
 			for (std::uint32_t i = 0; i < kept; ++i) {
 				const Item x = kept_items[i];
 				if (b[x].local == 0) touched.push_back(x);
@@ -105,3 +107,5 @@ Utility Worker::project_child(const Level& db, int depth, std::size_t k, Level& 
 	child.finalize();
 	return utility;
 }
+
+}  // namespace REFIM_WIDTHS

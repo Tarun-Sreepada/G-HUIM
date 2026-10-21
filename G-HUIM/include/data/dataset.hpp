@@ -18,7 +18,10 @@ struct Dataset
     std::vector<uint64_t> utilities;
     std::vector<uint32_t> primary;       // items whose subtree utility meets the threshold
     uint64_t              input_transactions = 0;
-    uint64_t              total_utility      = 0; // sum over the input; bounds every utility sum
+    uint64_t              total_utility      = 0; // sum over the input
+    // Largest TWU over the kept items, from the rebuilt transactions: bounds every utility the miners store or
+    // sum, so it sets the utility width (mine/widths.hpp).
+    uint64_t              max_twu            = 0;
     std::vector<std::pair<const char*, double>> timings; // preprocessing stage -> milliseconds
 
     size_t transaction_count() const

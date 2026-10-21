@@ -4,7 +4,7 @@
 #include "mine/dfs/optimized/child.cuh"
 #include "mine/dfs/optimized/passes.cuh"
 
-namespace ghuim::dfs::opt {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::opt {
 
 template <typename Group>
 __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uint32_t warp, uint32_t warps)
@@ -44,4 +44,4 @@ __device__ void process_task(const Group& g, const BatchView& b, uint32_t t, uin
     emit_children(g, b, v, child_items, c);
 }
 
-} // namespace ghuim::dfs::opt
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::opt

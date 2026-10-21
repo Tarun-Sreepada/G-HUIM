@@ -3,11 +3,12 @@
 #include "app/config.hpp"
 #include "data/dataset.hpp"
 #include "mine/result.hpp"
+#include "mine/widths.hpp"
 
-namespace ghuim {
+namespace ghuim::inline GHUIM_WIDTHS {
 
 // Level-synchronous search: every task of a level runs before any task of the next. Level L's tasks
 // are binned by size and run with a thread-group size chosen from the level's total work.
 MiningResult mine_bfs(const Dataset& data, const MiningOptions& options);
 
-} // namespace ghuim
+} // namespace ghuim::inline GHUIM_WIDTHS

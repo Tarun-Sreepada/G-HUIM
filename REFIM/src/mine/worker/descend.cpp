@@ -1,5 +1,7 @@
 #include "mine/worker.hpp"
 
+inline namespace REFIM_WIDTHS {
+
 void Worker::descend(Level& child, int depth) {
 	if (child.primary.empty()) return;
 	child.index(slot);
@@ -37,3 +39,5 @@ void Worker::descend(Level& child, int depth) {
 		for (const Item x : child.secondary) mark[x] = depth > 0 ? depth : -1;
 	}
 }
+
+}  // namespace REFIM_WIDTHS

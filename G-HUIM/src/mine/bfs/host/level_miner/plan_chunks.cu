@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <stdexcept>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Scratch offsets over the whole level, split into chunks that fit the scratch buffer (`cuts` holds
 // the chunk boundaries).
@@ -44,4 +44,4 @@ void LevelMiner::plan_chunks(uint32_t count, std::vector<uint32_t>& cuts)
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

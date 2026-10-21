@@ -7,6 +7,10 @@
 #include <string>
 #include <vector>
 
+inline namespace REFIM_WIDTHS {
+
 // Line format: items joined by '\t', then ':' and the utility. Returns bytes written.
 std::size_t write_patterns(const std::string& path, const std::vector<Patterns>& results,
                            const std::vector<std::string>& names);
+
+}  // namespace REFIM_WIDTHS

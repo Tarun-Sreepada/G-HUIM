@@ -4,7 +4,7 @@
 #include "mine/dfs/optimized/groups.cuh"
 #include "mine/dfs/optimized/projection.cuh"
 
-namespace ghuim::dfs::opt {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::opt {
 
 // Counts the promising extensions; one thread then allocates the child database, records the
 // task, and reserves stack slots (state.reserved). All threads of the group must call it.
@@ -94,7 +94,7 @@ __device__ inline void write_representatives(const Projection& p, const Lanes& l
             const uint32_t slot  = fetch_add(state.tx_cursor, 1u);
             const uint32_t begin = fetch_add(state.entry_cursor, kept);
             p.slot_of[i]         = slot;
-            c.txs[slot]          = Tx{begin, kept, tx.utility + e[k].utility};
+            c.txs[slot]          = Tx{begin, kept, static_cast<Util>(tx.utility + e[k].utility)};
             out                  = c.entries + begin;
         }
         for (uint32_t d = 0; d < span; ++d) {
@@ -102,7 +102,7 @@ __device__ inline void write_representatives(const Projection& p, const Lanes& l
                 continue;
             const uint32_t z = p.rename[e[k + 1 + d].item];
             if (z != kNone)
-                *out++ = Entry{z, e[k + 1 + d].utility};
+                *out++ = Entry{static_cast<Key>(z), e[k + 1 + d].utility};
         }
     }
 }
@@ -155,4 +155,4 @@ __device__ void emit_children(const Group& g, const BatchView& b, const TaskView
     }
 }
 
-} // namespace ghuim::dfs::opt
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::opt

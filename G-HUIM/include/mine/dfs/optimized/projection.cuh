@@ -3,7 +3,7 @@
 
 #include "mine/dfs/device/common.cuh"
 
-namespace ghuim::dfs::opt {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::opt {
 
 __device__ __forceinline__ uint32_t mix(uint32_t x)
 {
@@ -22,8 +22,8 @@ struct Projection
     const Entry*        entries;
     uint32_t            n_trans;
     uint32_t            item;       // extension item (local name in the parent)
-    unsigned long long* local;      // by parent item name
-    unsigned long long* subtree;    // by child item name
+    Util*               local;      // by parent item name
+    Util*               subtree;    // by child item name
     uint32_t*           rename;     // parent item -> child item, or kNone
     uint32_t*           table;      // merge hash table over kept-item sequences
     uint32_t            table_size;
@@ -58,7 +58,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.entries    = reinterpret_cast<const Entry*>(v.base + v.layout.entries);
     p.n_trans    = trans;
     p.item       = v.task.item;
-    p.local      = reinterpret_cast<unsigned long long*>(scratch + sizeof(TaskState));
+    p.local      = reinterpret_cast<Util*>(scratch + sizeof(TaskState));
     p.subtree    = p.local + n;
     p.rename     = reinterpret_cast<uint32_t*>(p.subtree + n);
     p.table_size = 2 * trans;
@@ -82,4 +82,4 @@ __device__ __forceinline__ void clear_task(const TaskView& v, uint32_t rank, uin
         v.p.table[i] = kNone;
 }
 
-} // namespace ghuim::dfs::opt
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::opt

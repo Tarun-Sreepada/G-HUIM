@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 void LevelMiner::check_level(uint32_t level)
 {
@@ -45,4 +45,4 @@ uint32_t LevelMiner::mine_level(uint32_t level)
     return host_.next_count;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

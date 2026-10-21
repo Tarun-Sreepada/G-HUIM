@@ -11,14 +11,15 @@
 #include <thread>
 #include <unistd.h>
 
+inline namespace REFIM_WIDTHS {
+
 namespace {
 
 constexpr std::size_t kChunk = std::size_t{4} << 20;  // bytes formatted before each pwrite
 
-std::size_t digits(Utility v) {
-	std::size_t n = v < 0 ? 2 : 1;
-	std::uint64_t u = v < 0 ? ~static_cast<std::uint64_t>(v) + 1 : static_cast<std::uint64_t>(v);
-	while (u >= 10) u /= 10, ++n;
+std::size_t digits(Util v) {
+	std::size_t n = 1;
+	while (v >= 10) v /= 10, ++n;
 	return n;
 }
 
@@ -119,3 +120,5 @@ std::size_t write_patterns(const std::string& path, const std::vector<Patterns>&
 		throw;
 	}
 }
+
+}  // namespace REFIM_WIDTHS

@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <vector>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 Compaction compact_arena(const ArenaBuffers& buffers, uint32_t stack_size, cudaStream_t stream)
 {
@@ -80,4 +80,4 @@ Compaction compact_arena(const ArenaBuffers& buffers, uint32_t stack_size, cudaS
     return {live_count, arena_top};
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

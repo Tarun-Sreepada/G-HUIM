@@ -90,6 +90,14 @@ void configure_cli(CLI::App& app, Config& config)
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
     add_size_option(app, "-C,--stack-capacity,--stack_capacity", config.mining.stack_capacity,
                     "Most tasks one level may hold (K/M/G suffixes); default is derived from free device memory");
+    app.add_option("--key-bits", config.mining.key_bits,
+                   "Entry key width on the device: 8, 16, 32, or auto (the narrowest that holds the items)")
+            ->transform(CLI::CheckedTransformer(std::map<std::string, uint32_t>{{"auto", 0}, {"8", 8}, {"16", 16}, {"32", 32}}))
+            ->default_str("auto");
+    app.add_option("--util-bits", config.mining.util_bits,
+                   "Utility width on the device: 16, 32, 64, or auto (the narrowest that holds the largest TWU)")
+            ->transform(CLI::CheckedTransformer(std::map<std::string, uint32_t>{{"auto", 0}, {"16", 16}, {"32", 32}, {"64", 64}}))
+            ->default_str("auto");
     app.add_option("-o,--output", config.mining.output, "Write the itemsets (\"items... UTIL u\") to this file");
     app.add_option_function<std::string>(
                "-s,--separator",

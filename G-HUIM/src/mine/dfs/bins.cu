@@ -5,7 +5,7 @@
 
 #include <spdlog/spdlog.h>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 namespace {
 
 // Measures the device: resident warps and the block sizes that keep full occupancy.
@@ -41,4 +41,4 @@ Bins bins_for(Method method)
     return bins;
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

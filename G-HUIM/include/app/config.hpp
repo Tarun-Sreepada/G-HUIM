@@ -53,6 +53,8 @@ struct MiningOptions
     int32_t     refine_rounds   = 1;            // bound refinement rounds per task: -1 = until no item drops, 0 = off
     uint64_t    memory_bytes    = 0;            // projected-database arena; 0 = most of the free device memory
     uint64_t    stack_capacity  = 0;            // most tasks one level may hold (BFS); 0 = whatever device memory allows
+    uint32_t    key_bits        = 0;            // entry key width: 8, 16 or 32; 0 = the narrowest that holds the items
+    uint32_t    util_bits       = 0;            // utility width: 16, 32 or 64; 0 = the narrowest that holds the largest TWU
     std::string output;                         // itemset file; empty = only count the itemsets (BFS)
 };
 

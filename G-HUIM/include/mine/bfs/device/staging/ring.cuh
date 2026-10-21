@@ -5,7 +5,7 @@
 
 #include <cuda/atomic>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 constexpr uint32_t kTileTx            = 32;
 constexpr uint32_t kTileMetaBytes     = kTileTx * sizeof(Tx);
@@ -32,7 +32,7 @@ __device__ __forceinline__ StageCfg make_stage_cfg(const BatchView& b, const Pro
     c.io_warps      = b.io_warps;
     c.compute_warps = warps > b.io_warps ? warps - b.io_warps : 0;
     c.stride        = p.max_len | 1u;
-    c.tile_bytes    = kTileMetaBytes + kTileTx * c.stride * (sizeof(uint32_t) + sizeof(Util));
+    c.tile_bytes    = kTileMetaBytes + kTileTx * c.stride * (sizeof(Key) + sizeof(Util));
     c.slots         = min(kRingMaxSlots, b.ring_bytes / c.tile_bytes);
     c.staged        = b.io_warps > 0 && c.compute_warps > 0 && c.slots >= 2;
     c.slices        = slices;
@@ -68,20 +68,20 @@ __device__ __forceinline__ unsigned char* tile_base(const StageCfg& c, uint32_t 
 struct TileSource
 {
     const Tx*       meta;
-    const uint32_t* keys_base;
+    const Key*      keys_base;
     const Util*     utils_base;
     uint32_t        stride;
 
     __device__ Tx tx(uint32_t, uint32_t lane) const { return meta[lane]; }
-    __device__ const uint32_t* keys(const Tx&, uint32_t lane) const { return keys_base + lane * stride; }
+    __device__ const Key*      keys(const Tx&, uint32_t lane) const { return keys_base + lane * stride; }
     __device__ const Util*     utils(const Tx&, uint32_t lane) const { return utils_base + lane * stride; }
 };
 
 __device__ __forceinline__ TileSource tile_source(const StageCfg& c, uint32_t s)
 {
     unsigned char* t = tile_base(c, s);
-    auto*          k = reinterpret_cast<uint32_t*>(t + kTileMetaBytes);
+    auto*          k = reinterpret_cast<Key*>(t + kTileMetaBytes);
     return TileSource{reinterpret_cast<const Tx*>(t), k, reinterpret_cast<const Util*>(k + kTileTx * c.stride), c.stride};
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

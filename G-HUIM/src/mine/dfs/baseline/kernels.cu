@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 using namespace baseline;
 
@@ -34,4 +34,4 @@ void launch_block_tasks(const BatchView& batch, const uint32_t* order, uint32_t 
     check_cuda(cudaGetLastError(), "launch block tasks");
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

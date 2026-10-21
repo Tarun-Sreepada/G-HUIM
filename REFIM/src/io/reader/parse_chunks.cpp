@@ -27,7 +27,7 @@ void parse_chunk(std::string_view text, const std::string& sep, Chunk& c) {
 			for_each_token(sep, line.substr(c1 + 1, c2 - c1 - 1), [&](std::string_view tok) {
 				if (weight_token.empty()) weight_token = tok;
 			});
-			const Utility weight = parse_int(weight_token);
+			const std::int64_t weight = parse_int(weight_token);
 
 			item_tokens.clear();
 			for_each_token(sep, line.substr(0, c1), [&](std::string_view tok) { item_tokens.push_back(tok); });

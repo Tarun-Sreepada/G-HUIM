@@ -1,8 +1,10 @@
-#include "io/reader/steps.hpp"
+#include "io/reader/root_steps.hpp"
 
 #include "sys/parallel.hpp"
 
 #include <algorithm>
+
+inline namespace REFIM_WIDTHS {
 
 // Builds the root in parallel ranges of the sorted order (merging equal neighbours inside
 // each range), then concatenates. Range cuts move past runs of equal transactions so no
@@ -50,3 +52,5 @@ void build_root(const Flat& flat, const std::vector<std::uint32_t>& perm, int th
 		src = Level();  // release the piece
 	});
 }
+
+}  // namespace REFIM_WIDTHS

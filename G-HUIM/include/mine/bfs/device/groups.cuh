@@ -2,8 +2,9 @@
 // Thread groups: the lanes (a sub-warp group, a warp, or a block) that process one task together.
 
 #include "mine/primitives.cuh"
+#include "mine/widths.hpp"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // ---------------------------------------------------------------------------------------------
 // Thread groups. Every group exposes the lanes of its warp that work together (`lanes()`, a power
@@ -163,4 +164,4 @@ struct Lanes
     }
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -5,7 +5,7 @@
 #include "mine/bfs/device/staging/ring.cuh"
 #include "mine/bfs/device/staging/wait.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 template <typename Wants>
 __device__ void stage_produce(const Projection& p, const StageCfg& c, uint32_t io, Wants wants)
@@ -33,7 +33,7 @@ __device__ void stage_produce(const Projection& p, const StageCfg& c, uint32_t i
         }
         unsigned char* t     = tile_base(c, s);
         auto*          meta  = reinterpret_cast<Tx*>(t);
-        auto*          keys  = reinterpret_cast<uint32_t*>(t + kTileMetaBytes);
+        Key*           keys  = reinterpret_cast<Key*>(t + kTileMetaBytes);
         Util*          utils = reinterpret_cast<Util*>(keys + kTileTx * c.stride);
         const uint32_t i     = tile * kTileTx + lane;
         const bool     want  = wants(p, i);
@@ -41,7 +41,7 @@ __device__ void stage_produce(const Projection& p, const StageCfg& c, uint32_t i
         if (want) {
             cp_async_4(&meta[lane].begin, &p.txs[i].begin);
             cp_async_4(&meta[lane].length, &p.txs[i].length);
-            cp_async_8(&meta[lane].utility, &p.txs[i].utility);
+            stage_copy(&meta[lane].utility, &p.txs[i].utility);
         }
         uint32_t mask = __ballot_sync(kFullMask, want);
         while (mask != 0) {
@@ -52,8 +52,8 @@ __device__ void stage_produce(const Projection& p, const StageCfg& c, uint32_t i
             if (len > c.stride)
                 stage_fail(c, kStageOverflow);
             for (uint32_t e = lane; e < len; e += 32) {
-                cp_async_4(&keys[j * c.stride + e], &p.eitem[begin + e]);
-                cp_async_8(&utils[j * c.stride + e], &p.eutil[begin + e]);
+                stage_copy(&keys[j * c.stride + e], &p.eitem[begin + e]);
+                stage_copy(&utils[j * c.stride + e], &p.eutil[begin + e]);
             }
         }
         cp_async_commit();
@@ -116,4 +116,4 @@ __device__ void run_staged_pass(const Projection& p, const StageCfg& c, Wants wa
         stage_consume(c, warp - c.io_warps, body);
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs
