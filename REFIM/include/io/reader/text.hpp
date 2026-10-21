@@ -1,8 +1,7 @@
 #pragma once
 // Text helpers for the dataset parser.
 
-#include "mine/level.hpp"
-
+#include <cstdint>
 #include <cstring>
 #include <string>
 #include <string_view>
@@ -29,4 +28,4 @@ void for_each_token(const std::string& sep, std::string_view s, F&& f) {
 }
 
 // Parses a whole integer token (surrounding whitespace allowed); throws on anything else.
-Utility parse_int(std::string_view token);
+std::int64_t parse_int(std::string_view token);

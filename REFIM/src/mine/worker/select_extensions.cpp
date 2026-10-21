@@ -2,6 +2,8 @@
 
 #include <algorithm>
 
+inline namespace REFIM_WIDTHS {
+
 void Worker::select_extensions(Level& child, int depth) {
 	const int next = depth + 1, restore = depth > 0 ? depth : -1;
 	// Candidates for child.secondary with their subtree bound. `dropped`: some item of the child's
@@ -31,14 +33,14 @@ void Worker::select_extensions(Level& child, int depth) {
 		++rounds;
 		for (const auto& [x, su] : chosen) mark[x] = next;
 		for (const auto& t : child.txs) {
-			Utility suffix = 0;
+			Util suffix = 0;
 			for (std::uint32_t i = t.len; i-- > 0;) {
 				const Item x = t.items[i];
 				if (mark[x] != next) continue;
 				suffix += t.utils[i];
 				b[x].subtree += t.prefix + suffix;
 			}
-			const Utility base = t.prefix + suffix;
+			const Util base = t.prefix + suffix;
 			for (std::uint32_t i = 0; i < t.len; ++i)
 				if (mark[t.items[i]] == next) b[t.items[i]].local += base;
 		}
@@ -74,3 +76,5 @@ void Worker::select_extensions(Level& child, int depth) {
 	stats.primary += child.primary.size();
 	stats.secondary += child.secondary.size();
 }
+
+}  // namespace REFIM_WIDTHS

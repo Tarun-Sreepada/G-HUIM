@@ -7,7 +7,7 @@
 
 #include <cuda_runtime.h>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Bin 0: one task per warp, packed into blocks of tune.packed_block_warps warps.
 void launch_warp_tasks(const BatchView& batch, const uint32_t* order, uint32_t count, const AutoTune& tune,
@@ -70,4 +70,4 @@ void launch_scratch_sizes(const Task* tasks, uint32_t count, uint64_t* sizes, bo
 void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint32_t end, uint32_t* order,
                       const AutoTune& tune, cudaStream_t stream);
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

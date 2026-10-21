@@ -4,7 +4,7 @@
 
 #include <utility>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Bins the chunk [begin, end) and runs every bin on its own stream.
 void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64_t scratch_base)
@@ -85,4 +85,4 @@ void LevelMiner::mine_chunk(uint32_t level, uint32_t begin, uint32_t end, uint64
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

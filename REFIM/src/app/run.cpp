@@ -1,7 +1,7 @@
 #include "app/run.hpp"
 
 #include "mine/refim.hpp"
-#include "mine/simd.hpp"
+#include "mine/simd_mode.hpp"
 #include "sys/alloc.hpp"
 
 #include <spdlog/spdlog.h>
@@ -34,6 +34,7 @@ void configure(Refim& miner, const Options& o) {
 	miner.set_refine_min_drop(o.refine_min_drop);
 	miner.set_leaf(o.leaf == "on");
 	miner.set_stats(o.stats);
+	miner.set_widths(o.key_bits, o.util_bits);
 }
 
 }  // namespace

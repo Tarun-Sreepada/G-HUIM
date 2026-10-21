@@ -5,7 +5,7 @@
 #include <cuda/std/bit>
 #include <cuda_runtime.h>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 // adaptive-optimized bins are size classes: class 0 packs one task per warp into blocks, class s > 0
 // gives each task a block of (32 << s) threads, and the last bin splits a task over several blocks.
@@ -99,4 +99,4 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
 // Fills `tune` for a device with `sms` multiprocessors from kernel occupancy; resident_warps must be set.
 void measure_optimized_occupancy(AutoTune& tune, uint32_t sms);
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

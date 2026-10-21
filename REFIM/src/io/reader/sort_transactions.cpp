@@ -1,10 +1,12 @@
-#include "io/reader/steps.hpp"
+#include "io/reader/root_steps.hpp"
 
 #include "sys/parallel.hpp"
 
 #include <algorithm>
 #include <iterator>
 #include <numeric>
+
+inline namespace REFIM_WIDTHS {
 
 // Projection keeps this order, so identical projected transactions stay adjacent. Sorted in
 // parallel slices, then merged pairwise.
@@ -54,3 +56,5 @@ std::vector<std::uint32_t> sort_transactions(const Flat& flat, int threads) {
 	if (src != perm.data()) std::copy(src, src + perm.size(), perm.data());
 	return perm;
 }
+
+}  // namespace REFIM_WIDTHS

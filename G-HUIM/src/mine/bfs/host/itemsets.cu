@@ -2,7 +2,7 @@
 
 #include <algorithm>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Rebuilds each itemset by following parent links back through the levels.
 void write_itemsets(const std::vector<std::vector<Node>>& levels, uint64_t minimum_utility, ItemsetWriter& writer)
@@ -25,4 +25,4 @@ void write_itemsets(const std::vector<std::vector<Node>>& levels, uint64_t minim
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

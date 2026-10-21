@@ -3,7 +3,7 @@
 
 #include "mine/dfs/device/common.cuh"
 
-namespace ghuim::dfs::baseline {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline {
 
 // Scratch layout: TaskState | local[n] | subtree[n] | rename[n] | table[2t] | rep[t] | slot[t].
 // Identical projected transactions are merged; tables are indexed by parent transaction.
@@ -19,8 +19,8 @@ struct Frame
     uint32_t            first;   // only later items can extend the itemset
     uint64_t            minutil;
     TaskState*          state;
-    unsigned long long* local;   // by parent name
-    unsigned long long* subtree; // by child name
+    Util*               local;   // by parent name
+    Util*               subtree; // by child name
     uint32_t*           rename;  // parent name -> child name
     uint32_t            table_size;
     uint32_t*           table;   // open addressing over kept-item sequences
@@ -43,7 +43,7 @@ __device__ inline Frame open_frame(const BatchView& b, uint32_t t)
 
     char* scratch = b.scratch + b.scratch_offset[t];
     f.state       = reinterpret_cast<TaskState*>(scratch);
-    f.local       = reinterpret_cast<unsigned long long*>(scratch + sizeof(TaskState));
+    f.local       = reinterpret_cast<Util*>(scratch + sizeof(TaskState));
     f.subtree     = f.local + f.n;
     f.rename      = reinterpret_cast<uint32_t*>(f.subtree + f.n);
     f.table_size  = 2 * f.header.n_trans;
@@ -53,4 +53,4 @@ __device__ inline Frame open_frame(const BatchView& b, uint32_t t)
     return f;
 }
 
-} // namespace ghuim::dfs::baseline
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline

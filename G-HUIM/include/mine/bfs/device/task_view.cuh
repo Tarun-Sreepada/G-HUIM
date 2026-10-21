@@ -4,7 +4,7 @@
 #include "cuda/atomics.cuh"
 #include "mine/bfs/layout.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // ---------------------------------------------------------------------------------------------
 // Per-chunk view and per-task view
@@ -96,8 +96,8 @@ struct Projection
     uint32_t            n_trans;
     uint32_t            max_len; // longest transaction
     uint32_t            item;    // extension item (local name in the parent)
-    unsigned long long* local;   // by parent item name
-    unsigned long long* subtree; // by child item name
+    Util*               local;   // by parent item name
+    Util*               subtree; // by child item name
     uint32_t*           rename;  // parent item -> child item, or kNone
     uint32_t*           table;   // merge hash table over kept-item sequences
     uint32_t            table_size;
@@ -149,7 +149,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.n_trans        = trans;
     p.max_len        = v.header.max_len;
     p.item           = v.task.item;
-    p.local          = reinterpret_cast<unsigned long long*>(scratch + sizeof(TaskState));
+    p.local          = reinterpret_cast<Util*>(scratch + sizeof(TaskState));
     p.subtree        = p.local + n;
     p.rename         = reinterpret_cast<uint32_t*>(p.subtree + n);
     p.table_size     = 2 * trans;
@@ -194,7 +194,7 @@ __device__ __forceinline__ void clear_task(const TaskView& v, uint32_t rank, uin
 // Records the task's itemset; one thread per task calls it once the utility is complete.
 __device__ inline void finish_task(const BatchView& b, const TaskView& v)
 {
-    const uint64_t  utility = v.state->utility;
+    const Util      utility = v.state->utility;
     const uint32_t* globals = reinterpret_cast<const uint32_t*>(v.base + v.layout.items);
     b.nodes[v.index]        = Node{v.task.parent, globals[v.task.item], utility};
     if (utility >= b.minimum_utility)
@@ -205,4 +205,4 @@ __device__ inline void finish_task(const BatchView& b, const TaskView& v)
 #endif
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

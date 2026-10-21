@@ -1,6 +1,8 @@
 #include "mine/worker.hpp"
 
-void Worker::record_pattern(Utility utility) {
+inline namespace REFIM_WIDTHS {
+
+void Worker::record_pattern(Util utility) {
 	if (utility < min_util) return;
 	++pattern_count;
 	if (!collect_patterns) return;
@@ -8,3 +10,5 @@ void Worker::record_pattern(Utility utility) {
 	patterns.begin.push_back(patterns.items.size());
 	patterns.utils.push_back(utility);
 }
+
+}  // namespace REFIM_WIDTHS

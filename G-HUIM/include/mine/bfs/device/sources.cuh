@@ -5,7 +5,7 @@
 
 #include "mine/bfs/device/task_view.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 struct GlobalSource
 {
@@ -17,4 +17,4 @@ struct GlobalSource
     __device__ const Util*     utils(const Tx& t, uint32_t) const { return p.eutil + t.begin; }
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

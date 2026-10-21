@@ -14,8 +14,8 @@
 //   utility(X + y) = sum U_X + u[y]                     -> counted when it reaches minutil
 //   subtree bound  = sum U_X + u[y] + rem[y]            -> X + y is extended only when it reaches minutil
 //   local bound    = sum U_X + re_X                     -> y stays a candidate below X only when it does
-// (EFIM's bounds; re_X is rem of X's last item). Every sum is at most the database's total utility, which
-// load_dataset checks fits 32 bits, so sums are 32-bit warp reductions.
+// (EFIM's bounds; re_X is rem of X's last item). Every sum is at most the largest TWU, which make_auto_tune
+// checks fits 32 bits, so sums are 32-bit warp reductions.
 
 #include "cuda/buffer.cuh"
 #include "mine/bfs/device/task_view.cuh"
@@ -24,7 +24,7 @@
 
 #include <algorithm>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 constexpr uint32_t kVertBlockWarps = 4;
@@ -62,7 +62,7 @@ __global__ void __launch_bounds__(kVertBlockWarps * 32)
             const uint32_t i  = base + lane;
             const Tx       tx = i < v.p.n_trans ? v.p.txs[v.p.occ ? v.p.occ[i].tid : i] : Tx{0, 0, 0};
             const Key*     keys  = v.p.eitem + tx.begin;
-            const Util*    util  = v.p.eutil + tx.begin; // 32-bit columns: the miner checks the total fits
+            const Util*    util  = v.p.eutil + tx.begin; // 32-bit columns: the largest TWU fits
             const int k = i < v.p.n_trans ? (v.p.occ ? static_cast<int>(v.p.occ[i].pos) : find_item(keys, tx.length, v.p.item)) : -1;
             const uint32_t has = __ballot_sync(kFullMask, k >= 0);
             const uint32_t c   = n + __popc(has & ((1u << lane) - 1));
@@ -169,4 +169,4 @@ void launch_vertical_tasks(const BatchView& batch, const uint32_t* order, uint32
     check_launch("launch vertical-task kernel");
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

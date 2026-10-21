@@ -9,7 +9,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Device profile of the current GPU.
 AutoTune make_auto_tune(const MiningOptions& options, const Dataset& data)
@@ -30,9 +30,8 @@ AutoTune make_auto_tune(const MiningOptions& options, const Dataset& data)
     tune.ring_bytes     = options.ring_kib * 1024;
     tune.resident_warps = sms * (props.maxThreadsPerMultiProcessor / 32);
     measure_occupancy(tune, sms);
-    if (options.vert_items != 0 && data.total_utility > std::numeric_limits<uint32_t>::max())
-        spdlog::warn("Vertical subtrees off: their columns are 32-bit and the total utility {} exceeds that",
-                     data.total_utility);
+    if (options.vert_items != 0 && data.max_twu > std::numeric_limits<uint32_t>::max())
+        spdlog::warn("Vertical subtrees off: their columns are 32-bit and the largest TWU {} exceeds that", data.max_twu);
     else if (options.vert_items != 0) {
         // Every vertical warp has its own scratch: at most the resident warps, within an eighth of the budget.
         tune.vert_items = options.vert_items;
@@ -59,4 +58,4 @@ AutoTune make_auto_tune(const MiningOptions& options, const Dataset& data)
     return tune;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -6,8 +6,9 @@
 //
 //   DbHeader | items[n_items] | Tx[n_trans] | entry_item[n_entries] (Key) | entry_utility[n_entries]
 //
-// Keys and values of the entries are separate arrays: passes that only test items read 2 bytes per
-// entry, and utilities are read only for the entries that need them. Transaction t owns entries
+// Keys and values of the entries are separate arrays: passes that only test items read sizeof(Key) bytes
+// per entry, and utilities are read only for the entries that need them. Key and Util are this build's
+// widths (mine/widths.hpp). Transaction t owns entries
 // [begin, begin + length) of both arrays.
 //
 // Items inside a database use local names 0..n_items-1; items[] maps them to global ids
@@ -24,16 +25,17 @@
 // Level L reads the databases written while mining level L-1 and writes its children into the
 // other of two arena regions, so a region is reused as soon as the level reading it finishes.
 
+#include "mine/widths.hpp"
+
 #include <cuda/std/bit>
+#include <cuda/std/limits>
 
 #include <cstdint>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
-// Entry keys are 32-bit local item names and utilities are 64-bit.
-using Key  = uint32_t;
-using Util = uint64_t;
-constexpr uint32_t kMaxDbItems = 0xffffffffu;
+// Local item names run 0..n_items-1, so a database holds at most this many items.
+constexpr uint64_t kMaxDbItems = uint64_t{cuda::std::numeric_limits<Key>::max()} + 1;
 
 constexpr uint64_t kArenaUnit = 16;
 constexpr uint32_t kTile        = 32; // transactions per tile (tile method)
@@ -136,10 +138,10 @@ struct Node
 };
 
 // Per-task working state in the scratch buffer. With n parent items and t parent transactions
-// it is followed by local[n], subtree[n] (u64), rename[n], table[2t], rep[t], slot[t] (u32).
+// it is followed by local[n], subtree[n] (Util), rename[n], table[2t], rep[t], slot[t] (u32).
 struct TaskState
 {
-    uint64_t utility;
+    Util     utility;
     uint64_t present; // GHUIM_WORK_STATS: transactions of the parent that contain the extension item
     uint64_t child_db;
     uint32_t child_trans;
@@ -162,7 +164,7 @@ __host__ __device__ inline uint64_t tile_scratch_words(uint32_t n_trans)
 
 __host__ __device__ inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_trans, bool tiled = false)
 {
-    return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(uint64_t) + sizeof(uint32_t)) +
+    return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(Util) + sizeof(uint32_t)) +
                     uint64_t{n_trans} * 6 * sizeof(uint32_t) + (tiled ? tile_scratch_words(n_trans) * sizeof(uint32_t) : 0));
 }
 
@@ -200,4 +202,4 @@ struct Control
     unsigned long long stage_consumer_cycles; // compute warps, whole staged passes
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

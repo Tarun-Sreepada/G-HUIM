@@ -5,7 +5,7 @@
 #include "mine/bfs/device/modes.cuh"
 #include "mine/bfs/placement.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Position of `item` in a sorted tiled transaction (keys at col[k * kTile]), or -1.
 __device__ inline int find_item_tiled(const Key* col, uint32_t length, uint32_t item, uint32_t stride)
@@ -42,4 +42,4 @@ __device__ inline bool same_kept_items_tiled(const Key* ea, uint32_t a_length, u
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

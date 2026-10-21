@@ -10,7 +10,7 @@
 #include <stdexcept>
 #include <string>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 namespace {
 
@@ -18,7 +18,7 @@ namespace {
 std::vector<char> tiled_root_image(const Dataset& data)
 {
     if (data.original_item.size() > kMaxDbItems)
-        throw std::runtime_error("too many items for 16-bit keys (raise --minutil)");
+        throw std::runtime_error("too many items for " + std::to_string(8 * sizeof(Key)) + "-bit keys (raise --minutil)");
     const uint64_t n_trans = data.transaction_count();
     const uint64_t n_items = data.original_item.size();
     auto           length  = [&](size_t t) { return data.tx_begin[t + 1] - data.tx_begin[t]; };
@@ -98,7 +98,7 @@ void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint
     count_items<<<grid, 256>>>(eitem, n_entries, count.get());
     check_launch("launch root index kernels");
 
-    const int end_bit = std::max(1, static_cast<int>(std::bit_width(n_items)));
+    const int end_bit = std::max(1, static_cast<int>(std::bit_width(n_items - 1))); // keys are below n_items
     size_t    sort_bytes = 0, scan_bytes = 0;
     check_cuda(cub::DeviceRadixSort::SortPairs(nullptr, sort_bytes, eitem, keys.get(), unsorted.get(), occ, n_entries, 0, end_bit),
                "size root index sort");
@@ -128,7 +128,8 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     const uint64_t n_items = data.original_item.size();
     if (n_items > kMaxDbItems)
         throw std::runtime_error(std::to_string(n_items) + " items survive TWU pruning; at most " +
-                                 std::to_string(kMaxDbItems) + " fit 32-bit keys (raise --minutil)");
+                                 std::to_string(kMaxDbItems) + " fit " + std::to_string(8 * sizeof(Key)) +
+                                 "-bit keys (raise --minutil)");
     const bool     indexed = wants_index(n_trans, n_entries, n_items, index_min_trans, index_sparsity);
     const DbLayout layout  = DbLayout::of(n_trans, n_entries, n_items, false, indexed);
     std::vector<char> head(layout.eitem, 0);
@@ -149,8 +150,8 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     root.buffer = DeviceBuffer<char>(layout.bytes);
     char* base  = root.buffer.get();
     upload(base, head.data(), head.size());
-    upload(reinterpret_cast<Key*>(base + layout.eitem), data.items.data(), n_entries);
-    upload(reinterpret_cast<Util*>(base + layout.eutil), data.utilities.data(), n_entries);
+    upload_as(reinterpret_cast<Key*>(base + layout.eitem), data.items.data(), n_entries);
+    upload_as(reinterpret_cast<Util*>(base + layout.eutil), data.utilities.data(), n_entries);
     if (indexed) {
         build_root_index(base, layout, static_cast<uint32_t>(n_trans), static_cast<uint32_t>(n_entries),
                          static_cast<uint32_t>(n_items));
@@ -163,4 +164,4 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
     return root;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

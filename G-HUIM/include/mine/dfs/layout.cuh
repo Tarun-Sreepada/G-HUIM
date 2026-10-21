@@ -8,7 +8,9 @@
 //
 // Items inside a database use local names 0..n_items-1; items[] maps them to global names
 // (ascending, so local order equals global order). Databases start on 16-byte boundaries and
-// tasks address them in 16-byte units.
+// tasks address them in 16-byte units. Entries hold this build's Key and Util (mine/widths.hpp).
+
+#include "mine/widths.hpp"
 
 #include <cstdint>
 #include <cuda/std/bit>
@@ -19,7 +21,7 @@
 #define GHUIM_HD
 #endif
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 constexpr uint64_t kArenaUnit = 16;
 
@@ -63,13 +65,13 @@ struct Tx
 {
     uint32_t begin;   // first entry
     uint32_t length;  // entry count
-    uint64_t utility; // utility of the database's prefix itemset in this transaction
+    Util     utility; // utility of the database's prefix itemset in this transaction
 };
 
 struct Entry
 {
-    uint32_t item; // local name
-    uint64_t utility;
+    Key  item; // local name
+    Util utility;
 };
 
 GHUIM_HD inline uint64_t align_up(uint64_t value, uint64_t alignment = kArenaUnit)
@@ -112,10 +114,10 @@ struct Task
 };
 
 // Per-task working state in the scratch buffer. With n parent items and t parent transactions
-// it is followed by local[n], subtree[n] (u64), rename[n], table[2t], rep[t], slot[t] (u32).
+// it is followed by local[n], subtree[n] (Util), rename[n], table[2t], rep[t], slot[t] (u32).
 struct TaskState
 {
-    uint64_t utility;
+    Util     utility;
     uint64_t child_db;
     uint32_t child_trans;
     uint32_t child_entries;
@@ -131,7 +133,7 @@ struct TaskState
 
 GHUIM_HD inline uint64_t scratch_bytes(uint32_t n_items, uint32_t n_trans)
 {
-    return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(uint64_t) + sizeof(uint32_t)) +
+    return align_up(sizeof(TaskState) + uint64_t{n_items} * (2 * sizeof(Util) + sizeof(uint32_t)) +
                     uint64_t{n_trans} * 4 * sizeof(uint32_t));
 }
 
@@ -162,4 +164,4 @@ struct Control
     unsigned long long depth_patterns[kMaxDepth]; // high-utility itemsets by length
 };
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

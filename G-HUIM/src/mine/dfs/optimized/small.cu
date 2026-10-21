@@ -12,7 +12,7 @@
 
 #include <algorithm>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 namespace opt {
 namespace {
 
@@ -84,4 +84,4 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
     check_cuda(cudaGetLastError(), "launch subwarp tasks");
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

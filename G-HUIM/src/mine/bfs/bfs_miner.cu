@@ -14,7 +14,7 @@
 #include <chrono>
 #include <spdlog/spdlog.h>
 
-namespace ghuim {
+namespace ghuim::inline GHUIM_WIDTHS {
 
 MiningResult mine_bfs(const Dataset& data, const MiningOptions& options)
 {
@@ -36,4 +36,4 @@ MiningResult mine_bfs(const Dataset& data, const MiningOptions& options)
     return result;
 }
 
-} // namespace ghuim
+} // namespace ghuim::inline GHUIM_WIDTHS

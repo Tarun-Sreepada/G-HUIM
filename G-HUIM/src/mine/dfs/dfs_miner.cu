@@ -30,7 +30,7 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 namespace {
 
 constexpr uint32_t kMaxBatchTasks = 1u << 20;
@@ -270,13 +270,13 @@ class Miner
 
 } // namespace
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs
 
-namespace ghuim {
+namespace ghuim::inline GHUIM_WIDTHS {
 
 MiningResult mine_dfs(const Dataset& data, const MiningOptions& options)
 {
     return dfs::Miner(data, options).run();
 }
 
-} // namespace ghuim
+} // namespace ghuim::inline GHUIM_WIDTHS

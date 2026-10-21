@@ -14,7 +14,7 @@
 #include <array>
 #include <vector>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Tasks per chunk. Thread groups are sized from a task's share of the chunk's work, so a chunk as
 // large as a whole level would give nearly every task one warp and leave heavy tasks as stragglers.
@@ -80,4 +80,4 @@ class LevelMiner
     MiningResult                   result_;
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -6,7 +6,7 @@
 
 #include <cuda_runtime.h>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 struct SelectArgs
 {
@@ -50,4 +50,4 @@ void copy_databases(char* dst, const uint64_t* dst_off, const char* src, const u
 void remap_tasks(Task* stack, uint32_t stack_size, const uint32_t* live, const uint32_t* moved_to, uint32_t count,
                  cudaStream_t stream);
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

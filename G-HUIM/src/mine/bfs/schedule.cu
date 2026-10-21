@@ -6,7 +6,7 @@
 
 #include <algorithm>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 uint32_t grid(uint64_t n, uint32_t block = 256)
@@ -127,4 +127,4 @@ void launch_bin_chunk(Control* control, const Task* tasks, uint32_t begin, uint3
     check_launch("launch chunk binning");
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -8,7 +8,7 @@
 #include <spdlog/spdlog.h>
 #include <stdexcept>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Task indices and scan lengths are 32-bit: the most tasks a level can number.
 constexpr uint64_t kIndexLimit = 0xfffffffeull;
@@ -49,4 +49,4 @@ Budget plan_budget(const MiningOptions& options, const AutoTune& tune, uint64_t 
     return plan;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -2,7 +2,7 @@
 
 #include "cuda/nvtx.hpp"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 void LevelMiner::reset_control()
 {
@@ -14,4 +14,4 @@ void LevelMiner::reset_control()
                "reset control");
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

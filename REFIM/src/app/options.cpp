@@ -3,6 +3,7 @@
 #include <CLI/CLI.hpp>
 
 #include <iostream>
+#include <map>
 #include <stdexcept>
 #include <vector>
 
@@ -57,6 +58,12 @@ void declare_options(CLI::App& app, Options& o) {
 	app.add_option("-c,--compact", o.compact, "Rewrite each child without the items it rules out")
 		->capture_default_str()
 		->check(CLI::IsMember({"on", "off"}));
+	app.add_option("--key-bits", o.key_bits, "Item id width: 8, 16, 32, or auto (the narrowest that holds the items)")
+		->transform(CLI::CheckedTransformer(std::map<std::string, int>{{"auto", 0}, {"8", 8}, {"16", 16}, {"32", 32}}))
+		->default_str("auto");
+	app.add_option("--util-bits", o.util_bits, "Utility width: 16, 32, 64, or auto (the narrowest that holds the largest TWU)")
+		->transform(CLI::CheckedTransformer(std::map<std::string, int>{{"auto", 0}, {"16", 16}, {"32", 32}, {"64", 64}}))
+		->default_str("auto");
 	app.add_flag("-S,--stats", o.stats, "Log search counters");
 	app.add_option("-l,--log-level", o.log_level, "trace, debug, info, warn, error, critical or off")
 		->capture_default_str()

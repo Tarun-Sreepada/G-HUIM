@@ -1,5 +1,7 @@
 #include "mine/worker.hpp"
 
+inline namespace REFIM_WIDTHS {
+
 void Worker::expand(const Level& db, int depth, std::size_t k) {
 	const Item item = db.primary[k];
 	// Leaf: no extension of the prefix comes after `item` (the root keeps every item, the largest
@@ -19,3 +21,5 @@ void Worker::expand(const Level& db, int depth, std::size_t k) {
 	descend(child, depth);
 	if (collect_patterns) prefix_items.pop_back();
 }
+
+}  // namespace REFIM_WIDTHS

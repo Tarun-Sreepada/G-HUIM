@@ -5,7 +5,7 @@
 #include "mine/bfs/device/sources.cuh"
 #include "mine/bfs/device/task_view.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // ---------------------------------------------------------------------------------------------
 // Transaction passes. A caller covers transactions i0 = from, from + step, ...; lane `rank` of the
@@ -18,7 +18,7 @@ namespace ghuim::bfs {
 // run the bodies over global memory, and the staged kernels run them over shared-memory tiles.
 struct LocalAcc
 {
-    uint64_t utility = 0;
+    Util     utility = 0;
     uint64_t present = 0;
 };
 
@@ -35,8 +35,8 @@ __device__ inline void local_tile(const Projection& p, const Lanes& lanes, uint3
         p.pos[i] = static_cast<uint32_t>(k + 1);
     const uint32_t  rest   = k >= 0 ? tx.length - k - 1 : 0;
     const uint32_t  span   = lanes.max(rest);
-    const uint64_t  prefix = k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0;
-    uint64_t        after  = 0;
+    const Util      prefix = k >= 0 ? tx.utility + k_util[k] : 0;
+    Util            after  = 0;
     for (uint32_t d = 0; d < span; ++d)
         if (d < rest)
             after += k_util[k + 1 + d];
@@ -54,7 +54,7 @@ __device__ inline void local_finish(const Lanes& lanes, LocalAcc& acc, TaskState
     if (lanes.leader() && present != 0)
         add(state.present, present);
 #endif
-    const uint64_t utility = lanes.sum(acc.utility);
+    const Util     utility = lanes.sum(acc.utility);
     if (lanes.leader() && utility != 0)
         add(state.utility, utility);
 }
@@ -106,8 +106,8 @@ __device__ inline void refine_tile(const Projection& p, const Lanes& lanes, uint
     const uint32_t  s      = p.stride;
     const uint32_t  rest   = pos != 0 ? tx.length - pos : 0;
     const uint32_t  span   = lanes.max(rest);
-    const uint64_t  prefix = pos != 0 ? uint64_t{tx.utility} + k_util[(pos - 1) * s] : 0;
-    uint64_t        after  = 0;
+    const Util      prefix = pos != 0 ? tx.utility + k_util[(pos - 1) * s] : 0;
+    Util            after  = 0;
     for (uint32_t d = 0; d < span; ++d)
         if (d < rest && p.rename[k_item[(pos + d) * s]] != kNone)
             after += k_util[(pos + d) * s];
@@ -188,8 +188,8 @@ __device__ inline void subtree_tile(const Projection& p, const Lanes& lanes, uin
     const uint32_t  span   = lanes.max(rest);
     // One backward sweep: subtree(z) = prefix + utility of z and every kept item after it, the kept count,
     // and a hash of the kept sequence (positions counted from its end; equal sequences hash equally).
-    const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + k_util[k] : 0;
-    uint64_t       after  = 0;
+    const Util     prefix = k >= 0 ? tx.utility + k_util[k] : 0;
+    Util           after  = 0;
     uint32_t       kept = 0, hash = 0;
     for (uint32_t d = span; d-- > 0;) {
         if (d >= rest)
@@ -253,4 +253,4 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
     subtree_finish(lanes, size, state);
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

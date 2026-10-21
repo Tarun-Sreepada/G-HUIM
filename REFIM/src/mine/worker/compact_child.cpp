@@ -1,5 +1,7 @@
 #include "mine/worker.hpp"
 
+inline namespace REFIM_WIDTHS {
+
 void Worker::compact_child(Level& child, int depth) {
 	while (spare.size() <= static_cast<std::size_t>(depth)) spare.push_back(std::make_unique<Level>());
 	Level& out = *spare[depth];
@@ -31,3 +33,5 @@ void Worker::compact_child(Level& child, int depth) {
 	for (const auto& t : out.txs) stats.compact_items_out += t.len;
 	std::swap(child, out);
 }
+
+}  // namespace REFIM_WIDTHS

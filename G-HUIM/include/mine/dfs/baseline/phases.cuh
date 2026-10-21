@@ -4,7 +4,7 @@
 
 #include "mine/dfs/baseline/frame.cuh"
 
-namespace ghuim::dfs::baseline {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline {
 
 template <typename Group> __device__ void clear_state(const Group& g, const Frame& f)
 {
@@ -19,16 +19,16 @@ template <typename Group> __device__ void clear_state(const Group& g, const Fram
 // 1. Itemset utility and local utilities of later items.
 template <typename Group> __device__ void scan_local(const Group& g, const Frame& f)
 {
-    unsigned long long utility = 0;
+    Util utility = 0;
     for (uint32_t i = g.rank(); i < f.header.n_trans; i += g.size()) {
         const Tx     tx = f.txs[i];
         const Entry* e  = f.entries + tx.begin;
         const int    k  = find_item(e, tx.length, f.task.item);
         if (k < 0)
             continue;
-        const uint64_t prefix = uint64_t{tx.utility} + e[k].utility;
+        const Util prefix = tx.utility + e[k].utility;
         utility += prefix;
-        uint64_t rest = 0;
+        Util rest = 0;
         for (uint32_t j = k + 1; j < tx.length; ++j)
             rest += e[j].utility;
         for (uint32_t j = k + 1; j < tx.length; ++j)
@@ -69,7 +69,7 @@ template <typename Group> __device__ void scan_subtree(const Group& g, const Fra
         const int    k  = find_item(e, tx.length, f.task.item);
         if (k < 0)
             continue;
-        uint64_t remaining = uint64_t{tx.utility} + e[k].utility;
+        Util remaining = tx.utility + e[k].utility;
         uint32_t kept = 0, hash = 2166136261u;
         for (uint32_t j = k + 1; j < tx.length; ++j)
             if (f.rename[e[j].item] != kNone) {
@@ -82,7 +82,7 @@ template <typename Group> __device__ void scan_subtree(const Group& g, const Fra
         if (kept == 0)
             continue;
         // subtree(z) = prefix utility + utility of z and every kept item after it.
-        uint64_t before = 0;
+        Util before = 0;
         for (uint32_t j = k + 1; j < tx.length; ++j) {
             const uint32_t z = f.rename[e[j].item];
             if (z == kNone)
@@ -186,12 +186,12 @@ template <typename Group> __device__ void write_representatives(const Group& g, 
         const uint32_t slot  = fetch_add(state.tx_cursor, 1u);
         const uint32_t begin = fetch_add(state.entry_cursor, kept);
         f.slot_of[i]         = slot;
-        c.txs[slot]          = Tx{begin, kept, tx.utility + e[k].utility};
+        c.txs[slot]          = Tx{begin, kept, static_cast<Util>(tx.utility + e[k].utility)};
         Entry* out           = c.entries + begin;
         for (uint32_t j = k + 1; j < tx.length; ++j) {
             const uint32_t z = f.rename[e[j].item];
             if (z != kNone)
-                *out++ = Entry{z, e[j].utility};
+                *out++ = Entry{static_cast<Key>(z), e[j].utility};
         }
     }
 }
@@ -225,4 +225,4 @@ template <typename Group> __device__ void emit_children(const Group& g, const Ba
     }
 }
 
-} // namespace ghuim::dfs::baseline
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::baseline

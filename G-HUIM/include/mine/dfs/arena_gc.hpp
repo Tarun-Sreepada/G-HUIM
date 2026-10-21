@@ -5,7 +5,7 @@
 #include "cuda/buffer.cuh"
 #include "mine/dfs/layout.cuh"
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 
 struct ArenaBuffers
 {
@@ -28,4 +28,4 @@ struct Compaction
 
 Compaction compact_arena(const ArenaBuffers& buffers, uint32_t stack_size, cudaStream_t stream);
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

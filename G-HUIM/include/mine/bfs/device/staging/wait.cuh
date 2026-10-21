@@ -3,7 +3,7 @@
 
 #include "mine/bfs/device/staging/ring.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 __device__ __noinline__ inline void stage_fail(const StageCfg& c, uint32_t error)
 {
@@ -38,4 +38,4 @@ __device__ __forceinline__ void stage_wait(const StageCfg& c, uint32_t* counter,
 #endif
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

@@ -5,7 +5,7 @@
 
 #include <cuda/std/bit>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Task placement. Bins 0..kOptBins-1 are size classes: class 0 packs one task per warp into
 // blocks, class s > 0 gives each task a block of (32 << s) threads. kOptHugeBin splits a task over
@@ -117,4 +117,4 @@ __host__ __device__ inline Placement place_task(const Task& task, const AutoTune
     return {size_class(warps), 1, 0};
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

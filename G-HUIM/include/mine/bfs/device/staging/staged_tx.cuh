@@ -3,7 +3,7 @@
 
 #include "mine/bfs/device/staging/pipeline.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Lane per transaction, with the transactions staged by IO warps when the task's tiles fit the ring.
 struct StagedTx
@@ -59,4 +59,4 @@ struct StagedTx
     }
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

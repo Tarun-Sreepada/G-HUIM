@@ -4,7 +4,7 @@
 #include "mine/dfs/device/common.cuh"
 #include "mine/primitives.cuh"
 
-namespace ghuim::dfs::opt {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::opt {
 
 // Every group exposes the lanes of its warp that work together (`lanes()`, a power of two <= 32, and
 // their `mask()`); collectives are over those lanes only, so several groups can share a warp and
@@ -82,4 +82,4 @@ struct Lanes
     __device__ bool leader() const { return rank == 0; }
 };
 
-} // namespace ghuim::dfs::opt
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::opt

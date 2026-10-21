@@ -6,7 +6,7 @@
 #include "mine/bfs/placement.cuh"
 #include "mine/bfs/device/tile/search.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Lanes of the group that hold the same `key` (a class number, or `none`) take consecutive positions:
 // returns this lane's position among them and, on the group's first such lane, adds the count to
@@ -36,8 +36,8 @@ __device__ inline void tile_local(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  from   = static_cast<uint32_t>(k + 1);
     const uint32_t  rest   = k >= 0 ? tx.length - from : 0;
     const uint32_t  span   = lanes.max(rest);
-    const uint64_t  prefix = k >= 0 ? uint64_t{tx.utility} + k_util[static_cast<uint32_t>(k) * p.stride] : 0;
-    uint64_t        after  = 0;
+    const Util      prefix = k >= 0 ? tx.utility + k_util[static_cast<uint32_t>(k) * p.stride] : 0;
+    Util            after  = 0;
     for (uint32_t d = 0; d < span; ++d)
         if (d < rest)
             after += k_util[(from + d) * p.stride];
@@ -61,8 +61,8 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
     const uint32_t  rest   = k >= 0 ? tx.length - pos : 0;
     const uint32_t  span   = lanes.max(rest);
     // One backward sweep, as in subtree_tile.
-    const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + k_util[static_cast<uint32_t>(k) * p.stride] : 0;
-    uint64_t       after  = 0;
+    const Util     prefix = k >= 0 ? tx.utility + k_util[static_cast<uint32_t>(k) * p.stride] : 0;
+    Util           after  = 0;
     uint32_t       kept = 0, hash = 0;
     for (uint32_t d = span; d-- > 0;) {
         if (d >= rest)
@@ -102,4 +102,4 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
     take_in_class(lanes, bucket, kTileBuckets, bucket < kTileBuckets ? p.hist + bucket : p.hist, first);
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

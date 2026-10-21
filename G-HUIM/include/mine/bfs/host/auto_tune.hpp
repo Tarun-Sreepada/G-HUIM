@@ -5,8 +5,8 @@
 #include "data/dataset.hpp"
 #include "mine/bfs/placement.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 AutoTune make_auto_tune(const MiningOptions& options, const Dataset& data);
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

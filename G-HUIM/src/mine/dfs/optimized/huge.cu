@@ -10,7 +10,7 @@
 
 #include <algorithm>
 
-namespace ghuim::dfs {
+namespace ghuim::inline GHUIM_WIDTHS::dfs {
 namespace opt {
 namespace {
 
@@ -204,4 +204,4 @@ void launch_huge_tasks(const BatchView& batch, const uint32_t* order, uint32_t c
     check_cuda(cudaGetLastError(), "launch huge tasks");
 }
 
-} // namespace ghuim::dfs
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs

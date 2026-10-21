@@ -8,7 +8,7 @@
 #include "mine/bfs/device/tile/emit.cuh"
 #include "mine/bfs/device/tile/scan.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Lane per transaction over tiled databases: a warp covers one tile of the parent per step.
 struct TileTx
@@ -63,4 +63,4 @@ template <typename F> void with_mode(const AutoTune& tune, F&& f)
         f(LaneTx{});
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

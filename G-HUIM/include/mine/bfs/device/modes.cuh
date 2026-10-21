@@ -2,7 +2,7 @@
 
 #include "mine/bfs/device/child.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // ---------------------------------------------------------------------------------------------
 // Transaction modes: how a task's passes map transactions onto lanes. process_task and the huge-task
@@ -43,4 +43,4 @@ struct LaneTx
     }
 };
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

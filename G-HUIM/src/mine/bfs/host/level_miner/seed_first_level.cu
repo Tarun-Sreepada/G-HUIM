@@ -2,7 +2,7 @@
 
 #include "mine/host/transfer.hpp"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Level 1: one task per primary item of the root.
 void LevelMiner::seed_first_level()
@@ -20,4 +20,4 @@ void LevelMiner::seed_first_level()
     count_   = static_cast<uint32_t>(seeds.size());
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

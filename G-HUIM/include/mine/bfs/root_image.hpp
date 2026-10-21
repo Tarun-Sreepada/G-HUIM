@@ -6,7 +6,7 @@
 
 #include <vector>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // The whole input as one projected database in arena format (item names are the identity), on the device.
 struct RootDatabase
@@ -18,4 +18,4 @@ struct RootDatabase
 
 RootDatabase upload_root(const Dataset& data, bool tiled = false, uint32_t index_min_trans = 0, uint32_t index_sparsity = 0);
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

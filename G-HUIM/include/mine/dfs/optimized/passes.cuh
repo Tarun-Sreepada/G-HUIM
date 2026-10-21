@@ -4,7 +4,7 @@
 #include "mine/dfs/optimized/groups.cuh"
 #include "mine/dfs/optimized/projection.cuh"
 
-namespace ghuim::dfs::opt {
+namespace ghuim::inline GHUIM_WIDTHS::dfs::opt {
 
 // Transaction passes. A caller covers transactions i0 = from, from + step, ...; lane `rank` of the
 // group handles transaction i0 + rank. After the search, a lane's work is the entries behind the
@@ -13,7 +13,7 @@ namespace ghuim::dfs::opt {
 // Pass 1: local utilities of later items, and the itemset's utility.
 __device__ inline void scan_local(const Projection& p, const Lanes& lanes, uint32_t from, uint32_t step, TaskState& state)
 {
-    uint64_t utility = 0;
+    Util utility = 0;
     for (uint32_t i0 = from; i0 < p.n_trans; i0 += step) {
         const uint32_t i      = i0 + lanes.rank;
         const Tx       tx     = i < p.n_trans ? p.txs[i] : Tx{0, 0, 0};
@@ -21,14 +21,14 @@ __device__ inline void scan_local(const Projection& p, const Lanes& lanes, uint3
         const int      k      = find_item(e, tx.length, p.item);
         const uint32_t rest   = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span   = lanes.max(rest);
-        const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0;
-        uint64_t       after  = 0;
+        const Util     prefix = k >= 0 ? tx.utility + e[k].utility : 0;
+        Util           after  = 0;
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest)
                 after += e[k + 1 + d].utility;
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest)
-                add(p.local[e[k + 1 + d].item], static_cast<uint32_t>(prefix + after));
+                add(p.local[e[k + 1 + d].item], prefix + after);
         utility += prefix;
     }
     utility = lanes.sum(utility);
@@ -64,8 +64,8 @@ __device__ inline void scan_refine(const Projection& p, const Lanes& lanes, uint
         const int      k      = find_item(e, tx.length, p.item);
         const uint32_t rest   = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span   = lanes.max(rest);
-        const uint64_t prefix = k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0;
-        uint64_t       after  = 0;
+        const Util     prefix = k >= 0 ? tx.utility + e[k].utility : 0;
+        Util           after  = 0;
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest && p.rename[e[k + 1 + d].item] != kNone)
                 after += e[k + 1 + d].utility;
@@ -139,7 +139,7 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
         const uint32_t rest  = k >= 0 ? tx.length - k - 1 : 0;
         const uint32_t span  = lanes.max(rest);
         // Sweep 1: kept count and kept utility.
-        uint64_t kept_sum = 0;
+        Util     kept_sum = 0;
         uint32_t kept     = 0;
         for (uint32_t d = 0; d < span; ++d)
             if (d < rest && p.rename[e[k + 1 + d].item] != kNone) {
@@ -147,8 +147,8 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
                 kept_sum += e[k + 1 + d].utility;
             }
         // Sweep 2: subtree(z) = prefix + utility of z and every kept item after it; hash the sequence.
-        const uint64_t remaining = (k >= 0 ? uint64_t{tx.utility} + e[k].utility : 0) + kept_sum;
-        uint64_t       before    = 0;
+        const Util     remaining = (k >= 0 ? tx.utility + e[k].utility : 0) + kept_sum;
+        Util           before    = 0;
         uint32_t       index = 0, hash = 0;
         for (uint32_t d = 0; d < span; ++d) {
             if (d >= rest)
@@ -157,7 +157,7 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
             const uint32_t z     = p.rename[entry.item];
             if (z == kNone)
                 continue;
-            add(p.subtree[z], static_cast<uint32_t>(remaining - before));
+            add(p.subtree[z], remaining - before);
             before += entry.utility;
             hash ^= mix(z * 0x9e3779b9u + index++);
         }
@@ -194,4 +194,4 @@ __device__ inline void scan_subtree(const Projection& p, const Lanes& lanes, uin
     }
 }
 
-} // namespace ghuim::dfs::opt
+} // namespace ghuim::inline GHUIM_WIDTHS::dfs::opt

@@ -6,7 +6,7 @@
 #include "mine/bfs/placement.cuh"
 #include "mine/bfs/device/tile/search.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Pass 3a: representatives write their child transaction into their slot's tile.
 __device__ inline void tile_write(const Projection& p, const Lanes& lanes, uint32_t i0, const ChildView& c)
@@ -26,7 +26,7 @@ __device__ inline void tile_write(const Projection& p, const Lanes& lanes, uint3
     if (write) {
         const uint32_t slot  = p.slot_of[i];
         const uint32_t begin = p.tile_off[slot / p.child_stride] + slot % p.child_stride;
-        c.txs[slot]          = Tx{begin, kept, tx.utility + k_util[static_cast<uint32_t>(k) * p.stride]};
+        c.txs[slot]          = Tx{begin, kept, static_cast<Util>(tx.utility + k_util[static_cast<uint32_t>(k) * p.stride])};
         out_item             = c.eitem + begin;
         out_util             = c.eutil + begin;
     }
@@ -72,4 +72,4 @@ __device__ inline void tile_merge(const Projection& p, const Lanes& lanes, uint3
     }
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

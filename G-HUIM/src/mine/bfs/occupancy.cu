@@ -7,7 +7,7 @@
 #include <algorithm>
 #include <spdlog/spdlog.h>
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 uint32_t occupancy(const void* kernel, uint32_t threads, uint32_t dynamic_bytes = 0)
@@ -94,4 +94,4 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
         tune.subwarp_block_warps = std::min(tune.subwarp_block_warps, warp_kernel_block(subwarp_kernel(false, true)));
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

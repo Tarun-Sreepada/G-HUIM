@@ -6,7 +6,7 @@
 #include "mine/bfs/placement.cuh"
 #include "mine/bfs/device/tile/scan.cuh"
 
-namespace ghuim::bfs {
+namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
 // Class starts: the first child slot of every length class. One lane of the group works; the caller
 // synchronizes the group afterwards.
@@ -56,4 +56,4 @@ template <typename Group> __device__ inline void tile_offsets(const Group& g, co
         state.child_entries = carry;
 }
 
-} // namespace ghuim::bfs
+} // namespace ghuim::inline GHUIM_WIDTHS::bfs

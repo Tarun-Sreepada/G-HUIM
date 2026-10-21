@@ -1,9 +1,13 @@
 #include "mine/worker.hpp"
 
+#include "mine/simd_mode.hpp"
+
 #include <chrono>
 #include <string_view>
 
-Worker::Worker(int id, std::size_t num_items, Utility min_util, int threads, Scheduler& scheduler, bool collect_patterns,
+inline namespace REFIM_WIDTHS {
+
+Worker::Worker(int id, std::size_t num_items, std::uint64_t min_util, int threads, Scheduler& scheduler, bool collect_patterns,
 			   int refine, bool compact, double refine_min_drop, bool leaf)
 	: id(id), min_util(min_util), threads(threads), scheduler(scheduler), collect_patterns(collect_patterns), refine(refine),
 	  compact(compact), refine_min_drop(refine_min_drop), leaf(leaf),
@@ -35,3 +39,5 @@ Level& Worker::level_at(std::size_t depth) {
 	while (levels.size() <= depth) levels.push_back(std::make_unique<Level>());
 	return *levels[depth];
 }
+
+}  // namespace REFIM_WIDTHS
