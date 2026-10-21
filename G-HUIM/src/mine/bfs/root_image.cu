@@ -133,15 +133,14 @@ void build_root_index(char* root, const DbLayout& layout, uint32_t n_trans, uint
     synchronize("build root index");
 }
 
-// Position bits of the run's packed occurrences; with an index, this build's occurrence word must hold them
-// above the root's transaction slots (no projected database has more transactions or longer ones).
+// Position bits of the run's packed occurrences; with an index, the root's transaction slots must fit above
+// them (no projected database has more transactions or longer ones).
 uint32_t occurrence_shift(uint64_t n_trans, uint32_t max_len, bool indexed)
 {
-    const uint32_t shift = occurrence_pos_bits(max_len);
-    if (indexed && occurrence_bits_for(n_trans, max_len) > 8 * sizeof(Occurrence))
+    if (indexed && !occurrences_fit(n_trans, max_len))
         throw std::runtime_error(std::to_string(n_trans) + " transactions of up to " + std::to_string(max_len) +
-                                 " items do not fit " + std::to_string(8 * sizeof(Occurrence)) + "-bit occurrences");
-    return shift;
+                                 " items do not fit 32-bit occurrences (turn indexes off with --index-min-trans 0)");
+    return occurrence_pos_bits(max_len);
 }
 
 } // namespace

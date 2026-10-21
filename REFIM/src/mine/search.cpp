@@ -55,15 +55,17 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 	}
 	const auto node_of = [&](int w) { return cpus.empty() ? 0 : cpus[w].node; };
 
-	// Steal order per worker: same L3 group, then same node, then remote; nearest index first.
-	std::vector<std::vector<int>> victims(threads);
+	// Steal order per worker: same L3 group, then same node, then remote; next index first within each.
+	// Unpinned workers have no known placement and count as one L3 group.
+	std::vector<std::vector<Victim>> victims(threads);
 	for (int w = 0; w < threads; ++w) {
-		for (int k = 1; k < threads; ++k) victims[w].push_back((w + k) % threads);
-		if (!cpus.empty())
-			std::stable_sort(victims[w].begin(), victims[w].end(), [&](int a, int b) {
-				const auto dist = [&](int v) { return cpus[v].l3 == cpus[w].l3 && cpus[v].node == cpus[w].node ? 0 : cpus[v].node == cpus[w].node ? 1 : 2; };
-				return dist(a) < dist(b);
-			});
+		const auto distance = [&](int v) {
+			if (cpus.empty()) return kSameL3;
+			if (cpus[v].node != cpus[w].node) return kRemote;
+			return cpus[v].l3 == cpus[w].l3 ? kSameL3 : kSameNode;
+		};
+		for (int k = 1; k < threads; ++k) victims[w].push_back({(w + k) % threads, distance((w + k) % threads)});
+		std::stable_sort(victims[w].begin(), victims[w].end(), [](const Victim& a, const Victim& b) { return a.distance < b.distance; });
 	}
 
 	Scheduler scheduler(std::move(victims));
@@ -124,10 +126,17 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 		const Arena::Stats a = Arena::stats();
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
 	}
+	std::size_t steals[3] = {};
+	for (int w = 0; w < threads; ++w)
+		for (int d = 0; d < 3; ++d) steals[d] += scheduler.steals(w, d);
+	if (threads > 1)
+		spdlog::info("steals: {} same L3, {} same node, {} remote", steals[kSameL3], steals[kSameNode], steals[kRemote]);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		double busy = 0;
 		for (int w = 0; w < threads; ++w) {
-			spdlog::debug("worker {}: {} patterns, {} steals, busy {:.3f} s", w, workers[w]->pattern_count, scheduler.steals(w), workers[w]->busy_seconds);
+			spdlog::debug("worker {}: {} patterns, steals {} same L3 / {} same node / {} remote, busy {:.3f} s", w,
+						  workers[w]->pattern_count, scheduler.steals(w, kSameL3), scheduler.steals(w, kSameNode),
+						  scheduler.steals(w, kRemote), workers[w]->busy_seconds);
 			busy += workers[w]->busy_seconds;
 		}
 		spdlog::debug("mine: {:.3f} s wall, workers busy {:.0f}%", mine_seconds, 100 * busy / (mine_seconds * threads));

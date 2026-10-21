@@ -101,11 +101,6 @@ void configure_cli(CLI::App& app, Config& config)
                    "Utility width on the device: 16, 32, 64, or auto (the narrowest that holds the largest TWU)")
             ->transform(CLI::CheckedTransformer(std::map<std::string, uint32_t>{{"auto", 0}, {"16", 16}, {"32", 32}, {"64", 64}}))
             ->default_str("auto");
-    app.add_option("--occ-bits", config.mining.occ_bits,
-                   "BFS occurrence width (packed transaction and position): 32, 64, or auto (the narrowest that holds "
-                   "the transaction count and the longest transaction)")
-            ->transform(CLI::CheckedTransformer(std::map<std::string, uint32_t>{{"auto", 0}, {"32", 32}, {"64", 64}}))
-            ->default_str("auto");
     app.add_option("-o,--output", config.mining.output, "Write the itemsets (\"items... UTIL u\") to this file");
     app.add_option_function<std::string>(
                "-s,--separator",

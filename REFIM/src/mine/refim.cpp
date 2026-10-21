@@ -10,25 +10,25 @@
 #include <stdexcept>
 #include <string>
 
-// The searches of every built width triple (src/mine/search.cpp).
-#define REFIM_DECLARE_SEARCH(item, util, occ) \
-	inline namespace REFIM_WIDTH_NAME(item, util, occ) { SearchResult search(Transactions& input, const SearchOptions& options); }
+// The searches of every built width pair (src/mine/search.cpp).
+#define REFIM_DECLARE_SEARCH(item, util) \
+	inline namespace REFIM_WIDTH_NAME(item, util) { SearchResult search(Transactions& input, const SearchOptions& options); }
 REFIM_FOR_EACH_BUILT_WIDTH(REFIM_DECLARE_SEARCH)
 #undef REFIM_DECLARE_SEARCH
 
 namespace {
 
 struct Widths {
-	int key_bits, util_bits, occ_bits;
+	int key_bits, util_bits;
 };
 
 // Items keep ids 1..num_items; every utility is at most the largest TWU (mine/widths.hpp).
 int key_bits_for(std::size_t num_items) { return num_items < (1u << 8) ? 8 : num_items < (1u << 16) ? 16 : 32; }
 int util_bits_for(std::uint64_t max_twu) { return max_twu <= UINT16_MAX ? 16 : max_twu <= UINT32_MAX ? 32 : 64; }
 
-// --key-bits/--util-bits/--occ-bits when given (they must hold the dataset), else the narrowest built search
-// that holds it: fewest bytes per entry, then the narrower utilities, then the narrower occurrences.
-Widths choose_widths(const Transactions& input, int key_bits, int util_bits, int occ_bits) {
+// --key-bits/--util-bits when given (they must hold the dataset), else the narrowest built pair that holds
+// it: fewest bytes per entry, then the narrower utilities.
+Widths choose_widths(const Transactions& input, int key_bits, int util_bits) {
 	const int key_needed = key_bits_for(input.num_items), util_needed = util_bits_for(input.max_twu);
 	if (key_bits != 0 && key_bits < key_needed)
 		throw std::runtime_error("--key-bits " + std::to_string(key_bits) + " is too narrow: " + std::to_string(input.num_items) +
@@ -36,36 +36,25 @@ Widths choose_widths(const Transactions& input, int key_bits, int util_bits, int
 	if (util_bits != 0 && util_bits < util_needed)
 		throw std::runtime_error("--util-bits " + std::to_string(util_bits) + " is too narrow: the largest TWU " +
 								 std::to_string(input.max_twu) + " needs " + std::to_string(util_needed) + "-bit utilities");
-	const int occ_needed = occurrence_bits_for(input.num_transactions, input.max_length);
-	if (occ_bits != 0 && occ_bits < occ_needed)
-		throw std::runtime_error("--occ-bits " + std::to_string(occ_bits) + " is too narrow: " +
-								 std::to_string(input.num_transactions) + " transactions of up to " +
-								 std::to_string(input.max_length) + " items need " + std::to_string(occ_needed) + "-bit occurrences");
-	Widths best{0, 0, 0};
-	const auto consider = [&](int key, int util, int occ) {
+	Widths best{0, 0};
+	const auto consider = [&](int key, int util) {
 		if (key_bits != 0 ? key != key_bits : key < key_needed) return;
 		if (util_bits != 0 ? util != util_bits : util < util_needed) return;
-		if (occ_bits != 0 ? occ != occ_bits : occ < occ_needed) return;
 		const int bits = key + util, best_bits = best.key_bits + best.util_bits;
-		if (best.key_bits == 0 || bits < best_bits || (bits == best_bits && util < best.util_bits) ||
-			(bits == best_bits && util == best.util_bits && occ < best.occ_bits))
-			best = {key, util, occ};
+		if (best.key_bits == 0 || bits < best_bits || (bits == best_bits && util < best.util_bits)) best = {key, util};
 	};
-#define REFIM_CONSIDER(item, util, occ) consider(item, util, occ);
+#define REFIM_CONSIDER(item, util) consider(item, util);
 	REFIM_FOR_EACH_BUILT_WIDTH(REFIM_CONSIDER)
 #undef REFIM_CONSIDER
 	if (best.key_bits == 0)
 		throw std::runtime_error("no search was built for " + std::to_string(key_bits ? key_bits : key_needed) + "-bit ids and " +
-								 std::to_string(util_bits ? util_bits : util_needed) + "-bit utilities and " +
-								 std::to_string(occ_bits ? occ_bits : occ_needed) +
-								 "-bit occurrences (see CMake options REFIM_WIDTHS, REFIM_OCC_WIDTHS)");
+								 std::to_string(util_bits ? util_bits : util_needed) + "-bit utilities (see CMake option REFIM_WIDTHS)");
 	return best;
 }
 
 SearchResult search_with(const Widths& widths, Transactions& input, const SearchOptions& options) {
-#define REFIM_DISPATCH(item, util, occ)                                                  \
-	if (widths.key_bits == item && widths.util_bits == util && widths.occ_bits == occ) \
-		return REFIM_WIDTH_NAME(item, util, occ)::search(input, options);
+#define REFIM_DISPATCH(item, util) \
+	if (widths.key_bits == item && widths.util_bits == util) return REFIM_WIDTH_NAME(item, util)::search(input, options);
 	REFIM_FOR_EACH_BUILT_WIDTH(REFIM_DISPATCH)
 #undef REFIM_DISPATCH
 	throw std::logic_error("unreachable: chosen widths were not built");
@@ -85,10 +74,9 @@ void Refim::mine(bool collect_patterns) {
 	perf.start();
 	Transactions input = read_transactions(input_file_, sep_, min_util_, rename_, search_.threads);
 	perf.report("read");
-	const Widths widths = choose_widths(input, key_bits_, util_bits_, occ_bits_);
-	spdlog::info("widths: {}-bit ids ({} items), {}-bit utilities (largest TWU {}), {}-bit occurrences ({} transactions, longest {})",
-				 widths.key_bits, input.num_items, widths.util_bits, input.max_twu, widths.occ_bits, input.num_transactions,
-				 input.max_length);
+	const Widths widths = choose_widths(input, key_bits_, util_bits_);
+	spdlog::info("widths: {}-bit ids ({} items), {}-bit utilities (largest TWU {})", widths.key_bits, input.num_items,
+				 widths.util_bits, input.max_twu);
 	perf.start();
 	SearchResult result = search_with(widths, input, search_);
 	perf.report("mine");

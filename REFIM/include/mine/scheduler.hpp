@@ -37,6 +37,13 @@ struct Task {
 	std::vector<Item> prefix;
 };
 
+// A worker another one may steal from, and how far away it is.
+struct Victim {
+	int worker;
+	int distance;  // kSameL3, kSameNode or kRemote
+};
+constexpr int kSameL3 = 0, kSameNode = 1, kRemote = 2;
+
 // Work-stealing scheduler: one deque per worker. The owner pushes and pops at the back (depth
 // first, cache-warm); thieves take from the front, i.e. the oldest and so largest subtree, trying
 // victims in the order given (same L3 group, same NUMA node, then remote). Tasks are coarse
@@ -44,7 +51,7 @@ struct Task {
 class Scheduler {
 public:
 	// victims[w] = the other workers in the order w should steal from them.
-	explicit Scheduler(std::vector<std::vector<int>> victims)
+	explicit Scheduler(std::vector<std::vector<Victim>> victims)
 		: victims_(std::move(victims)), queues_(victims_.size()), steals_(victims_.size()) {}
 
 	// Seeding before the workers start.
@@ -98,7 +105,8 @@ public:
 
 	// True while some worker is looking for work.
 	bool hungry() const { return idle_.load(std::memory_order_relaxed) > 0; }
-	std::size_t steals(int worker) const { return steals_[worker].n; }
+	// Tasks `worker` stole from victims at `distance` (kSameL3, kSameNode, kRemote).
+	std::size_t steals(int worker, int distance) const { return steals_[worker].n[distance]; }
 
 private:
 	struct alignas(64) Queue {
@@ -113,7 +121,7 @@ private:
 		void unlock() { flag.clear(std::memory_order_release); }
 	};
 	struct alignas(64) Counter {
-		std::size_t n = 0;
+		std::size_t n[3] = {};  // by victim distance
 	};
 
 	bool try_get(int self, Task& out) {
@@ -129,7 +137,7 @@ private:
 			}
 			own.unlock();
 		}
-		for (const int v : victims_[self]) {
+		for (const auto [v, distance] : victims_[self]) {
 			Queue& q = queues_[v];
 			if (!q.size.load(std::memory_order_relaxed)) continue;
 			q.lock();
@@ -138,7 +146,7 @@ private:
 				q.q.pop_front();
 				q.size.store(q.q.size(), std::memory_order_relaxed);
 				q.unlock();
-				++steals_[self].n;
+				++steals_[self].n[distance];
 				return true;
 			}
 			q.unlock();
@@ -146,7 +154,7 @@ private:
 		return false;
 	}
 
-	std::vector<std::vector<int>> victims_;
+	std::vector<std::vector<Victim>> victims_;
 	std::vector<Queue> queues_;
 	std::vector<Counter> steals_;
 	std::atomic<std::size_t> outstanding_{0};  // queued + running tasks

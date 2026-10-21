@@ -67,8 +67,8 @@ struct Tx
 };
 
 // An occurrence index entry: transaction slot `tid` and position `pos` of an entry, packed as tid << shift | pos
-// into one OccWord. The shift is occurrence_pos_bits(root max_len) for the whole run (mine/widths.hpp).
-using Occurrence = OccWord;
+// into 32 bits. The shift is occurrence_pos_bits(root max_len) for the whole run (mine/widths.hpp).
+using Occurrence = uint32_t;
 
 __host__ __device__ __forceinline__ Occurrence make_occurrence(uint32_t tid, uint32_t pos, uint32_t shift)
 {

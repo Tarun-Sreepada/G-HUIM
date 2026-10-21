@@ -8,7 +8,7 @@ struct Options {
 	std::string compact = "on", leaf = "on";
 	long long min_util = 0;
 	int threads = 1, refine = -1;
-	int key_bits = 0, util_bits = 0, occ_bits = 0;  // 0 = the narrowest that holds the dataset
+	int key_bits = 0, util_bits = 0;  // 0 = the narrowest that holds the dataset
 	bool stats = false;
 	double refine_min_drop = 0;
 };

@@ -5,6 +5,8 @@
 #include <algorithm>
 #include <chrono>
 #include <spdlog/spdlog.h>
+#include <stdexcept>
+#include <string>
 
 inline namespace REFIM_WIDTHS {
 
@@ -28,6 +30,9 @@ void make_root(Transactions& input, std::uint64_t min_util, int threads, Level& 
 
 	find_primary(root, input.num_items, min_util, threads);
 	std::vector<std::int32_t> slot(input.num_items + 1, -1);
+	if (!occurrences_fit(input.num_transactions, input.max_length))
+		throw std::runtime_error(std::to_string(input.num_transactions) + " transactions of up to " +
+								 std::to_string(input.max_length) + " items do not fit 32-bit occurrences");
 	root.index(slot, occurrence_pos_bits(input.max_length), threads);
 	lap("subtree+index");
 }

@@ -24,8 +24,8 @@ struct Transaction {
 };
 
 // An occurrence index entry: transaction `tid` and position `pos` of an item, packed as tid << shift | pos
-// into one OccWord. The shift is occurrence_pos_bits(longest input transaction) for the whole search.
-using Occurrence = OccWord;
+// into 32 bits. The shift is occurrence_pos_bits(longest input transaction) for the whole search.
+using Occurrence = std::uint32_t;
 
 inline Occurrence make_occurrence(std::uint32_t tid, std::uint32_t pos, std::uint32_t shift) {
 	return static_cast<Occurrence>(Occurrence{tid} << shift | pos);

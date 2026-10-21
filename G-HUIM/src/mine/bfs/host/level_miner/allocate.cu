@@ -32,10 +32,10 @@ void LevelMiner::allocate()
     root_            = std::move(root.buffer);
     root_occ_counts_ = std::move(root.occ_counts);
     if (root.header.indexed)
-        spdlog::info("Occurrence indexes: databases with at least {} transactions{}; {}-bit occurrences ({} position bits)",
+        spdlog::info("Occurrence indexes: databases with at least {} transactions{}; {} position bits per occurrence",
                      options_.index_min_trans,
                      options_.index_sparsity ? fmt::format(" and at most 1/{} filled", options_.index_sparsity) : "",
-                     8 * sizeof(Occurrence), root_occ_shift_);
+                     root_occ_shift_);
 
     const uint64_t capacity = budget_.capacity;
     level_a_                = DeviceBuffer<Task>(capacity);
