@@ -35,6 +35,7 @@ struct Task {
 	int depth;
 	std::uint32_t slot;
 	std::vector<Item> prefix;
+	bool offered = false;  // handed out by Worker::offer() rather than split off by descend
 };
 
 // A worker another one may steal from, and how far away it is.
@@ -107,6 +108,8 @@ public:
 	bool hungry() const { return idle_.load(std::memory_order_relaxed) > 0; }
 	// Tasks `worker` stole from victims at `distance` (kSameL3, kSameNode, kRemote).
 	std::size_t steals(int worker, int distance) const { return steals_[worker].n[distance]; }
+	// Tasks `worker` stole that came from Worker::offer(); the rest were split off by descend.
+	std::size_t offered_steals(int worker) const { return steals_[worker].offered; }
 
 private:
 	struct alignas(64) Queue {
@@ -122,6 +125,7 @@ private:
 	};
 	struct alignas(64) Counter {
 		std::size_t n[3] = {};  // by victim distance
+		std::size_t offered = 0;  // of those, tasks from Worker::offer()
 	};
 
 	bool try_get(int self, Task& out) {
@@ -147,6 +151,7 @@ private:
 				q.size.store(q.q.size(), std::memory_order_relaxed);
 				q.unlock();
 				++steals_[self].n[distance];
+				if (out.offered) ++steals_[self].offered;
 				return true;
 			}
 			q.unlock();

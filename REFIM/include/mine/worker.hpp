@@ -78,6 +78,8 @@ private:
 	void record_pattern(Util utility);
 	// expands each primary item of `child`, or hands siblings to idle threads.
 	void descend(Level& child, int depth);
+	// Pushes the unstarted siblings of the shallowest open descend loop as tasks.
+	void offer();
 	// Chooses child.primary/secondary from the bounds of the `touched` items (resetting them),
 	// after `refine` rounds of rescanning `child` (the database at depth + 1) without the items ruled out,
 	// then (with `compact`) rewrites child without those items.
@@ -125,6 +127,14 @@ private:
 	// spare[d] = the database levels[d] was compacted from; its storage backs levels[d]'s views
 	// until the next sibling at depth d is compacted.
 	std::vector<std::unique_ptr<Level>> spare;
+	// A descend loop in progress: siblings [next, end) of level (the database at `depth`) are not started.
+	struct Frame {
+		const Level* level;
+		int depth;
+		std::size_t prefix_len;  // prefix_items.size() of the loop
+		std::size_t next, end;
+	};
+	std::vector<Frame> frames;  // open loops, shallowest first
 	std::uint32_t occ_shift = 0;  // position bits of an occurrence (the same for every database of the search)
 };
 

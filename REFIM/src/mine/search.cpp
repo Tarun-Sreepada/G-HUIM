@@ -126,17 +126,20 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 		const Arena::Stats a = Arena::stats();
 		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
 	}
-	std::size_t steals[3] = {};
-	for (int w = 0; w < threads; ++w)
+	std::size_t steals[3] = {}, offered = 0;
+	for (int w = 0; w < threads; ++w) {
 		for (int d = 0; d < 3; ++d) steals[d] += scheduler.steals(w, d);
+		offered += scheduler.offered_steals(w);
+	}
 	if (threads > 1)
-		spdlog::info("steals: {} same L3, {} same node, {} remote", steals[kSameL3], steals[kSameNode], steals[kRemote]);
+		spdlog::info("steals: {} same L3, {} same node, {} remote; {} split tasks, {} offered", steals[kSameL3], steals[kSameNode],
+					 steals[kRemote], steals[kSameL3] + steals[kSameNode] + steals[kRemote] - offered, offered);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		double busy = 0;
 		for (int w = 0; w < threads; ++w) {
-			spdlog::debug("worker {}: {} patterns, steals {} same L3 / {} same node / {} remote, busy {:.3f} s", w,
-						  workers[w]->pattern_count, scheduler.steals(w, kSameL3), scheduler.steals(w, kSameNode),
-						  scheduler.steals(w, kRemote), workers[w]->busy_seconds);
+			spdlog::debug("worker {}: {} patterns, steals {} same L3 / {} same node / {} remote ({} offered), busy {:.3f} s",
+						  w, workers[w]->pattern_count, scheduler.steals(w, kSameL3), scheduler.steals(w, kSameNode),
+						  scheduler.steals(w, kRemote), scheduler.offered_steals(w), workers[w]->busy_seconds);
 			busy += workers[w]->busy_seconds;
 		}
 		spdlog::debug("mine: {:.3f} s wall, workers busy {:.0f}%", mine_seconds, 100 * busy / (mine_seconds * threads));
