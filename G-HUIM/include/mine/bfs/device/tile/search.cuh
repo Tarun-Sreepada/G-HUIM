@@ -7,21 +7,10 @@
 
 namespace ghuim::inline GHUIM_WIDTHS::bfs {
 
-// Position of `item` in a sorted tiled transaction (keys at col[k * kTile]), or -1.
+// Position of `item` in a sorted tiled transaction (keys at col[k * stride]), or -1.
 __device__ inline int find_item_tiled(const Key* col, uint32_t length, uint32_t item, uint32_t stride)
 {
-    int low = 0, high = static_cast<int>(length) - 1;
-    while (low <= high) {
-        const int      mid = (low + high) >> 1;
-        const uint32_t key = col[static_cast<uint32_t>(mid) * stride];
-        if (key == item)
-            return mid;
-        if (key < item)
-            low = mid + 1;
-        else
-            high = mid - 1;
-    }
-    return -1;
+    return find_item_strided(col, length, item, stride);
 }
 
 // same_kept_items over tiled key arrays.

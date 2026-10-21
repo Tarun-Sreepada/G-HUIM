@@ -3,6 +3,7 @@
 // read the level back. Each step lives in src/mine/bfs/host/level_miner/.
 
 #include "app/config.hpp"
+#include "cuda/arena_buffer.cuh"
 #include "cuda/buffer.cuh"
 #include "data/dataset.hpp"
 #include "mine/bfs/host/auto_tune.hpp"
@@ -60,7 +61,7 @@ class LevelMiner
     DeviceBuffer<uint64_t>            prefix_, scan_sums_, scan_total_;
     DeviceBuffer<uint32_t>            order_;
     DeviceBuffer<char>                scratch_;
-    std::array<DeviceBuffer<char>, 2> regions_;
+    std::array<ArenaBuffer, 2>        regions_;
     DeviceBuffer<uint32_t>            vertical_;
     DeviceBuffer<Control>             control_;
     DeviceBuffer<ChunkPlan>           chunk_plan_;

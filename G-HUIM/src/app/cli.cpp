@@ -58,7 +58,7 @@ void configure_cli(CLI::App& app, Config& config)
             ->group("");
     CLI::Option* index =
             app.add_option("-I,--index-min-trans", config.mining.index_min_trans,
-                           "BFS adaptive/static: build occurrence indexes for databases with at least this many transactions "
+                           "BFS: build occurrence indexes for databases with at least this many transactions "
                            "(0 = off; by default only sparse ones, see --index-sparsity)")
                     ->capture_default_str();
     CLI::Option* sparsity =
@@ -67,12 +67,12 @@ void configure_cli(CLI::App& app, Config& config)
                     ->capture_default_str();
     CLI::Option* local_tail =
             app.add_option("-k,--local-tail-items", config.mining.local_tail_items,
-                           "BFS adaptive count-only: finish small subtrees with up to this many remaining items locally "
+                           "BFS count-only: finish small subtrees with up to this many remaining items locally "
                            "(0 = off; on by default where it applies)")
                     ->check(CLI::Range(0, 31))
                     ->capture_default_str();
     app.add_option("-V,--vert-items", config.mining.vert_items,
-                   "BFS adaptive count-only: mine subtrees with at most this many remaining items vertically, from "
+                   "BFS count-only: mine subtrees with at most this many remaining items vertically, from "
                    "transaction bitmaps (0 = off)")
             ->check(CLI::Range(0, 32))
             ->capture_default_str();
@@ -88,6 +88,9 @@ void configure_cli(CLI::App& app, Config& config)
             ->check(CLI::Range(-1, 1000))->capture_default_str();
     add_size_option(app, "-g,--total-memory,--total_memory,--memory", config.mining.memory_bytes,
                     "Device memory for projected databases (K/M/G suffixes); default uses most free memory");
+    app.add_option("--compress", config.mining.compress_arena,
+                   "BFS: allocate the projected-database arena with L2 compression where the GPU supports it (1 = on; no gain measured)")
+            ->capture_default_str();
     add_size_option(app, "-C,--stack-capacity,--stack_capacity", config.mining.stack_capacity,
                     "Most tasks one level may hold (K/M/G suffixes); default is derived from free device memory");
     app.add_option("--key-bits", config.mining.key_bits,
@@ -120,28 +123,25 @@ void configure_cli(CLI::App& app, Config& config)
 
     app.callback([&config, local_tail, index, sparsity] {
         MiningOptions& mining = config.mining;
-        // The default local subtrees only apply to count-only BFS adaptive lane mining; elsewhere they are
-        // turned off, and only an explicit --local-tail-items is an error.
+        // The default local subtrees only apply to count-only BFS mining; elsewhere they are turned off, and
+        // only an explicit --local-tail-items is an error.
         const bool counting = mining.output.empty() || mining.output == "/dev/null";
-        if (local_tail->count() == 0 && (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting))
+        if (local_tail->count() == 0 && (mining.search != Search::Bfs || !counting))
             mining.local_tail_items = 0;
-        // Default indexes likewise apply only to BFS adaptive/static. An explicit --index-min-trans indexes every
-        // database that large unless --index-sparsity is also given.
-        if (index->count() == 0 && (mining.search != Search::Bfs ||
-                                    (mining.method != Method::Adaptive && mining.method != Method::Static)))
+        // Default indexes likewise apply only to BFS. An explicit --index-min-trans indexes every database that
+        // large unless --index-sparsity is also given.
+        if (index->count() == 0 && mining.search != Search::Bfs)
             mining.index_min_trans = 0;
         if (index->count() != 0 && sparsity->count() == 0)
             mining.index_sparsity = 0;
         if (mining.index_min_trans != 0 || mining.local_tail_items != 0) {
-            if (mining.search != Search::Bfs || (mining.method != Method::Adaptive && mining.method != Method::Static))
-                throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs BFS adaptive or static");
-            if (mining.local_tail_items != 0 && !mining.output.empty() && mining.output != "/dev/null")
+            if (mining.search != Search::Bfs)
+                throw CLI::ValidationError("--index-min-trans/--local-tail-items", "needs --search bfs");
+            if (mining.local_tail_items != 0 && !counting)
                 throw CLI::ValidationError("--local-tail-items", "only available for count-only mining (omit --output)");
-            if (mining.local_tail_items != 0 && mining.method != Method::Adaptive)
-                throw CLI::ValidationError("--local-tail-items", "needs --method adaptive");
         }
-        if (mining.vert_items != 0 && (mining.search != Search::Bfs || mining.method != Method::Adaptive || !counting))
-            throw CLI::ValidationError("--vert-items", "needs BFS adaptive count-only mining");
+        if (mining.vert_items != 0 && (mining.search != Search::Bfs || !counting))
+            throw CLI::ValidationError("--vert-items", "needs BFS count-only mining");
         if (mining.method == Method::Static && (mining.block_size & (mining.block_size - 1)) != 0)
             throw CLI::ValidationError("--block-size", "must be a power of two (32-1024)");
         if (mining.search == Search::Dfs && (mining.method == Method::Staged || mining.method == Method::Tile))

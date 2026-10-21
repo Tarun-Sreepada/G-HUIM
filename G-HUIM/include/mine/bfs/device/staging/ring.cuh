@@ -34,7 +34,8 @@ __device__ __forceinline__ StageCfg make_stage_cfg(const BatchView& b, const Pro
     c.stride        = p.max_len | 1u;
     c.tile_bytes    = kTileMetaBytes + kTileTx * c.stride * (sizeof(Key) + sizeof(Util));
     c.slots         = min(kRingMaxSlots, b.ring_bytes / c.tile_bytes);
-    c.staged        = b.io_warps > 0 && c.compute_warps > 0 && c.slots >= 2;
+    // An indexed database is visited through its occurrences, not in slot order: the passes read it directly.
+    c.staged        = b.io_warps > 0 && c.compute_warps > 0 && c.slots >= 2 && p.occ == nullptr;
     c.slices        = slices;
     c.slice         = slice;
     c.n_tiles       = (p.n_trans + kTileTx - 1) / kTileTx;

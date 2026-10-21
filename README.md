@@ -136,7 +136,7 @@ Energy readings include other users' load on a shared host.
 
 ## Microbenchmarks
 
-`microbenchmark/` has 13 small CUDA programs, one folder each (`NN_name/main.cu`), that check individual G-HUIM
+`microbenchmark/` has 14 small CUDA programs, one folder each (`NN_name/main.cu`), that check individual G-HUIM
 design choices in isolation. Each prints CSV with an `ok` column (all variants must compute the same result);
 a full run takes about 90 s on an H100, most of it the device-`malloc` runs in 12.
 
@@ -164,6 +164,7 @@ and wraps each program in `timeout` (`LIMIT`, default 60 s). Shared helpers are 
 | 11 | Copy / compute overlap | 2+ streams overlap well (combined time ~ copy time); one stream serialises |
 | 12 | Allocator | Bump arena ~10^4 x faster than device `malloc` |
 | 13 | Tensor-core equality (`[k\|~k]` AND+popc) | ~10% slower than plain 64-bit compares, so not worth it for lookups |
+| 14 | Does L2 compression shrink tile padding? (`cuMemCreate` + `COMP_GENERIC`) | Zero rows: reads speed up with padding (+15% at 25%, +35% at 50%, 1.8x all-zero); zero lanes only help once a 128 B line is ~75% zero; scattered 4 B tile writes stay at ~30 GB/s either way |
 
 
 | | |
@@ -174,7 +175,7 @@ and wraps each program in `timeout` (`LIMIT`, default 60 s). Shared helpers are 
 | **Occupancy**<br>[![07_occupancy](microbenchmark/plots/07_occupancy.png)](microbenchmark/plots/07_occupancy.png) | **Scheduling skewed tasks**<br>[![08_load_imbalance](microbenchmark/plots/08_load_imbalance.png)](microbenchmark/plots/08_load_imbalance.png) |
 | **Utility accumulation**<br>[![09_utility_accum](microbenchmark/plots/09_utility_accum.png)](microbenchmark/plots/09_utility_accum.png) | **Output append**<br>[![10_output_append](microbenchmark/plots/10_output_append.png)](microbenchmark/plots/10_output_append.png) |
 | **Copy / compute overlap**<br>[![11_stream_overlap](microbenchmark/plots/11_stream_overlap.png)](microbenchmark/plots/11_stream_overlap.png) | **Device malloc vs bump arena**<br>[![12_arena_alloc](microbenchmark/plots/12_arena_alloc.png)](microbenchmark/plots/12_arena_alloc.png) |
-| **Tensor-core equality**<br>[![13_bmma_equality](microbenchmark/plots/13_bmma_equality.png)](microbenchmark/plots/13_bmma_equality.png) |  |
+| **Tensor-core equality**<br>[![13_bmma_equality](microbenchmark/plots/13_bmma_equality.png)](microbenchmark/plots/13_bmma_equality.png) | **L2 compression of padding**<br>[![14_l2_compression](microbenchmark/plots/14_l2_compression.png)](microbenchmark/plots/14_l2_compression.png) |
 
 Numbers are single runs on a shared GPU, so gaps of a few percent are noise.
 

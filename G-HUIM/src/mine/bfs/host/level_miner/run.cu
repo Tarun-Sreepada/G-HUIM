@@ -12,7 +12,7 @@ namespace ghuim::inline GHUIM_WIDTHS::bfs {
 MiningResult LevelMiner::run()
 {
     seed_first_level();
-    uint64_t counted = 0;
+    uint64_t counted = 0, tile_entries = 0, tile_padded = 0;
     for (uint32_t level = 1; count_ != 0; ++level) {
         const auto     start = std::chrono::steady_clock::now();
         const uint32_t tasks = count_;
@@ -25,6 +25,13 @@ MiningResult LevelMiner::run()
         spdlog::debug("Level {:>3}: {:>10} tasks, {:>10} itemsets, {} MiB of child databases, {:.1f} ms", level, tasks,
                       host_.patterns - counted, host_.arena_top >> 20, ms);
         counted = host_.patterns;
+        if (tune_.tiled && host_.tile_padded != tile_padded) {
+            const uint64_t real = host_.tile_entries - tile_entries, padded = host_.tile_padded - tile_padded;
+            spdlog::debug("Level {:>3} tiles: {} entries in {} slots, padding {:.1f}%", level, real, padded,
+                          100.0 * static_cast<double>(padded - real) / static_cast<double>(padded));
+            tile_entries = host_.tile_entries;
+            tile_padded  = host_.tile_padded;
+        }
         if (options_.bin_times) {
             std::string line;
             for (uint32_t cell = 0; cell < kCells; ++cell)
@@ -40,6 +47,14 @@ MiningResult LevelMiner::run()
     }
     spdlog::info("BFS: peak arena region use {} MiB, peak scratch {} MiB, peak level {} tasks ({} MiB of task arrays)",
                  peak_arena_ >> 20, peak_scratch_ >> 20, peak_tasks_, (peak_tasks_ * budget_.per_task) >> 20);
+    if (tune_.tiled && host_.tile_padded != 0)
+        spdlog::info("Tiles: child databases hold {} entries in {} slots, padding {:.1f}% ({:.1f}% empty lanes, {:.1f}% "
+                     "length spread)",
+                     host_.tile_entries, host_.tile_padded,
+                     100.0 * static_cast<double>(host_.tile_padded - host_.tile_entries) / static_cast<double>(host_.tile_padded),
+                     100.0 * static_cast<double>(host_.tile_empty) / static_cast<double>(host_.tile_padded),
+                     100.0 * static_cast<double>(host_.tile_padded - host_.tile_entries - host_.tile_empty) /
+                             static_cast<double>(host_.tile_padded));
     if (host_.stage_consumer_cycles != 0)
         spdlog::info("Staging: compute warps waited {:.1f}% of their time for data, IO warps waited {:.1f} Mcycles for free slots",
                      100.0 * static_cast<double>(host_.stage_full_wait) / static_cast<double>(host_.stage_consumer_cycles),

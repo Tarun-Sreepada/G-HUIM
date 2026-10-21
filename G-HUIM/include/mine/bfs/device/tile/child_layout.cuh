@@ -43,7 +43,7 @@ __device__ inline void tile_assign(const Projection& p, const Lanes& lanes, uint
 template <typename Group> __device__ inline void tile_offsets(const Group& g, const Projection& p, TaskState& state)
 {
     const uint32_t tiles = ceil_div(state.child_trans, p.child_stride);
-    uint32_t       carry = 0;
+    uint32_t       carry = 0, empty = 0;
     for (uint32_t t0 = 0; t0 < tiles; t0 += g.size()) {
         const uint32_t t     = t0 + g.rank();
         const uint32_t width = t < tiles ? p.tile_len[t] * p.child_stride : 0;
@@ -51,9 +51,14 @@ template <typename Group> __device__ inline void tile_offsets(const Group& g, co
         if (t < tiles)
             p.tile_off[t] = carry + scan - width;
         carry += g.last(scan);
+        const uint32_t used = t < tiles ? min(p.child_stride, state.child_trans - t * p.child_stride) : 0;
+        empty += g.last(g.scan(t < tiles ? p.tile_len[t] * (p.child_stride - used) : 0));
     }
-    if (g.rank() == 0)
-        state.child_entries = carry;
+    if (g.rank() == 0) {
+        state.child_empty_slots  = empty;
+        state.child_real_entries = state.child_entries;
+        state.child_entries      = carry;
+    }
 }
 
 } // namespace ghuim::inline GHUIM_WIDTHS::bfs

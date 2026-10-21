@@ -43,7 +43,10 @@ void LevelMiner::allocate()
     scan_total_             = DeviceBuffer<uint64_t>(1);
     order_                  = DeviceBuffer<uint32_t>(capacity);
     scratch_                = DeviceBuffer<char>(budget_.scratch_capacity);
-    regions_                = {DeviceBuffer<char>(budget_.region_bytes), DeviceBuffer<char>(budget_.region_bytes)};
+    regions_                = {ArenaBuffer(budget_.region_bytes, options_.compress_arena),
+                               ArenaBuffer(budget_.region_bytes, options_.compress_arena)};
+    if (options_.compress_arena)
+        spdlog::info("Arena compression: {}", regions_[0].compressed() && regions_[1].compressed() ? "on" : "unavailable");
     control_                = DeviceBuffer<Control>(1);
     vertical_ = DeviceBuffer<uint32_t>(uint64_t{tune_.vert_warps} * vertical_warp_words(vertical_slots(tune_)));
     chunk_plan_             = DeviceBuffer<ChunkPlan>(1);

@@ -66,6 +66,23 @@ template <typename K> __device__ inline int find_item(const K* keys, uint32_t le
     return -1;
 }
 
+// find_item over keys `stride` apart (the tile layout; stride 1 is find_item).
+__device__ inline int find_item_strided(const Key* keys, uint32_t length, uint32_t item, uint32_t stride)
+{
+    int low = 0, high = static_cast<int>(length) - 1;
+    while (low <= high) {
+        const int      mid = (low + high) >> 1;
+        const uint32_t key = keys[static_cast<uint32_t>(mid) * stride];
+        if (key == item)
+            return mid;
+        if (key < item)
+            low = mid + 1;
+        else
+            high = mid - 1;
+    }
+    return -1;
+}
+
 // Whether two parent transactions (their key arrays and lengths) project to the same kept items after `item`.
 // `i`, `j` are the positions after the extension item (the passes' `pos`).
 template <typename K>
@@ -116,6 +133,12 @@ struct Projection
     uint32_t*           tile_off; // first entry of each child tile
 };
 
+// Database slot of visited transaction `i`: through the occurrence index when the database has one.
+__device__ __forceinline__ uint32_t tx_slot(const Projection& p, uint32_t i)
+{
+    return p.occ ? p.occ[i].tid : i;
+}
+
 struct TaskView
 {
     Task        task;
@@ -161,7 +184,7 @@ __device__ __forceinline__ TaskView open_task(const BatchView& b, uint32_t t)
     p.hist = p.base = p.cursor = p.tile_len = p.tile_off = nullptr;
     p.stride = p.child_stride = 1;
     if (b.tiled) {
-        p.stride   = tile_stride(trans);
+        p.stride   = tile_stride(v.header.n_trans); // the database's tiles, not the visited count
         p.hist     = p.kept + trans;
         p.base     = p.hist + kTileBuckets;
         p.cursor   = p.base + kTileBuckets;

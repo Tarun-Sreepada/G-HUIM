@@ -22,8 +22,9 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
     Util utility[kMaxLocalTailItems + 1];
     int position[kMaxLocalTailItems + 1];
     uint32_t pending[kMaxLocalTailItems + 1];
-    position[0] = valid ? (v.p.occ ? static_cast<int>(v.p.occ[g.rank()].pos) : find_item(keys, tx.length, v.p.item)) : -1;
-    utility[0] = position[0] >= 0 ? tx.utility + utils[position[0]] : 0;
+    const uint32_t s = v.p.stride;
+    position[0] = valid ? (v.p.occ ? static_cast<int>(v.p.occ[g.rank()].pos) : find_item_strided(keys, tx.length, v.p.item, s)) : -1;
+    utility[0] = position[0] >= 0 ? tx.utility + utils[position[0] * s] : 0;
     uint64_t found = 0;
     uint32_t depth = 0;
     for (;;) {
@@ -31,8 +32,8 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
         Util upper = utility[depth];
         if (position[depth] >= 0) {
             for (uint32_t pos = position[depth] + 1; pos < tx.length; ++pos) {
-                suffix |= 1u << (keys[pos] - first);
-                upper += utils[pos];
+                suffix |= 1u << (keys[pos * s] - first);
+                upper += utils[pos * s];
             }
         }
         const uint32_t candidates = __reduce_or_sync(lanes.mask, suffix);
@@ -54,8 +55,8 @@ __device__ __noinline__ void count_small_subtree(const Group& g, const BatchView
             break;
         const uint32_t item = first + (__ffs(pending[depth]) - 1);
         pending[depth] &= pending[depth] - 1;
-        const int pos = position[depth] >= 0 ? find_item(keys, tx.length, item) : -1;
-        utility[depth + 1] = pos >= 0 ? utility[depth] + utils[pos] : 0;
+        const int pos = position[depth] >= 0 ? find_item_strided(keys, tx.length, item, s) : -1;
+        utility[depth + 1] = pos >= 0 ? utility[depth] + utils[pos * s] : 0;
         position[++depth] = pos;
     }
     if (g.rank() == 0 && found)
@@ -91,25 +92,26 @@ __device__ bool finish_local_tail(const Group& g, const BatchView& b, const Task
         const Tx tx = GlobalSource{v.p}.tx(0, 0);
         const Key* keys = v.p.eitem + tx.begin;
         const Util* utils = v.p.eutil + tx.begin;
-        const int pos = v.p.occ ? static_cast<int>(v.p.occ[0].pos) : find_item(keys, tx.length, v.p.item);
+        const uint32_t s = v.p.stride;
+        const int pos = v.p.occ ? static_cast<int>(v.p.occ[0].pos) : find_item_strided(keys, tx.length, v.p.item, s);
         uint64_t count = 0;
         if (pos >= 0) {
             const uint32_t remaining = tx.length - pos - 1;
             const uint32_t subsets = 1u << remaining;
-            Util utility = tx.utility + utils[pos];
+            Util utility = tx.utility + utils[pos * s];
             if (utility >= b.minimum_utility)
                 count = subsets;
             else {
                 Util upper = utility;
                 for (uint32_t k = 0; k < remaining; ++k)
-                    upper += utils[pos + 1 + k];
+                    upper += utils[(pos + 1 + k) * s];
                 if (upper >= b.minimum_utility) {
                     // Consecutive Gray-code subsets differ by exactly one entry.
                     uint32_t previous = 0;
                     for (uint32_t k = 1; k < subsets; ++k) {
                         const uint32_t next = k ^ (k >> 1);
                         const uint32_t changed = next ^ previous;
-                        const Util value = utils[pos + 1 + (__ffs(changed) - 1)];
+                        const Util value = utils[(pos + 1 + (__ffs(changed) - 1)) * s];
                         if (next & changed)
                             utility += value;
                         else

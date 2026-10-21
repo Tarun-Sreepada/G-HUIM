@@ -13,7 +13,7 @@ __device__ inline void tile_write(const Projection& p, const Lanes& lanes, uint3
 {
     const uint32_t  i      = i0 + lanes.rank;
     const bool      write  = i < p.n_trans && p.rep[i] == i;
-    const Tx        tx     = write ? p.txs[i] : Tx{0, 0, 0};
+    const Tx        tx     = write ? p.txs[tx_slot(p, i)] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
     const int       k      = write ? static_cast<int>(p.pos[i]) - 1 : -1;
@@ -49,7 +49,7 @@ __device__ inline void tile_merge(const Projection& p, const Lanes& lanes, uint3
     const uint32_t  i      = i0 + lanes.rank;
     const uint32_t  r      = i < p.n_trans ? p.rep[i] : kNone;
     const bool      merge  = r != kNone && r != i;
-    const Tx        tx     = merge ? p.txs[i] : Tx{0, 0, 0};
+    const Tx        tx     = merge ? p.txs[tx_slot(p, i)] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
     const int       k      = merge ? static_cast<int>(p.pos[i]) - 1 : -1;

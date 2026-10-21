@@ -89,7 +89,9 @@ void launch_subwarp_tasks(const BatchView& batch, const uint32_t* order, uint32_
     const uint32_t threads = tune.subwarp_block_warps * 32;
     const uint64_t blocks  = (uint64_t{count} * group + threads - 1) / threads;
     const uint32_t grid = static_cast<uint32_t>(std::min<uint64_t>(blocks, 1u << 20));
-    if (tune.tiled)
+    if (tune.tiled && local_tail)
+        subwarp_tasks<TileTx, true><<<grid, threads, 0, stream>>>(batch, order, count, group);
+    else if (tune.tiled)
         subwarp_tasks<TileTx><<<grid, threads, 0, stream>>>(batch, order, count, group);
     else if (local_tail)
         subwarp_tasks<LaneTx, true><<<grid, threads, 0, stream>>>(batch, order, count, group);
@@ -123,7 +125,8 @@ const void* warp_kernel(bool tiled)
 const void* subwarp_kernel(bool tiled, bool local_tail)
 {
     if (local_tail)
-        return reinterpret_cast<const void*>(subwarp_tasks<LaneTx, true>);
+        return tiled ? reinterpret_cast<const void*>(subwarp_tasks<TileTx, true>)
+                     : reinterpret_cast<const void*>(subwarp_tasks<LaneTx, true>);
     return tiled ? reinterpret_cast<const void*>(subwarp_tasks<TileTx>)
                  : reinterpret_cast<const void*>(subwarp_tasks<LaneTx>);
 }

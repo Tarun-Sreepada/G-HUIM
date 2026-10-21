@@ -91,7 +91,7 @@ void measure_occupancy(AutoTune& tune, uint32_t sms)
     // One block size serves both sub-warp kernels, so it must fit the local-subtree one too.
     tune.subwarp_block_warps = warp_kernel_block(subwarp_kernel(tune.tiled != 0));
     if (tune.tail_items != 0)
-        tune.subwarp_block_warps = std::min(tune.subwarp_block_warps, warp_kernel_block(subwarp_kernel(false, true)));
+        tune.subwarp_block_warps = std::min(tune.subwarp_block_warps, warp_kernel_block(subwarp_kernel(tune.tiled != 0, true)));
 }
 
 } // namespace ghuim::inline GHUIM_WIDTHS::bfs

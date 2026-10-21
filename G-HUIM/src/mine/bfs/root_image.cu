@@ -6,6 +6,7 @@
 #include <cub/device/device_scan.cuh>
 
 #include <algorithm>
+#include <spdlog/spdlog.h>
 #include <bit>
 #include <stdexcept>
 #include <string>
@@ -15,7 +16,9 @@ namespace ghuim::inline GHUIM_WIDTHS::bfs {
 namespace {
 
 // The root database in the tile layout: transactions sorted by length, 32 to a tile, entries column-major.
-std::vector<char> tiled_root_image(const Dataset& data)
+// With `indexed`, the occurrence index follows (built here: each item's occurrences in slot order, padding
+// left out), and `occ_counts` receives every item's occurrence count.
+std::vector<char> tiled_root_image(const Dataset& data, bool indexed, std::vector<uint32_t>& occ_counts)
 {
     if (data.original_item.size() > kMaxDbItems)
         throw std::runtime_error("too many items for " + std::to_string(8 * sizeof(Key)) + "-bit keys (raise --minutil)");
@@ -36,11 +39,13 @@ std::vector<char> tiled_root_image(const Dataset& data)
         padded += uint64_t{tile_len} * stride;
         max_len = std::max(max_len, tile_len);
     }
-    const DbLayout    layout = DbLayout::of(n_trans, padded, n_items, true);
+    spdlog::info("Tiles: root holds {} entries in {} slots, padding {:.1f}%", data.items.size(), padded,
+                 100.0 * static_cast<double>(padded - data.items.size()) / static_cast<double>(std::max<uint64_t>(padded, 1)));
+    const DbLayout    layout = DbLayout::of(n_trans, padded, n_items, true, indexed);
     std::vector<char> image(layout.bytes, 0);
     *reinterpret_cast<DbHeader*>(image.data()) =
             DbHeader{static_cast<uint32_t>(n_trans), static_cast<uint32_t>(padded), static_cast<uint32_t>(n_items), max_len,
-                     layout.bytes};
+                     layout.bytes, indexed};
     auto* globals = reinterpret_cast<uint32_t*>(image.data() + layout.items);
     for (uint32_t i = 0; i < n_items; ++i)
         globals[i] = i;
@@ -62,6 +67,23 @@ std::vector<char> tiled_root_image(const Dataset& data)
             }
         }
         tile_base += uint64_t{tile_len} * stride;
+    }
+    if (indexed) {
+        auto* begin = reinterpret_cast<uint32_t*>(image.data() + layout.occ_begin);
+        auto* occ   = reinterpret_cast<Occurrence*>(image.data() + layout.occ);
+        occ_counts.assign(n_items, 0);
+        for (uint64_t e = 0; e < data.items.size(); ++e)
+            ++occ_counts[data.items[e]];
+        std::vector<uint32_t> cursor(n_items);
+        uint32_t              run = 0;
+        for (uint32_t z = 0; z < n_items; ++z) {
+            begin[z] = cursor[z] = run;
+            run += occ_counts[z];
+        }
+        begin[n_items] = run;
+        for (uint32_t slot = 0; slot < n_trans; ++slot)
+            for (uint32_t k = 0; k < txs[slot].length; ++k)
+                occ[cursor[eitem[txs[slot].begin + uint64_t{k} * stride]]++] = Occurrence{slot, k};
     }
     return image;
 }
@@ -116,7 +138,9 @@ RootDatabase upload_root(const Dataset& data, bool tiled, uint32_t index_min_tra
 {
     RootDatabase root;
     if (tiled) {
-        const std::vector<char> image = tiled_root_image(data);
+        const bool indexed = wants_index(data.transaction_count(), data.items.size(), data.original_item.size(),
+                                         index_min_trans, index_sparsity);
+        const std::vector<char> image = tiled_root_image(data, indexed, root.occ_counts);
         root.header                   = *reinterpret_cast<const DbHeader*>(image.data());
         root.buffer                   = DeviceBuffer<char>(image.size());
         upload(root.buffer.get(), image.data(), image.size());

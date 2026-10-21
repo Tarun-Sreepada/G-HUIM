@@ -60,22 +60,23 @@ __global__ void __launch_bounds__(kVertBlockWarps * 32)
         uint32_t n = 0;
         for (uint32_t base = 0; base < v.p.n_trans; base += 32) {
             const uint32_t i  = base + lane;
-            const Tx       tx = i < v.p.n_trans ? v.p.txs[v.p.occ ? v.p.occ[i].tid : i] : Tx{0, 0, 0};
+            const Tx       tx = i < v.p.n_trans ? v.p.txs[tx_slot(v.p, i)] : Tx{0, 0, 0};
+            const uint32_t st = v.p.stride; // entry e at e * st (tile layout)
             const Key*     keys  = v.p.eitem + tx.begin;
             const Util*    util  = v.p.eutil + tx.begin; // 32-bit columns: the largest TWU fits
-            const int k = i < v.p.n_trans ? (v.p.occ ? static_cast<int>(v.p.occ[i].pos) : find_item(keys, tx.length, v.p.item)) : -1;
+            const int k = i < v.p.n_trans ? (v.p.occ ? static_cast<int>(v.p.occ[i].pos) : find_item_strided(keys, tx.length, v.p.item, st)) : -1;
             const uint32_t has = __ballot_sync(kFullMask, k >= 0);
             const uint32_t c   = n + __popc(has & ((1u << lane) - 1));
             n += __popc(has);
             if (k < 0)
                 continue;
-            ustack[c]  = static_cast<uint32_t>(tx.utility + util[k]);
+            ustack[c]  = static_cast<uint32_t>(tx.utility + util[k * st]);
             uint32_t s = 0;
             for (int e = static_cast<int>(tx.length) - 1; e > k; --e) {
-                const uint32_t y = keys[e] - first;
-                u_col[y * tp + c]   = static_cast<uint32_t>(util[e]);
+                const uint32_t y = keys[e * st] - first;
+                u_col[y * tp + c]   = static_cast<uint32_t>(util[e * st]);
                 rem_col[y * tp + c] = s;
-                s += static_cast<uint32_t>(util[e]);
+                s += static_cast<uint32_t>(util[e * st]);
                 atomicOr(&pres[y * 32 + (c & 31)], 1u << (c >> 5));
             }
             re0[c] = s;

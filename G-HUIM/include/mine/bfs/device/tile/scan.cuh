@@ -27,10 +27,11 @@ __device__ inline uint32_t take_in_class(const Lanes& lanes, uint32_t key, uint3
 __device__ inline void tile_local(const Projection& p, const Lanes& lanes, uint32_t i0, LocalAcc& acc)
 {
     const uint32_t  i      = i0 + lanes.rank;
-    const Tx        tx     = i < p.n_trans ? p.txs[i] : Tx{0, 0, 0};
+    const Tx        tx     = i < p.n_trans ? p.txs[tx_slot(p, i)] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
-    const int       k      = find_item_tiled(k_item, tx.length, p.item, p.stride);
+    const int       k      = p.occ ? (i < p.n_trans ? static_cast<int>(p.occ[i].pos) : -1)
+                                   : find_item_tiled(k_item, tx.length, p.item, p.stride);
     if (i < p.n_trans)
         p.pos[i] = static_cast<uint32_t>(k + 1);
     const uint32_t  from   = static_cast<uint32_t>(k + 1);
@@ -54,7 +55,7 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
     const uint32_t  i      = i0 + lanes.rank;
     const bool      valid  = i < p.n_trans;
     const uint32_t  pos    = valid ? p.pos[i] : 0;
-    const Tx        tx     = pos != 0 ? p.txs[i] : Tx{0, 0, 0};
+    const Tx        tx     = pos != 0 ? p.txs[tx_slot(p, i)] : Tx{0, 0, 0};
     const Key*      k_item = p.eitem + tx.begin;
     const Util*     k_util = p.eutil + tx.begin;
     const int       k      = static_cast<int>(pos) - 1;
@@ -90,7 +91,7 @@ __device__ inline void tile_subtree(const Projection& p, const Lanes& lanes, uin
                     bucket = min(kept, kTileBuckets - 1);
                     break;
                 }
-                const Tx o = p.txs[other];
+                const Tx o = p.txs[tx_slot(p, other)];
                 if (same_kept_items_tiled(p.eitem + o.begin, o.length, p.pos[other], k_item, tx.length, pos, p.rename, p.stride)) {
                     p.rep[i] = other;
                     break;

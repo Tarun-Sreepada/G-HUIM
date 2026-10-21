@@ -48,6 +48,11 @@ __device__ void allocate_child(const Group& g, const BatchView& b, const TaskVie
                 *reinterpret_cast<DbHeader*>(b.dst + at) =
                         DbHeader{state.child_trans, state.child_entries, child_items, state.child_max_len, child.bytes, indexed};
                 state.child_db = at;
+                if (b.tiled) {
+                    add(b.control->tile_entries, static_cast<unsigned long long>(state.child_real_entries));
+                    add(b.control->tile_padded, static_cast<unsigned long long>(state.child_entries));
+                    add(b.control->tile_empty, static_cast<unsigned long long>(state.child_empty_slots));
+                }
                 state.reserved = fetch_add(b.control->next_count, primaries);
                 if (uint64_t{state.reserved} + primaries > b.next_capacity)
                     fetch_or(b.control->error, kNextLevelFull);
@@ -68,6 +73,7 @@ struct ChildView
     Util*     eutil;
     uint32_t* occ_begin;
     Occurrence* occ;
+    uint32_t  stride; // entry k of a transaction is at begin + k * stride (tile layout; 1 otherwise)
 };
 
 __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskState& state, uint32_t child_items)
@@ -83,6 +89,7 @@ __device__ __forceinline__ ChildView child_view(const BatchView& b, const TaskSt
     c.eutil               = reinterpret_cast<Util*>(at + layout.eutil);
     c.occ_begin           = indexed ? reinterpret_cast<uint32_t*>(at + layout.occ_begin) : nullptr;
     c.occ                 = indexed ? reinterpret_cast<Occurrence*>(at + layout.occ) : nullptr;
+    c.stride              = b.tiled ? tile_stride(state.child_trans) : 1;
     return c;
 }
 
@@ -200,7 +207,7 @@ __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t ch
     for (uint32_t t = g.rank(); t < v.state->child_trans; t += g.size()) {
         const Tx tx = c.txs[t];
         for (uint32_t pos = 0; pos < tx.length; ++pos)
-            add(c.occ_begin[c.eitem[tx.begin + pos]], 1u);
+            add(c.occ_begin[c.eitem[tx.begin + pos * c.stride]], 1u);
     }
     g.sync();
     uint32_t total = 0;
@@ -220,7 +227,7 @@ __device__ void build_child_index(const Group& g, const TaskView& v, uint32_t ch
     for (uint32_t t = g.rank(); t < v.state->child_trans; t += g.size()) {
         const Tx tx = c.txs[t];
         for (uint32_t pos = 0; pos < tx.length; ++pos) {
-            const uint32_t z = c.eitem[tx.begin + pos];
+            const uint32_t z = c.eitem[tx.begin + pos * c.stride];
             const uint32_t slot = c.occ_begin[z] + fetch_add(v.p.rename[z], 1u);
             c.occ[slot] = Occurrence{t, pos};
         }

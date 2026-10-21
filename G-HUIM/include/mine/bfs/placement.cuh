@@ -99,12 +99,13 @@ __host__ __device__ inline uint32_t size_class(uint32_t warps)
 // on a lane group.
 __host__ __device__ inline Placement place_task(const Task& task, const AutoTune& tune, uint64_t batch_work)
 {
-    if (tune.fixed_bin != kNone)
-        return {tune.fixed_bin, 1, 0};
+    // Local and vertical subtrees take their own kernels under every method; static places only the rest.
     if (local_tail_task(task, tune))
         return {kOptSubBin + size_class(task.n_trans), 1, kTailKind};
     if (vertical_task(task, tune))
         return {0, 1, kVertKind};
+    if (tune.fixed_bin != kNone)
+        return {tune.fixed_bin, 1, 0};
     if (task.n_trans <= kWarpSize)
         return {kOptSubBin + size_class(task.n_trans), 1, 0};
     const uint64_t share    = batch_work / (uint64_t{tune.resident_warps} * tune.oversubscribe);

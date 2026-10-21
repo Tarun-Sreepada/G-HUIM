@@ -42,11 +42,11 @@ constexpr uint32_t kTile        = 32; // transactions per tile (tile method)
 constexpr uint32_t kTileBuckets = 32; // length classes of the tile counting sort: 0..30 exact, 31 = 31 or longer
 constexpr uint32_t kNone      = 0xffffffffu;
 
-// Transactions per tile of a database with n_trans transactions: a small database is one narrow tile, so it
-// is not padded to kTile transactions. Readers derive it from the header's n_trans.
+// Transactions per tile of a database with n_trans transactions: a small database is one tile exactly as wide
+// as its transaction count, so no lane is left empty. Readers derive it from the header's n_trans.
 __host__ __device__ inline uint32_t tile_stride(uint64_t n_trans)
 {
-    return n_trans >= kTile ? kTile : n_trans <= 1 ? 1u : cuda::std::bit_ceil(static_cast<uint32_t>(n_trans));
+    return n_trans >= kTile ? kTile : n_trans <= 1 ? 1u : static_cast<uint32_t>(n_trans);
 }
 
 struct DbHeader
@@ -153,6 +153,8 @@ struct TaskState
     uint32_t child_max_len;
     uint32_t reserved; // first slot of this task's children in the next level
     uint32_t refined;  // huge tasks: refinement has converged (or is off)
+    uint32_t child_real_entries; // tile method: the child's entries before tile padding
+    uint32_t child_empty_slots;  // tile method: padding slots of unoccupied lanes
 };
 
 // Tile method: hist[kTileBuckets], base[kTileBuckets], cursor[kTileBuckets], then tile_len[t / kTile + 1]
@@ -190,6 +192,9 @@ struct Control
     unsigned long long batch_work; // sum of transactions over the chunk's tasks
     unsigned long long work_total;   // GHUIM_WORK_STATS: transactions scanned by pass 1, over all tasks
     unsigned long long work_present; // GHUIM_WORK_STATS: of those, the ones containing the extension item
+    unsigned long long tile_entries;  // tile method: entries of the child databases written
+    unsigned long long tile_padded;   // ... and the entry slots their tiles take, padding included
+    unsigned long long tile_empty;    // ... of those, slots of lanes no transaction occupies
     uint32_t           next_count; // tasks written to the next level
     uint32_t           error;      // ControlError bits
     uint32_t           cell_count[kMaxCells];

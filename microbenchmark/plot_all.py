@@ -257,6 +257,20 @@ def p13():
     finish(fig, "13_bmma_equality", "Tensor-core vs CUDA-core equality", axs[0], ncol=2)
 
 
+def p14():
+    df = load("14_l2_compression")
+    names = {"cudaMalloc": "cudaMalloc", "vmm": "cuMemCreate", "vmm_compressible": "cuMemCreate, compressible"}
+    fig, axs = panels(3)
+    for ax, (shape, op) in zip(axs, (("rows", "read"), ("lanes", "read"), ("rows", "fill"))):
+        d = df[(df["shape"] == shape) & (df["op"] == op)].assign(padding=lambda x: x["padding"] * 100)
+        lines(ax, d, "padding", "gb_per_s", "memory", order=list(names), label=names.get)
+        ax.set_title(f"{op}, zero {shape}")
+        ax.set_xlabel("zero padding (%)")
+        ax.set_ylabel("GB/s of buffer (higher is better)")
+    finish(fig, "14_l2_compression", "Compute data compression of tile padding", axs[0], ncol=3,
+           note="1 GiB tiled buffer; scattered tile writes run at ~30 GB/s with or without compression")
+
+
 if __name__ == "__main__":
-    for fn in (p01, p02, p03, p04, p05, p06, p07, p08, p09, p10, p11, p12, p13):
+    for fn in (p01, p02, p03, p04, p05, p06, p07, p08, p09, p10, p11, p12, p13, p14):
         fn()
