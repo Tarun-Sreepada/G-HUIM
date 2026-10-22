@@ -24,7 +24,10 @@
 // thread), [12] warps waiting for work; [13] lane subtrees mined, [14] lane-mode batches, [15]
 // warps waiting at the end of warp mode for the block's other warps, [16] warps in warp mode, [20] lane jobs taken
 // from the pool, [21] batches pooled, [22] siblings
-// borrowed from the block's loops, [23] nodes mined in warp mask mode.
+// borrowed from the block's loops, [23] nodes mined in warp mask mode; block mode (cycles summed over warps):
+// [24] nodes of the largest lane subtree (a maximum), [25] expanding, [26] copying offered databases, [27] whole tasks, [28] expanding small databases (at most
+// warp_items entries), [29] such nodes, [30] of them while some block was hungry; [31] tail tasks pushed, [32] lane jobs
+// handed to warps.
 
 #include "cuda/atomics.cuh"
 #include "mine/persistent/control.cuh"
@@ -44,20 +47,8 @@ __device__ inline void add_stat(uint64_t& counter, uint64_t v)
     atomicAdd(reinterpret_cast<unsigned long long*>(&counter), static_cast<unsigned long long>(v));
 }
 
-// Timing counters (the cycle counts in BlockStats::work), compiled in with -DGHUIM_TIMERS=ON.
-#ifdef GHUIM_TIMERS
-constexpr bool kTimers = true;
-#else
-constexpr bool kTimers = false;
-#endif
-
-__device__ inline uint64_t timer()
-{
-    if constexpr (kTimers)
-        return clock64();
-    else
-        return 0;
-}
+using persistent::kTimers;
+using persistent::timer;
 
 // Adds the cycles since `start` (a timer() value) to counter.
 __device__ inline void add_time(uint64_t& counter, uint64_t start)
@@ -177,6 +168,9 @@ struct Counters
 {
     unsigned long long utility, lower, n_items, item_cursor;
     unsigned long long tail[64];
+    unsigned long long tail_found; // group_count_tail's counter
+    unsigned long long tail_task;  // a TailRecord (refs 0) the caller must count from need tail_need, or 0
+    unsigned long long tail_need;
     unsigned long long child; // address of the child database
     uint32_t           n_touched, n_sec, n_prim, top, n_tx, n_occ, all, tx_cursor;
     uint32_t           n_nonempty, single; // A: occurrences with items after the item, and one of them
@@ -225,22 +219,12 @@ struct Settings
 
 // ---- small helpers (one thread) ------------------------------------------------------------------------
 
-// Nonempty subsets of u[0, n) (any order) whose sum reaches min_util - prefix; n < 64. REFIM's count_tail.
-__device__ inline uint64_t count_tail(unsigned long long* u, uint32_t n, uint64_t prefix, uint64_t min_util)
+// Subsets of u[from, n) (sorted descending, rest[i] = sum of u[i, n), rest[n] = 0) whose sum reaches need > 0;
+// n < 64. REFIM's count_subsets: a frame (i, need) walks the subsets skipping u[i], u[i + 1], ... and pushes a frame
+// for each u[j] taken that leaves need > 0.
+__device__ inline uint64_t count_subsets(const unsigned long long* u, const uint64_t* rest, uint32_t from, uint32_t n,
+                                         uint64_t need)
 {
-    for (uint32_t i = 1; i < n; ++i) // descending
-        for (uint32_t j = i; j > 0 && u[j - 1] < u[j]; --j) {
-            const unsigned long long t = u[j - 1];
-            u[j - 1]                   = u[j];
-            u[j]                       = t;
-        }
-    uint64_t rest[65];
-    rest[n] = 0;
-    for (uint32_t i = n; i-- > 0;)
-        rest[i] = rest[i + 1] + u[i];
-    const uint64_t need = prefix >= min_util ? 0 : min_util - prefix;
-    if (need == 0)
-        return (uint64_t{1} << n) - 1; // the empty subset is the prefix itself, already recorded
     struct Frame
     {
         uint32_t i;
@@ -249,7 +233,7 @@ __device__ inline uint64_t count_tail(unsigned long long* u, uint32_t n, uint64_
     Frame    stack[64];
     int      top   = 0;
     uint64_t found = 0;
-    stack[top++]   = {0, need};
+    stack[top++]   = {from, need};
     while (top > 0) {
         Frame f = stack[--top];
         for (uint32_t i = f.i; rest[i] >= f.need; ++i) {
@@ -260,6 +244,300 @@ __device__ inline uint64_t count_tail(unsigned long long* u, uint32_t n, uint64_
         }
     }
     return found;
+}
+
+__device__ inline void sort_descending(unsigned long long* u, uint32_t n)
+{
+    for (uint32_t i = 1; i < n; ++i)
+        for (uint32_t j = i; j > 0 && u[j - 1] < u[j]; --j) {
+            const unsigned long long t = u[j - 1];
+            u[j - 1]                   = u[j];
+            u[j]                       = t;
+        }
+}
+
+// Nonempty subsets of u[0, n) (any order) whose sum reaches min_util - prefix; n < 64. REFIM's count_tail.
+__device__ inline uint64_t count_tail(unsigned long long* u, uint32_t n, uint64_t prefix, uint64_t min_util)
+{
+    sort_descending(u, n);
+    uint64_t rest[65];
+    rest[n] = 0;
+    for (uint32_t i = n; i-- > 0;)
+        rest[i] = rest[i + 1] + u[i];
+    const uint64_t need = prefix >= min_util ? 0 : min_util - prefix;
+    if (need == 0)
+        return (uint64_t{1} << n) - 1; // the empty subset is the prefix itself, already recorded
+    return count_subsets(u, rest, 0, n, need);
+}
+
+// count_tail within `limit` steps: false (and `found` meaningless) when the search needs more. Most tails are
+// cheap; only those that are not are worth a group's or a block's effort.
+__device__ inline bool count_tail_within(unsigned long long* u, uint32_t n, uint64_t prefix, uint64_t min_util,
+                                         uint32_t limit, uint64_t& found)
+{
+    sort_descending(u, n);
+    const uint64_t need = prefix >= min_util ? 0 : min_util - prefix;
+    found               = 0;
+    if (need == 0) {
+        found = (uint64_t{1} << n) - 1;
+        return true;
+    }
+    uint64_t rest[65];
+    rest[n] = 0;
+    for (uint32_t i = n; i-- > 0;)
+        rest[i] = rest[i + 1] + u[i];
+    struct Frame
+    {
+        uint32_t i;
+        uint64_t need;
+    };
+    Frame    stack[64];
+    int      top   = 0;
+    uint32_t steps = 0;
+    stack[top++]   = {0, need};
+    while (top > 0) {
+        Frame f = stack[--top];
+        for (uint32_t i = f.i; rest[i] >= f.need; ++i) {
+            if (++steps > limit)
+                return false;
+            if (u[i] >= f.need)
+                found += uint64_t{1} << (n - i - 1);
+            else
+                stack[top++] = {i + 1, f.need - u[i]};
+        }
+    }
+    return true;
+}
+
+// Steps a tail gets on one thread before it is handed to a group or a block.
+constexpr uint32_t kQuickTail = 1u << 12;
+
+// Tails at most this long are counted by one thread: splitting them costs more than it saves.
+constexpr uint32_t kSerialTail = 12;
+// Tails at least this long (and not yet reached) are counted by whole blocks, as tail tasks: on a warp or a lane
+// one can take seconds.
+#ifndef GHUIM_EXPORT_TAIL
+#define GHUIM_EXPORT_TAIL 13
+#endif
+constexpr uint32_t kExportTail = GHUIM_EXPORT_TAIL;
+// tail_search expands the search breadth first until it has this many frames per thread (a tail task's block
+// goes further: its frames are bigger).
+constexpr uint32_t kTailFrames = 8;
+#ifndef GHUIM_TASK_TAIL_FRAMES
+#define GHUIM_TASK_TAIL_FRAMES 64
+#endif
+constexpr uint32_t kTaskTailFrames = GHUIM_TASK_TAIL_FRAMES;
+
+struct TailFrame
+{
+    uint64_t need; // subsets of u[i, n) reaching need > 0
+    uint32_t i, pad;
+};
+
+// The values of a tail task, sorted descending, in the heap; its tasks (Task::depth == kTailTask) each count the
+// subsets of u[k, n) reaching need. The last task to finish frees it.
+struct TailRecord
+{
+    uint32_t           refs, cls, n, pad;
+    unsigned long long found; // a warp's counter, when it counts the record itself
+    unsigned long long u[64];
+};
+
+constexpr uint32_t kTailTask = ~0u; // Task::depth of a tail task
+
+// Leader: a heap TailRecord of u[0, n) (refs 0), or null when the heap is tight.
+__device__ inline TailRecord* make_tail_record(const Heap& heap, const unsigned long long* u, uint32_t n)
+{
+    uint32_t cls = 0;
+    if (heap.tight(sizeof(TailRecord)))
+        return nullptr;
+    const uint64_t off = heap.allocate(sizeof(TailRecord), cls);
+    if (off == Heap::kNull)
+        return nullptr;
+    TailRecord* r = reinterpret_cast<TailRecord*>(heap.base + off);
+    r->refs       = 0;
+    r->cls        = cls;
+    r->n          = n;
+    for (uint32_t i = 0; i < n; ++i)
+        r->u[i] = u[i];
+    sort_descending(r->u, n);
+    return r;
+}
+
+// Steps a thread of tail_search takes on one frame before it hands the rest back as frames (the search tree can
+// be so skewed that one frame holds most of it).
+constexpr uint32_t kTailBudget = 1u << 14;
+
+// count_subsets from frame (from, need), for at most `budget` steps: then the rest of the search (the loop's
+// position and the stack) goes to spill[*spill_n, ...) as frames, if there is room (capacity), and the count so far
+// is returned.
+__device__ inline uint64_t count_subsets_budget(const unsigned long long* u, const uint64_t* rest, uint32_t from,
+                                                uint32_t n, uint64_t need, uint32_t budget, TailFrame* spill,
+                                                uint32_t* spill_n, uint64_t capacity)
+{
+    struct Frame
+    {
+        uint32_t i;
+        uint64_t need;
+    };
+    Frame    stack[64];
+    int      top   = 0;
+    uint64_t found = 0;
+    uint32_t steps = 0;
+    stack[top++]   = {from, need};
+    while (top > 0) {
+        Frame f = stack[--top];
+        for (uint32_t i = f.i; rest[i] >= f.need; ++i) {
+            if (++steps > budget) {
+                steps                = 0;
+                const uint32_t m     = static_cast<uint32_t>(top) + 1;
+                uint32_t       at    = *reinterpret_cast<volatile uint32_t*>(spill_n);
+                bool           taken = false;
+                while (at + uint64_t{m} <= capacity) {
+                    const uint32_t seen = atomicCAS(spill_n, at, at + m);
+                    if (seen == at) {
+                        taken = true;
+                        break;
+                    }
+                    at = seen;
+                }
+                if (taken) {
+                    spill[at] = {f.need, i, 0};
+                    for (int k = 0; k < top; ++k)
+                        spill[at + 1 + k] = {stack[k].need, stack[k].i, 0};
+                    return found;
+                }
+                budget = ~0u; // no room: finish it here
+            }
+            if (u[i] >= f.need)
+                found += uint64_t{1} << (n - i - 1);
+            else
+                stack[top++] = {i + 1, f.need - u[i]};
+        }
+    }
+    return found;
+}
+
+// tail_search's hand-off of frames to other blocks: none.
+struct NoExport
+{
+    __device__ uint32_t want(uint32_t) const
+    {
+        return 0;
+    }
+    __device__ void give(const TailFrame*, uint32_t) const {}
+};
+
+// Every thread of a group: the subsets of u[from, n) (sorted descending, in memory the group shares) reaching
+// need > 0, returned to every thread. count_subsets' frames are expanded a level at a time by the whole group, the
+// closed-form counts added on the way, until there are per_thread frames per thread (or none); then the threads
+// claim the frames one at a time and count each depth first. Between its claims the leader may hand unclaimed
+// frames from the back to others: exp.want(unclaimed) says how many, exp.give(frames, k) hands them over (claims
+// and hand-offs go through one atomic word, so no frame is both). A frame that would overflow a level is counted
+// at once by the thread that made it. `frames` holds `capacity` TailFrames the group may use (the first holds its
+// counters); `found` is a counter the group shares.
+template <typename G, typename Export>
+__device__ uint64_t tail_search(const G& g, const unsigned long long* u, uint32_t n, uint32_t from, uint64_t need,
+                                unsigned long long* found, TailFrame* frames, uint64_t capacity, const Export& exp,
+                                uint32_t per_thread = kTailFrames)
+{
+    uint32_t* const level_n = reinterpret_cast<uint32_t*>(frames); // frames in the current level and the next
+    frames += 1;
+    const uint64_t half = (capacity - 1) / 2; // two levels
+    if (g.leader()) {
+        *found     = 0;
+        frames[0]  = {need, from, 0};
+        level_n[0] = 1;
+        level_n[1] = 0;
+    }
+    g.sync();
+    uint64_t rest[65];
+    rest[n] = 0;
+    for (uint32_t i = n; i-- > from;)
+        rest[i] = rest[i + 1] + u[i];
+    uint64_t       mine = 0;
+    uint32_t       cur  = 0;
+    const uint64_t want = uint64_t{per_thread} * g.size();
+    for (;;) {
+        const uint32_t nc = level_n[cur];
+        if (nc == 0 || nc >= want)
+            break;
+        TailFrame* const at_cur  = frames + cur * half;
+        TailFrame* const at_next = frames + (cur ^ 1) * half;
+        for (uint32_t f = g.rank(); f < nc; f += g.size()) {
+            const TailFrame t = at_cur[f];
+            for (uint32_t i = t.i; rest[i] >= t.need; ++i) {
+                if (u[i] >= t.need)
+                    mine += uint64_t{1} << (n - i - 1);
+                else if (const uint32_t at = atomicAdd(&level_n[cur ^ 1], 1u); at < half)
+                    at_next[at] = {t.need - u[i], i + 1, 0};
+                else
+                    mine += count_subsets(u, rest, i + 1, n, t.need - u[i]);
+            }
+        }
+        g.sync();
+        if (g.leader()) {
+            level_n[cur ^ 1] = static_cast<uint32_t>(min(uint64_t{level_n[cur ^ 1]}, half));
+            level_n[cur]     = 0;
+        }
+        g.sync();
+        cur ^= 1;
+    }
+    // Rounds over the last level: frames are claimed from the front (low half of the cursor) and handed off from
+    // the back (high half: the end); a frame that runs past kTailBudget steps spills its rest into the other level,
+    // the next round's.
+    unsigned long long* const cursor = reinterpret_cast<unsigned long long*>(level_n) + 1;
+    for (;;) {
+        const TailFrame* const last = frames + cur * half;
+        if (g.leader())
+            *cursor = uint64_t{level_n[cur]} << 32;
+        g.sync();
+        for (;;) {
+            if (g.leader()) {
+                const unsigned long long w = persistent::load_relaxed(reinterpret_cast<const uint64_t*>(cursor));
+                const uint32_t next = static_cast<uint32_t>(w), end = static_cast<uint32_t>(w >> 32);
+                if (next < end)
+                    if (const uint32_t k = exp.want(end - next);
+                        k != 0 && k <= end - next && atomicCAS(cursor, w, uint64_t{end - k} << 32 | next) == w)
+                        exp.give(last + end - k, k);
+            }
+            const unsigned long long w = atomicAdd(cursor, 1ull);
+            if (static_cast<uint32_t>(w) >= static_cast<uint32_t>(w >> 32))
+                break;
+            const TailFrame& f = last[static_cast<uint32_t>(w)];
+            mine += count_subsets_budget(u, rest, f.i, n, f.need, kTailBudget, frames + (cur ^ 1) * half,
+                                         &level_n[cur ^ 1], half);
+        }
+        g.sync();
+        if (g.leader())
+            level_n[cur] = 0;
+        cur ^= 1;
+        if (level_n[cur] == 0) // (read after the sync, before the leader clears it next round: the same everywhere)
+            break;
+        g.sync();
+    }
+    if (mine != 0)
+        atomicAdd(found, static_cast<unsigned long long>(mine));
+    g.sync();
+    const uint64_t total = *found;
+    g.sync(); // everyone has read it before it is reused
+    return total;
+}
+
+// count_tail by a whole group (every thread; the count is returned to every thread, or to the leader alone when
+// one thread counts it). u, in memory the group shares, was filled before a sync; `frames` (null: none) holds
+// `capacity` TailFrames the group may use; `found` is a counter the group shares.
+template <typename G>
+__device__ uint64_t group_count_tail(const G& g, unsigned long long* u, uint32_t n, uint64_t prefix, uint64_t min_util,
+                                     unsigned long long* found, TailFrame* frames, uint64_t capacity)
+{
+    const uint64_t need = prefix >= min_util ? 0 : min_util - prefix;
+    if (need == 0 || n <= kSerialTail || frames == nullptr || capacity < 4 * uint64_t{g.size()})
+        return g.leader() ? count_tail(u, n, prefix, min_util) : 0;
+    if (g.leader())
+        sort_descending(u, n);
+    g.sync();
+    return tail_search(g, u, n, 0, need, found, frames, capacity, NoExport{});
 }
 
 // A device-side check: false (after aborting the run) when `ok` is false; the caller skips the access.
@@ -409,6 +687,7 @@ __device__ void expand(const G& g, const Settings& set, const Heap& heap, const 
         c->n_touched = c->n_sec = c->n_prim = c->top = c->n_tx = c->n_occ = c->tx_cursor = c->n_nonempty = 0;
         c->n_dropped                                                                                     = 0;
         c->all                                                                                           = 1;
+        c->tail_task                                                                                     = 0;
         c->outcome                                                                                       = kNone;
         for (int i = 0; i < 64; ++i)
             c->tail[i] = 0;
@@ -422,6 +701,47 @@ __device__ void expand(const G& g, const Settings& set, const Heap& heap, const 
         return;
     const uint32_t ob = D.occ_begin[k], oe = D.occ_begin[k + 1];
     const Tile     T(g, tile_width(D));
+    // Free stack above its top (less `reserved` bytes at its far end) for group_count_tail; none for the grid.
+    const auto tail_frames = [&](uint64_t) -> TailFrame* {
+        if constexpr (G::kGrid)
+            return nullptr;
+        else
+            return reinterpret_cast<TailFrame*>(stack->base + *stack->top);
+    };
+    const auto tail_capacity = [&](uint64_t reserved) -> uint64_t {
+        if constexpr (G::kGrid)
+            return 0;
+        else {
+            const uint64_t used = *stack->top + reserved + 16;
+            return used < stack->capacity ? (stack->capacity - used) / sizeof(TailFrame) : 0;
+        }
+    };
+    // Every thread: count_tail of u[0, n) with `prefix`, or 0 when it became a tail task for the caller (a long
+    // tail, outside the wide phase).
+    const auto count_or_export = [&](unsigned long long* u, uint32_t n, uint64_t prefix, uint64_t reserved) -> uint64_t {
+        if constexpr (!G::kGrid)
+            if (n >= kExportTail && prefix < min_util) {
+                // Quick try on the leader; a tail that takes longer becomes a tail task.
+                if (g.leader()) {
+                    uint64_t found = 0;
+                    c->tail_task   = 0;
+                    c->tail_found  = ~0ull;
+                    if (count_tail_within(u, n, prefix, min_util, kQuickTail, found))
+                        c->tail_found = found;
+                    else {
+                        c->tail_task = reinterpret_cast<unsigned long long>(make_tail_record(heap, u, n));
+                        c->tail_need = min_util - prefix;
+                    }
+                }
+                g.sync();
+                const uint64_t quick = c->tail_found;
+                if (c->tail_task != 0 || quick != ~0ull) {
+                    g.sync(); // everyone has read tail_found before it is reused
+                    return c->tail_task != 0 ? 0 : (g.leader() ? quick : 0);
+                }
+            }
+        return group_count_tail(g, u, n, prefix, min_util, &c->tail_found, tail_frames(reserved), tail_capacity(reserved));
+    };
 
     // A: utility and bounds. A transaction's items after position pos are all secondary in D. The suffix is walked
     // from its end in chunks of W (lane j takes the j-th entry from the end), so a lane's subtree increment is its
@@ -477,11 +797,14 @@ __device__ void expand(const G& g, const Settings& set, const Heap& heap, const 
         const uint32_t n = static_cast<uint32_t>(one.len) - one.pos - 1;
         if (n < 64) {
             single = true;
-            if (g.leader()) {
+            if (g.leader())
                 for (uint32_t i = 0; i < n; ++i)
                     c->tail[i] = D.utils[one.at + one.pos + 1 + i];
-                add_stat(stats.work[0],
-                         count_tail(c->tail, n, uint64_t{D.utils[one.at + one.pos]} + D.prefix[one.tid], min_util));
+            g.sync();
+            const uint64_t found =
+                    count_or_export(c->tail, n, uint64_t{D.utils[one.at + one.pos]} + D.prefix[one.tid], 0);
+            if (g.leader()) {
+                add_stat(stats.work[0], found);
                 add_stat(stats.work[2], 1);
             }
         }
@@ -760,9 +1083,10 @@ __device__ void expand(const G& g, const Settings& set, const Heap& heap, const 
                 }
             }
         g.sync();
+        const uint64_t found =
+                exact ? count_or_export(c->tail, n_sec, c->lower, c->table_bytes) : (uint64_t{1} << n_sec) - 1;
         if (g.leader()) {
-            add_stat(stats.work[0],
-                     exact ? count_tail(c->tail, n_sec, c->lower, min_util) : (uint64_t{1} << n_sec) - 1);
+            add_stat(stats.work[0], found);
             add_stat(stats.work[2], 1);
         }
         free_table();

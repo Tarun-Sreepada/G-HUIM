@@ -362,8 +362,16 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
         total.steals_far += s.steals_far;
         total.busy_ns += s.busy_ns;
         total.idle_ns += s.idle_ns;
-        for (int w = 0; w < 24; ++w)
-            total.work[w] += s.work[w];
+        total.total_cycles += s.total_cycles;
+        total.wide_cycles += s.wide_cycles;
+        total.find_cycles += s.find_cycles;
+        if (s.max_task_ns > total.max_task_ns) {
+            total.max_task_ns   = s.max_task_ns;
+            total.max_task_info = s.max_task_info;
+        }
+        for (int w = 0; w < 40; ++w)
+            total.work[w] += w == 24 ? 0 : s.work[w];
+        total.work[24] = std::max(total.work[24], s.work[24]);
     }
     const double wall_ns = ms * 1e6 * blocks;
     spdlog::info("Persistent: {:.3f} ms | wide levels {} ({} nodes) | {} tasks, {} nodes, {} counted directly, {} "
@@ -371,6 +379,12 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
                  ms, control.wide_levels, total.wide_tasks, total.tasks, total.work[1], total.work[2], total.work[3],
                  total.steals_dsmem, total.steals_near, total.steals_far, 100 * total.busy_ns / wall_ns,
                  100 * total.idle_ns / wall_ns);
+    spdlog::info("Persistent: {} tail tasks pushed | largest lane subtree {} nodes, {} lane jobs handed to warps",
+                 total.work[31], total.work[24], total.work[32]);
+    spdlog::info("Persistent: longest task {:.1f} ms: depth {}, {} items of a database of {} transactions (depth 255: "
+                 "a tail task of that many values)",
+                 total.max_task_ns / 1e6, total.max_task_info >> 56, total.max_task_info >> 40 & 0xffff,
+                 total.max_task_info & ((uint64_t{1} << 40) - 1));
     spdlog::info("Persistent: nodes by block {}, warp {}, lane {}, warp mask {} | lane pool: {} batches, {} jobs | {} siblings "
                  "borrowed from the block's loops",
                  total.work[1] - total.work[4] - total.work[5] - total.work[23] - total.wide_tasks, total.work[4],
@@ -387,6 +401,15 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
                  100 * per(total.work[10], warp_cycles), 100 * per(total.work[18], warp_cycles),
                  100 * per(total.work[17], warp_cycles), 100 * per(total.work[19], warp_cycles),
                  100 * per(total.work[12], warp_cycles), 100 * per(total.work[15], warp_cycles));
+    // Percentages of all warps' time in the kernel.
+    const uint64_t all = total.total_cycles, block_mode = total.work[27] - total.work[16];
+    spdlog::info("Persistent: kernel time: wide phase {:.1f}%, finding tasks {:.1f}%, tasks {:.1f}% = warp mode {:.1f}% "
+                 "+ block mode {:.1f}% (expanding {:.1f}%, of which small databases {:.1f}%: {} nodes, {} while "
+                 "hungry; copying {:.1f}%; deciding {:.1f}%)",
+                 100 * per(total.wide_cycles, all), 100 * per(total.find_cycles, all), 100 * per(total.work[27], all),
+                 100 * per(total.work[16], all), 100 * per(block_mode, all), 100 * per(total.work[25], all),
+                 100 * per(total.work[28], all), total.work[29], total.work[30], 100 * per(total.work[26], all),
+                 100 * per(block_mode - total.work[25] - total.work[26], all));
     spdlog::info("Persistent: {:.0f} cycles per lane node, {:.0f} per warp node | lane converting {:.1f}% of lane "
                  "mining | {} lane subtrees in {} batches ({:.1f} per batch, {:.1f} nodes each)",
                  per(total.work[8], total.work[5]), per(total.work[9], total.work[4]),

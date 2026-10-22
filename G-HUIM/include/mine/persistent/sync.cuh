@@ -114,6 +114,22 @@ template <Scope S = Scope::kGpu> __device__ inline void fence_sc()
 
 #undef GHUIM_SCOPED
 
+// Timing counters (cycle counts in BlockStats), compiled in with -DGHUIM_TIMERS=ON.
+#ifdef GHUIM_TIMERS
+constexpr bool kTimers = true;
+#else
+constexpr bool kTimers = false;
+#endif
+
+// clock64() with timers, else 0.
+__device__ inline uint64_t timer()
+{
+    if constexpr (kTimers)
+        return clock64();
+    else
+        return 0;
+}
+
 // Nanoseconds since an arbitrary epoch, the same on every SM.
 __device__ inline uint64_t global_ns()
 {

@@ -100,6 +100,7 @@ struct SyntheticTree
     uint32_t*                 sink;         // per block, keeps the hashing from being optimized away
 
     __device__ void init_block() const {}
+    __device__ static uint64_t describe(const Task&) { return 0; }
 
     __device__ void credit(const Task& t, BlockStats& stats) const
     {

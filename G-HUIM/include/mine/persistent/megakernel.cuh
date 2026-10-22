@@ -26,6 +26,7 @@
 //       larger than grain), appends their children and the tasks it did not expand to next, and atomicMax-es
 //       the largest size of the next frontier. It must not append more than next_capacity tasks.
 //   __device__ void init_block() const;  // every thread of a block, once, before its first task
+//   __device__ static uint64_t describe(const Task&);  // a note on a task, logged for the longest one
 //   __device__ void run(const Task&, const Spawn<Task>&, BlockStats&) const;
 //       Block-cooperative: runs the task's subtree, handing parts to other blocks with spawn.push (thread 0).
 
@@ -274,6 +275,13 @@ template <typename Work> __global__ void __launch_bounds__(Work::kMaxThreads, 1)
     __shared__ bool                               running;
     __shared__ uint32_t                           retired;
 
+    const uint64_t     c_start = timer();
+    const auto         add_cycles = [](uint64_t& counter, uint64_t start) { // lane 0 of each warp
+        if constexpr (kTimers)
+            if ((threadIdx.x & 31) == 0)
+                atomicAdd(reinterpret_cast<unsigned long long*>(&counter),
+                          static_cast<unsigned long long>(clock64() - start));
+    };
     const Deques<Task> d{
             cg::this_cluster(),
             {reinterpret_cast<DequeHeader*>(local_memory),
@@ -330,14 +338,17 @@ template <typename Work> __global__ void __launch_bounds__(Work::kMaxThreads, 1)
             atomicAdd(reinterpret_cast<unsigned long long*>(&control->pending), static_cast<unsigned long long>(n));
     }
     grid.sync(); // pending, every seed and every local deque header are visible before anyone looks for work
+    add_cycles(stats.wide_cycles, c_start);
 
     // Phase 2: work stealing. Thread 0 schedules; the block runs each task together.
     uint32_t          rng = 0x9E3779B9u ^ (blockIdx.x * 0x85EBCA6Bu + 1);
     const Spawn<Task> spawn{control, &d, &stats, &retired};
     for (;;) {
+        const uint64_t c_find = timer();
         if (threadIdx.x == 0)
             running = find_task(control, d, rng, retired, task, stats);
         __syncthreads();
+        add_cycles(stats.find_cycles, c_find);
         if (!running)
             break;
         fence_acq_rel_gpu(); // every thread: the task's data was written on another SM
@@ -348,13 +359,20 @@ template <typename Work> __global__ void __launch_bounds__(Work::kMaxThreads, 1)
             ++retired;
             d.export_for_idle(control, stats);
             ++stats.tasks;
-            stats.busy_ns += global_ns() - start;
+            const uint64_t took = global_ns() - start;
+            stats.busy_ns += took;
+            if (took > stats.max_task_ns) {
+                stats.max_task_ns   = took;
+                stats.max_task_info = p.work.describe(task);
+            }
             const uint64_t deadline = control->deadline_ns;
             if (deadline != 0 && global_ns() > deadline)
                 raise_abort(control, Abort::kTimeout);
         }
         __syncthreads(); // `task` is reused
     }
+    add_cycles(stats.total_cycles, c_start);
+    __syncthreads();
     if (threadIdx.x == 0)
         p.stats[blockIdx.x] = stats;
     d.cluster.sync(); // no block leaves while a cluster peer may still be stealing from its shared memory

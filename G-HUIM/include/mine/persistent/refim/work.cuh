@@ -39,7 +39,8 @@ struct Frame
     char*    db;
     uint32_t next, end, depth;
     uint32_t on_stack; // 1: db is on the stack, popped back to `mark`; 0: the frame holds a heap reference;
-                       // 2: borrowed (a warp's view of its block's frame: nothing to release)
+                       // 2: borrowed (a warp's view of its block's frame: nothing to release); 3: a pool job a
+                       // lane gave up, holding lane pool batch `mark`
     uint64_t mark;
     uint32_t no_lane; // lane mode was ruled out for this loop's database
     uint32_t vert;    // vertical mode for this loop's database: 0 not checked, 1 ruled out, 2 eligible
@@ -50,15 +51,17 @@ constexpr uint32_t kMaxWarps     = 32;
 constexpr uint32_t kVertSiblings = 4; // siblings one vertical call mines
 constexpr uint32_t kPoolBatches  = 32; // warp mode's lane-job pool: batches (one bit each in a mask) ...
 constexpr uint32_t kPoolJobs     = 256; // ... and jobs
+constexpr uint64_t kLaneBudget   = 4096; // nodes a pool job may take on one lane before a warp takes it over
 
 // Warp mode's lane-job pool (see run_warps), in dynamic shared memory.
 struct LanePool
 {
     char*    batch_db[kPoolBatches];
     uint32_t batch_items[kPoolBatches][kLaneItems], batch_m[kPoolBatches], batch_left[kPoolBatches];
-    uint32_t batch_ref[kPoolBatches]; // 1: the batch holds a heap reference to batch_db
+    uint32_t batch_ref[kPoolBatches];   // 1: the batch holds a heap reference to batch_db
+    uint32_t batch_depth[kPoolBatches]; // of the loop the batch's siblings come from
     uint32_t batch_free, pool_n, jobs[kPoolJobs];
-    uint32_t wjobs[kMaxWarps][32], wjobs_n[kMaxWarps], wsrc[kMaxWarps], wpushed[kMaxWarps];
+    uint32_t wjobs[kMaxWarps][32], wjobs_n[kMaxWarps], wsrc[kMaxWarps], wpushed[kMaxWarps], wdepth[kMaxWarps];
 };
 
 // Bytes of one scratch region for `items` items (Bound, then slot/mark/touched/count/chosen), 16-byte aligned.
@@ -235,6 +238,70 @@ struct Work
         return kNothing;
     }
 
+    // A tail task: the subsets of rec->u[from, n) reaching need (in the Task: k = from, need = pad << 32 | end).
+    __device__ static Task tail_task(const TailRecord* rec, uint32_t from, uint64_t need)
+    {
+        return {reinterpret_cast<uint64_t>(rec), from, static_cast<uint32_t>(need), kTailTask,
+                static_cast<uint32_t>(need >> 32)};
+    }
+
+    // Drops one reference to a tail record; the last frees it.
+    __device__ void drop_tail(TailRecord* rec) const
+    {
+        const uint32_t cls = rec->cls;
+        if (persistent::fetch_add_acq_rel(&rec->refs, ~0u) == 1)
+            heap.release(static_cast<uint64_t>(reinterpret_cast<char*>(rec) - heap.base), cls);
+    }
+
+    // Every thread of the block: counts a tail task (the subsets of rec->u[from, n) reaching need), handing half of
+    // the search's frames to other blocks while some block is hungry, and drops the task's reference to rec. The
+    // search's frames live above the block's stack top.
+    __device__ void count_tail_task(TailRecord* rec, uint32_t from, uint64_t need, const Stack& stk,
+                                    const Spawn<Task>& spawn, Task* out, BlockStats& stats) const
+    {
+        __shared__ unsigned long long found;
+        const BlockGroup g;
+        const uint64_t   at     = align16(*stk.top);
+        TailFrame* const frames = reinterpret_cast<TailFrame*>(stk.base + at);
+        const uint64_t   cap    = at < stk.capacity ? (stk.capacity - at) / sizeof(TailFrame) : 0;
+        // Thread 0, between its frames: while some block is hungry, half the unclaimed frames go to the deques.
+        struct HandOff
+        {
+            TailRecord*        rec;
+            const Spawn<Task>& spawn;
+            Task*              out;
+            BlockStats&        stats;
+            __device__ uint32_t want(uint32_t unclaimed) const
+            {
+                return gridDim.x > 1 && spawn.hungry() ? min(min(unclaimed / 2, spawn.room()), kMaxChunks) : 0;
+            }
+            __device__ void give(const TailFrame* f, uint32_t k) const
+            {
+                for (uint32_t j = 0; j < k; ++j)
+                    out[j] = tail_task(rec, f[j].i, f[j].need);
+                atomicAdd(&rec->refs, k);
+                spawn.push(out, k);
+                add_stat(stats.work[31], k);
+            }
+        };
+        const HandOff hand_off{rec, spawn, out, stats};
+        uint64_t total = 0;
+        if (cap >= 4 * uint64_t{kTaskTailFrames} * blockDim.x)
+            total = tail_search(g, rec->u, rec->n, from, need, &found, frames, cap, hand_off, kTaskTailFrames);
+        else if (threadIdx.x == 0) { // no room for frames (not expected: the stack is large)
+            uint64_t rest[65];
+            rest[rec->n] = 0;
+            for (uint32_t i = rec->n; i-- > from;)
+                rest[i] = rest[i + 1] + rec->u[i];
+            total = count_subsets(rec->u, rest, from, rec->n, need);
+        }
+        if (threadIdx.x == 0) {
+            add_stat(stats.work[0], total);
+            drop_tail(rec);
+        }
+        __syncthreads();
+    }
+
     __device__ void run(const Task& task, const Spawn<Task>& spawn, BlockStats& stats) const
     {
         enum : uint32_t
@@ -261,6 +328,20 @@ struct Work
         const BlockGroup    g;
         char* const         stack_lo = stk.base;
         char* const         stack_hi = stk.base + stk.capacity;
+        if (task.depth == kTailTask) {
+            if (leader)
+                stack_top = 0;
+            __syncthreads();
+            count_tail_task(reinterpret_cast<TailRecord*>(task.db), task.k, uint64_t{task.pad} << 32 | task.end, stk,
+                            spawn, out, stats);
+            return;
+        }
+        const uint64_t c_run = timer();
+        // Lane 0 of each warp (block-mode timers: every warp spends the same time).
+        const auto warp_time = [&](uint64_t& counter, uint64_t start) {
+            if ((threadIdx.x & 31) == 0)
+                add_time(counter, start);
+        };
         if (leader) {
             stack_top = 0;
             frames[0] = {reinterpret_cast<char*>(task.db), task.k, task.end, task.depth, 0, 0};
@@ -312,8 +393,10 @@ struct Work
                 }
             }
             __syncthreads();
-            if (action == kDone)
+            if (action == kDone) {
+                warp_time(stats.work[27], c_run);
                 break;
+            }
             if (action == kAgain)
                 continue;
             if (action == kWarps) {
@@ -321,9 +404,12 @@ struct Work
                 run_warps(cur, &warp_next, warp_end, frames, nf - 1, stk, spawn, stats);
                 if (kTimers && leader)
                     add_stat(stats.work[6], persistent::global_ns() - t0);
+                if (leader && warp_next < warp_end) // warp mode ended for a hungry block: the rest is the block's
+                    frames[nf - 1].next = warp_next;
                 continue;
             }
             if (action == kCopy) { // the offered loop's database is on the stack: copy it to the heap first
+                const uint64_t  c_copy = timer();
                 const Frame&    f = frames[copy_frame];
                 const DbHeader* h = reinterpret_cast<const DbHeader*>(f.db);
                 if (leader) {
@@ -349,11 +435,28 @@ struct Work
                         add_stat(stats.work[3], 1);
                     }
                 }
+                warp_time(stats.work[26], c_copy);
             }
 
             // Expand cur.db's primary item cur.next.
-            const uint64_t mark = stack_top;
+            const uint64_t mark     = stack_top;
+            const uint64_t c_expand = timer();
             expand(g, set, heap, s, &c, Db::view(cur.db), cur.next, cur.depth, hungry, &stk, stats);
+            if (c.tail_task != 0) { // a long tail: the block counts it now, sharing it if some block is hungry
+                TailRecord* const rec = reinterpret_cast<TailRecord*>(c.tail_task);
+                if (leader)
+                    rec->refs = 1;
+                __syncthreads();
+                count_tail_task(rec, 0, c.tail_need, stk, spawn, out, stats);
+            }
+            warp_time(stats.work[25], c_expand);
+            if (reinterpret_cast<const DbHeader*>(cur.db)->n_items <= warp_items) { // a small one, by the block
+                warp_time(stats.work[28], c_expand);
+                if (leader) {
+                    add_stat(stats.work[29], 1);
+                    add_stat(stats.work[30], hungry);
+                }
+            }
             if (leader) {
                 char* const    child  = reinterpret_cast<char*>(c.child);
                 const uint32_t n_prim = c.n_prim;
@@ -430,6 +533,7 @@ struct Work
         auto&     batch_m     = P.batch_m;
         auto&     batch_left  = P.batch_left;
         auto&     batch_ref   = P.batch_ref;
+        auto&     batch_depth = P.batch_depth;
         auto&     batch_db    = P.batch_db;
         auto&     batch_free  = P.batch_free;
         auto&     pool_n      = P.pool_n;
@@ -438,6 +542,7 @@ struct Work
         auto&     wjobs_n     = P.wjobs_n;
         auto&     wsrc        = P.wsrc;
         auto&     wpushed     = P.wpushed;
+        auto&     wdepth      = P.wdepth;
         enum : uint32_t
         {
             kWDone,
@@ -466,6 +571,59 @@ struct Work
             __threadfence_block();
             atomicExch(l, 0u);
         };
+        // Every lane: a long tail (rec, its subsets reaching need) goes to the block's deques as a tail task, for a
+        // whole block to count; when they are full, this warp counts it, its search frames in `frames`.
+        const auto warp_tail = [&](TailRecord* rec, uint64_t need, TailFrame* frames, uint64_t capacity) {
+            uint32_t pushed = 0;
+            if (leader) {
+                acquire(&deque_lock); // the deques have one owner: warps push one at a time
+                if (spawn.room() >= 1) {
+                    rec->refs    = 1;
+                    const Task t = tail_task(rec, 0, need);
+                    spawn.push(&t, 1);
+                    add_stat(stats.work[31], 1);
+                    pushed = 1;
+                }
+                release_lock(&deque_lock);
+            }
+            if (__shfl_sync(~0u, pushed, 0))
+                return;
+            uint64_t total = 0;
+            if (capacity >= 4 * 32)
+                total = tail_search(g, rec->u, rec->n, 0, need, &rec->found, frames, capacity, NoExport{});
+            else if (leader) {
+                uint64_t rest[65];
+                rest[rec->n] = 0;
+                for (uint32_t i = rec->n; i-- > 0;)
+                    rest[i] = rest[i + 1] + rec->u[i];
+                total = count_subsets(rec->u, rest, 0, rec->n, need);
+            }
+            if (leader) {
+                add_stat(stats.work[0], total);
+                heap.release(static_cast<uint64_t>(reinterpret_cast<char*>(rec) - heap.base), rec->cls);
+            }
+            __syncwarp();
+        };
+        // One job of batch b is done; the last releases the batch.
+        const auto finish_job = [&](uint32_t b) {
+            __threadfence_block(); // done reading the batch before it can be released
+            if (atomicSub(&batch_left[b], 1u) == 1) {
+                if (batch_ref[b])
+                    release(batch_db[b]);
+                __threadfence_block();
+                atomicOr(&batch_free, 1u << b);
+            }
+        };
+        // Any lane: a pool job (sibling k of batch b) too big for one lane goes to the warp queue, for a warp's
+        // frames (whose loops can be offered); it keeps its batch until that frame ends. False: no room.
+        const auto requeue_job = [&](uint32_t b, uint32_t k) {
+            acquire(&lock);
+            const bool room = queued < kQueue;
+            if (room)
+                queue[queued++] = {reinterpret_cast<uint64_t>(batch_db[b]), k, k + 1, batch_depth[b], b + 1};
+            release_lock(&lock);
+            return room;
+        };
         // Lane 0, holding `lock`: moves up to 32 jobs from the pool to this warp's lanes.
         const auto take_jobs = [&] {
             const uint32_t n = min(pool_n, 32u);
@@ -478,7 +636,7 @@ struct Work
         // Warp mask mode's miner over this warp's lanes' arenas (lane mode's, unused meanwhile).
         const auto mask_miner = [&] {
             unsigned char* const a = lane_arena + (static_cast<uint64_t>(blockIdx.x) * blockDim.x + warp * 32) * kLaneArena;
-            const uint64_t       cap = 32 * kLaneArena - kLaneItems * sizeof(unsigned long long);
+            const uint64_t       cap = 32 * kLaneArena - (kLaneItems + 1) * sizeof(unsigned long long);
             return WarpMaskMiner{set, a, cap, reinterpret_cast<unsigned long long*>(a + cap)};
         };
         const auto mask_stats = [&](const WarpMaskMiner& miner) {
@@ -487,6 +645,37 @@ struct Work
                 add_stat(stats.work[1], miner.nodes);
                 add_stat(stats.work[2], miner.counted);
                 add_stat(stats.work[23], miner.nodes);
+            }
+        };
+        // Every lane: counts the tails this warp's lanes left (LaneMiner::deferred, each lane's own), one at a time
+        // with the whole warp.
+        const auto count_deferred = [&](uint32_t deferred) {
+            for (uint32_t src = 0; src < 32; ++src) {
+                const uint32_t  n_tails = __shfl_sync(~0u, deferred, src);
+                unsigned char* const warp_arena =
+                        lane_arena + (static_cast<uint64_t>(blockIdx.x) * blockDim.x + warp * 32) * kLaneArena;
+                LaneTail* const tails = lane_tails(warp_arena + src * kLaneArena);
+                for (uint32_t i = 0; i < n_tails; ++i) {
+                    __syncwarp(); // the lane's writes are visible
+                    // Lane 0's levels are free now: its arena holds the search frames.
+                    TailFrame* const frames = reinterpret_cast<TailFrame*>(warp_arena);
+                    if (tails[i].n >= kExportTail) {
+                        unsigned long long rec = 0;
+                        if (leader)
+                            rec = reinterpret_cast<unsigned long long>(make_tail_record(heap, tails[i].u, tails[i].n));
+                        rec = __shfl_sync(~0u, rec, 0);
+                        if (rec != 0) {
+                            warp_tail(reinterpret_cast<TailRecord*>(rec), set.min_util - tails[i].prefix, frames,
+                                      kLaneLevels / sizeof(TailFrame));
+                            continue;
+                        }
+                    }
+                    const uint64_t found =
+                            group_count_tail(g, tails[i].u, tails[i].n, tails[i].prefix, set.min_util, &tails[i].found,
+                                             reinterpret_cast<TailFrame*>(warp_arena), kLaneLevels / sizeof(TailFrame));
+                    if (leader)
+                        add_stat(stats.work[0], found);
+                }
             }
         };
         // Every lane: mines the jobs it was given, a lane each (lane mode) or one after another by the whole warp
@@ -513,41 +702,45 @@ struct Work
                     if (ready && !stop && check(k < D.h->n_primary, set))
                         miner.mine(D.primary[k], batch_items[b], batch_m[b]);
                     __syncwarp();
-                    if (leader) {
-                        __threadfence_block(); // done reading the batch before it can be released
-                        if (atomicSub(&batch_left[b], 1u) == 1) {
-                            if (batch_ref[b])
-                                release(batch_db[b]);
-                            __threadfence_block();
-                            atomicOr(&batch_free, 1u << b);
-                        }
-                    }
+                    if (leader)
+                        finish_job(b);
                 }
                 mask_stats(miner);
             }
-            else if (lane < n) {
-                const uint32_t job = wjobs[warp][lane], b = job >> 16, k = job & 0xffff;
-                LaneMiner      miner{set,
+            else {
+                LaneMiner miner{set,
                                 lane_arena + (static_cast<uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x) * kLaneArena,
-                                kLaneArena};
-                if (check(b < kPoolBatches, set)) {
-                    const Db D = Db::view(batch_db[b]);
-                    if (!persistent::aborted(control) && check(k < D.h->n_primary, set))
-                        miner.mine(D, k, batch_items[b], batch_m[b]);
+                                kLaneLevels};
+                const uint32_t job = lane < n ? wjobs[warp][lane] : 0, b = job >> 16, k = job & 0xffff;
+                if (lane < n && check(b < kPoolBatches, set)) {
+                    const Db D   = Db::view(batch_db[b]);
+                    bool     own = true; // this lane finishes the job
+                    if (!persistent::aborted(control) && check(k < D.h->n_primary, set)) {
+                        const uint64_t p0 = miner.patterns, n0 = miner.nodes, k0 = miner.counted;
+                        const uint32_t d0 = miner.deferred;
+                        miner.budget      = kLaneBudget;
+                        if (!miner.mine(D, k, batch_items[b], batch_m[b])) { // too big: undo, hand it to a warp
+                            miner.patterns = p0, miner.nodes = n0, miner.counted = k0, miner.deferred = d0;
+                            own            = !requeue_job(b, k);
+                            miner.budget   = ~0ull;
+                            if (own) // no room in the queue: mine it here after all
+                                miner.mine(D, k, batch_items[b], batch_m[b]);
+                            else
+                                add_stat(stats.work[32], 1);
+                        }
+                    }
                     add_stat(stats.work[0], miner.patterns);
                     add_stat(stats.work[1], miner.nodes);
                     add_stat(stats.work[2], miner.counted);
                     add_stat(stats.work[5], miner.nodes);
                     add_stat(stats.work[11], miner.convert_cycles);
                     add_stat(stats.work[13], miner.subtrees);
-                    __threadfence_block(); // done reading the batch before it can be released
-                    if (atomicSub(&batch_left[b], 1u) == 1) {
-                        if (batch_ref[b])
-                            release(batch_db[b]);
-                        __threadfence_block();
-                        atomicOr(&batch_free, 1u << b);
-                    }
+                    if (own)
+                        finish_job(b);
                 }
+                count_deferred(miner.deferred);
+                atomicMax(reinterpret_cast<unsigned long long*>(&stats.work[24]),
+                          static_cast<unsigned long long>(miner.largest));
             }
             add_time(stats.work[8], c0);
             __syncwarp();
@@ -575,8 +768,11 @@ struct Work
             Task           t{};
             const uint64_t c_take = timer();
             // A waiting warp first looks without the lock (idle warps spinning on it slow everyone down).
+            // While some block is hungry, no new sibling is taken: warp mode ends when the busy warps are done, and
+            // the block offers the rest (warps' subtrees cannot be offered to other blocks as a whole).
+            const bool hungry_now = leader && gridDim.x > 1 && spawn.hungry();
             const bool nothing = leader && counted_waiting && load_relaxed_u32(&pool_n) == 0 &&
-                                 load_relaxed_u32(next) >= end && load_relaxed_u32(&queued) == 0 &&
+                                 (hungry_now || load_relaxed_u32(next) >= end) && load_relaxed_u32(&queued) == 0 &&
                                  load_relaxed_u32(&no_ancestors) != 0 && load_relaxed_u32(&busy) != 0 &&
                                  !persistent::aborted(control);
             if (nothing)
@@ -588,7 +784,7 @@ struct Work
                     got = 4;
                     ++busy;
                 }
-                else if (*next < end) {
+                else if (*next < end && !hungry_now) {
                     t   = {reinterpret_cast<uint64_t>(parent.db), *next, *next + 1, parent.depth, 0};
                     got = 1;
                     ++*next;
@@ -604,7 +800,8 @@ struct Work
                     got = 4;
                     ++busy;
                 }
-                else if (const int a = open_ancestor(ancestors, n_ancestors); a >= 0) {
+                // (Not while some block is hungry: warp mode should end then, so the block offers those loops.)
+                else if (const int a = hungry_now ? -1 : open_ancestor(ancestors, n_ancestors); a >= 0) {
                     Frame& o = ancestors[a];
                     t        = {reinterpret_cast<uint64_t>(o.db), o.next, o.next + 1, o.depth, 0};
                     got      = 5;
@@ -613,7 +810,7 @@ struct Work
                     add_stat(stats.work[22], 1);
                 }
                 else {
-                    no_ancestors = 1;
+                    no_ancestors = open_ancestor(ancestors, n_ancestors) < 0;
                     got          = busy == 0 || persistent::aborted(control) ? 0 : 3;
                 }
                 release_lock(&lock);
@@ -650,12 +847,16 @@ struct Work
             if (leader) {
                 // A sibling borrows the parent's database (possibly on the block's stack: not checked against the
                 // heap); a queued task holds a heap reference.
-                frames[0] = {reinterpret_cast<char*>(t.db), t.k, t.end, t.depth, got == 1 || got == 5 ? 2u : 0u, 0};
+                // A pool job a lane gave up (t.pad = batch + 1) holds its batch, and must not go back to the lanes.
+                const bool job = got == 2 && t.pad != 0;
+                frames[0]      = {reinterpret_cast<char*>(t.db), t.k, t.end, t.depth,
+                                  job ? 3u : got == 1 || got == 5 ? 2u : 0u, job ? t.pad - 1 : 0};
                 if (got == 1) { // what the block found about the parent's database holds for its siblings
                     frames[0].no_lane = parent.no_lane;
                     frames[0].vert    = parent.vert;
                 }
-                wnf[warp]  = got == 1 || got == 5 || valid_db(frames[0].db, nullptr, nullptr) ? 1 : 0;
+                frames[0].no_lane |= job;
+                wnf[warp] = got == 1 || got == 5 || job || valid_db(frames[0].db, nullptr, nullptr) ? 1 : 0;
                 wtop[warp] = 0;
             }
             for (;;) {
@@ -671,6 +872,8 @@ struct Work
                                 wtop[warp] = f.mark;
                             else if (f.on_stack == 0)
                                 release(f.db);
+                            else if (f.on_stack == 3)
+                                finish_job(static_cast<uint32_t>(f.mark));
                             --wnf[warp];
                         }
                         else {
@@ -693,6 +896,7 @@ struct Work
                                     lane_next[warp] = f.next;
                                     lane_end[warp]  = f.end;
                                     wsrc[warp]      = f.on_stack;
+                                    wdepth[warp]    = f.depth;
                                     f.next          = f.end;
                                     wact[warp]      = pool ? kWPool : kWLane;
                                 }
@@ -730,7 +934,7 @@ struct Work
                             if (most != 0 && (to_warps || (gridDim.x > 1 && spawn.hungry())))
                                 for (uint32_t i = 0; i < wnf[warp]; ++i) {
                                     Frame& o = frames[i];
-                                    if (o.next >= o.end || o.on_stack == 2)
+                                    if (o.next >= o.end || o.on_stack >= 2)
                                         continue;
                                     if (o.on_stack == 1) { // copy it to the heap first
                                         if (heap.tight(reinterpret_cast<const DbHeader*>(o.db)->bytes))
@@ -776,15 +980,30 @@ struct Work
                             if (copy != nullptr) {
                                 DbHeader* ch = reinterpret_cast<DbHeader*>(copy);
                                 ch->cls      = wcls[warp];
-                                ch->refs     = 1; // the batch's
+                                ch->refs     = 0; // offer_range adds one per task
                             }
+                            // While some block is hungry, the siblings go to the deques instead (the pool is this
+                            // block's): a database in the heap (or the root) can be shared.
+                            bool offered = false;
+                            if ((copy != nullptr || wsrc[warp] == 0) && gridDim.x > 1 && spawn.hungry() &&
+                                offer_chunks(spawn) != 0) {
+                                Frame o{db, lane_next[warp], lane_end[warp], wdepth[warp], 0, 0};
+                                offer_range(o, db, min(offer_chunks(spawn), kWarpChunks), false, queue, &queued, &lock,
+                                            &deque_lock, spawn, wout[warp], stats, acquire, release_lock);
+                                offered = o.end == o.next;
+                            }
+                            if (copy != nullptr && !offered)
+                                reinterpret_cast<DbHeader*>(copy)->refs = 1; // the batch's
                             acquire(&lock);
-                            if (load_relaxed_u32(&batch_free) != 0 && pool_n + n <= kPoolJobs) {
+                            if (offered)
+                                pushed = true;
+                            else if (load_relaxed_u32(&batch_free) != 0 && pool_n + n <= kPoolJobs) {
                                 const uint32_t b = __ffs(load_relaxed_u32(&batch_free)) - 1;
                                 atomicAnd(&batch_free, ~(1u << b));
                                 for (uint32_t i = 0; i < lane_m[warp]; ++i)
                                     batch_items[b][i] = lane_items[warp][i];
-                                batch_m[b]    = lane_m[warp];
+                                batch_m[b]     = lane_m[warp];
+                                batch_depth[b] = wdepth[warp];
                                 batch_left[b] = n;
                                 batch_db[b]   = db;
                                 batch_ref[b]  = wsrc[warp] != 2;
@@ -835,7 +1054,7 @@ struct Work
                     LaneMiner miner{set,
                                     lane_arena +
                                             (static_cast<uint64_t>(blockIdx.x) * blockDim.x + threadIdx.x) * kLaneArena,
-                                    kLaneArena};
+                                    kLaneLevels};
                     const Db       D  = Db::view(lane_db[warp]);
                     const uint64_t c0 = timer();
                     for (;;) {
@@ -846,6 +1065,9 @@ struct Work
                     }
                     add_time(stats.work[8], c0);
                     __syncwarp();
+                    count_deferred(miner.deferred);
+                    atomicMax(reinterpret_cast<unsigned long long*>(&stats.work[24]),
+                              static_cast<unsigned long long>(miner.largest));
                     if (leader)
                         add_time(stats.work[7], c0);
                     add_stat(stats.work[0], miner.patterns);
@@ -896,6 +1118,12 @@ struct Work
                 const uint64_t mark = wtop[warp];
                 const uint64_t c0   = timer();
                 expand(g, set, heap, s, &wc[warp], Db::view(cur.db), cur.next, cur.depth, false, &stk, stats);
+                if (wc[warp].tail_task != 0) {
+                    const uint64_t at = align16(*stk.top);
+                    warp_tail(reinterpret_cast<TailRecord*>(wc[warp].tail_task), wc[warp].tail_need,
+                              reinterpret_cast<TailFrame*>(stk.base + at),
+                              at < stk.capacity ? (stk.capacity - at) / sizeof(TailFrame) : 0);
+                }
                 if (leader)
                     add_time(stats.work[9], c0);
                 if (leader) {
@@ -979,6 +1207,16 @@ struct Work
             add_stat(stats.work[3], 1);
         }
         release_lock(deque_lock);
+    }
+
+    // The megakernel's note on a task (its longest): depth << 56 | primary items << 40 | transactions of its database.
+    __device__ static uint64_t describe(const Task& t)
+    {
+        if (t.depth == kTailTask) // depth 255, the tail's length as its items
+            return uint64_t{255} << 56 | uint64_t{reinterpret_cast<const TailRecord*>(t.db)->n} << 40;
+        const DbHeader* h = reinterpret_cast<const DbHeader*>(t.db);
+        return uint64_t{min(t.depth, 255u)} << 56 | uint64_t{min(t.end - t.k, 65535u)} << 40 |
+               (h->n_tx & ((uint64_t{1} << 40) - 1));
     }
 
     // Every thread of the grid: a frontier task on a valid database (same answer everywhere).

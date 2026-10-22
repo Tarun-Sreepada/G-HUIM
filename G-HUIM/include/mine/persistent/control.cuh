@@ -61,7 +61,12 @@ struct BlockStats
     uint64_t idle_ns;      // looking for work
     uint64_t max_local;    // largest shared-memory deque seen after a push
     uint64_t max_global;   // largest global deque seen after a push
-    uint64_t work[24];     // Work-defined counters, summed by the host (e.g. patterns found)
+    // With timers (GHUIM_TIMERS), cycles summed over the block's warps: the whole kernel, the wide phase (and
+    // dealing), and waiting while thread 0 looks for a task.
+    uint64_t total_cycles, wide_cycles, find_cycles;
+    uint64_t max_task_ns;   // the block's longest task (work-stealing phase) ...
+    uint64_t max_task_info; // ... and what Work::describe said about it
+    uint64_t work[40];     // Work-defined counters, summed by the host (e.g. patterns found)
 };
 
 } // namespace ghuim::persistent

@@ -20,7 +20,7 @@ struct WarpMaskMiner
     const Settings&     set;
     unsigned char*      arena;    // the warp's
     uint64_t            capacity; // bytes for levels
-    unsigned long long* tail;     // kLaneItems values for count_tail (lane 0), after the levels
+    unsigned long long* tail;     // kLaneItems values for count_tail, then its counter, after the levels
     uint64_t            base_top = 0;
     uint64_t            patterns = 0, nodes = 0, counted = 0; // lane 0's are the warp's
 
@@ -87,6 +87,17 @@ struct WarpMaskMiner
     __device__ uint64_t util_of(uint64_t off, uint64_t mask, uint32_t y) const
     {
         return utils_at(off)[__popcll(mask & below(y))];
+    }
+
+    // The arena above `top`, for group_count_tail.
+    __device__ TailFrame* tail_frames(uint64_t top) const
+    {
+        return reinterpret_cast<TailFrame*>(arena + ((top + 15) & ~uint64_t{15}));
+    }
+    __device__ uint64_t tail_capacity(uint64_t top) const
+    {
+        const uint64_t at = (top + 15) & ~uint64_t{15};
+        return at < capacity ? (capacity - at) / sizeof(TailFrame) : 0;
     }
 
     // Every lane: converts D into level 0 (at offset 0), indexing all its items. Item ids become positions in
@@ -217,11 +228,12 @@ struct WarpMaskMiner
         if (nonempty == 1) { // REFIM's count_single
             const uint64_t mask = mask_at(single);
             const uint32_t n = __popcll(mask & above(x)), first = __popcll(mask & below(x)) + 1;
-            if (l == 0) {
+            if (l == 0)
                 for (uint32_t i = 0; i < n; ++i)
                     tail[i] = utils_at(single)[first + i];
-                patterns += count_tail(tail, n, single_curr, min_util);
-            }
+            __syncwarp();
+            patterns += group_count_tail(WarpGroup{}, tail, n, single_curr, min_util, tail + kLaneItems,
+                                         tail_frames(top), tail_capacity(top));
             ++counted;
             __syncwarp();
             return 0;
@@ -285,8 +297,8 @@ struct WarpMaskMiner
                 if (sec >> (l + 32) & 1)
                     tail[__popcll(sec & below(l + 32))] = tail1;
                 __syncwarp();
-                if (l == 0)
-                    patterns += count_tail(tail, n_sec, lower, min_util);
+                patterns += group_count_tail(WarpGroup{}, tail, n_sec, lower, min_util, tail + kLaneItems,
+                                             tail_frames(top), tail_capacity(top));
                 __syncwarp();
             }
             ++counted;

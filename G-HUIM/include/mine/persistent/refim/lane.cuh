@@ -22,6 +22,28 @@ namespace ghuim::inline GHUIM_WIDTHS::refim {
 constexpr uint32_t kLaneItems = 64;
 constexpr uint64_t kLaneArena = 64 * 1024; // bytes per thread (record offsets must stay below 2^16)
 
+// A count_tail too long for one thread (more than kSerialTail values) is left to the lane's warp, which counts it
+// cooperatively once the lanes are done: up to kLaneTails per lane, at the end of its arena.
+#ifndef GHUIM_LANE_TAILS
+#define GHUIM_LANE_TAILS 16
+#endif
+constexpr uint32_t kLaneTails = GHUIM_LANE_TAILS;
+
+struct LaneTail
+{
+    uint64_t           prefix;
+    unsigned long long found; // group_count_tail's counter
+    uint32_t           n, pad;
+    unsigned long long u[kLaneItems];
+};
+
+constexpr uint64_t kLaneLevels = kLaneArena - kLaneTails * sizeof(LaneTail); // bytes of a lane's arena for levels
+
+__device__ inline LaneTail* lane_tails(unsigned char* arena)
+{
+    return reinterpret_cast<LaneTail*>(arena + kLaneLevels);
+}
+
 struct LaneLevel
 {
     uint32_t n_tx;
@@ -57,6 +79,24 @@ struct LaneMiner
     unsigned char*  arena;
     uint64_t        capacity;
     uint64_t        patterns = 0, nodes = 0, counted = 0, convert_cycles = 0, subtrees = 0;
+    uint32_t        deferred = 0; // tails left to the warp (lane_tails(arena)[0, deferred))
+    uint64_t        largest  = 0; // nodes of the largest subtree mined
+    uint64_t        budget   = ~0ull; // mine() gives up on a subtree with more nodes than this
+
+    // count_tail, or 0 when the tail is left to the warp (a long one that a quick try did not finish).
+    __device__ uint64_t count_or_defer(unsigned long long* u, uint32_t n, uint64_t prefix)
+    {
+        if (prefix >= set.min_util || n <= kSerialTail || deferred == kLaneTails)
+            return count_tail(u, n, prefix, set.min_util);
+        if (uint64_t found = 0; count_tail_within(u, n, prefix, set.min_util, kQuickTail, found))
+            return found;
+        LaneTail& t = lane_tails(arena)[deferred++];
+        t.prefix    = prefix;
+        t.n         = n;
+        for (uint32_t i = 0; i < n; ++i)
+            t.u[i] = u[i];
+        return 0;
+    }
 
     __device__ LaneLevel* level(uint64_t off) const
     {
@@ -177,7 +217,7 @@ struct LaneMiner
             const uint32_t     n = __popcll(single_mask);
             for (uint32_t i = 0; i < n; ++i)
                 tail[i] = single_utils[i];
-            patterns += count_tail(tail, n, single_curr, min_util);
+            patterns += count_or_defer(tail, n, single_curr);
             ++counted;
             return 0;
         }
@@ -278,7 +318,7 @@ struct LaneMiner
                         tail[i] += utils[i];
                     r += lane_record_bytes(n_sec);
                 }
-                patterns += count_tail(tail, n_sec, lower, min_util);
+                patterns += count_or_defer(tail, n_sec, lower);
             }
             ++counted;
             return 0;
@@ -320,8 +360,9 @@ struct LaneMiner
         return prim;
     }
 
-    // Mines the subtree of D's primary item k: the itemset prefix + item and every extension of it.
-    __device__ void mine(const Db& D, uint32_t k, const uint32_t* items, uint32_t m)
+    // Mines the subtree of D's primary item k: the itemset prefix + item and every extension of it. False: it has
+    // more than `budget` nodes, and mining stopped there (the counters hold a partial count).
+    __device__ bool mine(const Db& D, uint32_t k, const uint32_t* items, uint32_t m)
     {
         struct LaneFrame
         {
@@ -337,7 +378,7 @@ struct LaneMiner
                 hi = mid;
         }
         if (!check(lo < m && items[lo] == D.primary[k], set))
-            return;
+            return true;
         LaneFrame frames[kLaneItems + 1];
         uint64_t       top = 0;
         const uint64_t c0  = timer();
@@ -346,9 +387,10 @@ struct LaneMiner
         if constexpr (kTimers)
             convert_cycles += clock64() - c0;
         if (!converted)
-            return;
-        uint32_t nf  = 0;
-        frames[nf++] = {0, uint64_t{1} << lo, 0};
+            return true;
+        uint32_t       nf         = 0;
+        const uint64_t first_node = nodes;
+        frames[nf++]              = {0, uint64_t{1} << lo, 0};
         while (nf != 0) {
             LaneFrame& f = frames[nf - 1];
             if (f.prim == 0) {
@@ -356,6 +398,8 @@ struct LaneMiner
                 --nf;
                 continue;
             }
+            if (nodes - first_node > budget)
+                return false;
             const uint32_t x = __ffsll(f.prim) - 1;
             f.prim &= f.prim - 1;
             const uint64_t before = top;
@@ -366,6 +410,8 @@ struct LaneMiner
             else
                 top = before;
         }
+        largest = max(largest, nodes - first_node);
+        return true;
     }
 };
 
@@ -374,7 +420,7 @@ struct LaneMiner
 __device__ inline bool lane_eligible(const Db& D, uint32_t* items, uint32_t& m)
 {
     const uint64_t bound = lane_level_bound(D.h->n_tx, D.h->n_items);
-    if (bound * 2 > kLaneArena)
+    if (bound * 2 > kLaneLevels)
         return false;
     m = 0;
     for (uint64_t i = 0; i < D.h->n_items; ++i) {
@@ -397,7 +443,7 @@ __device__ inline bool lane_eligible(const Db& D, uint32_t* items, uint32_t& m)
         ++m;
     }
     // Every level along a path is at most the root's size, and a path has at most m + 1 levels.
-    return (uint64_t{m} + 1) * bound <= kLaneArena;
+    return (uint64_t{m} + 1) * bound <= kLaneLevels;
 }
 
 } // namespace ghuim::inline GHUIM_WIDTHS::refim
