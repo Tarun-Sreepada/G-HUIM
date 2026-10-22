@@ -1132,6 +1132,7 @@ __device__ void expand(const G& g, const Settings& set, const Heap& heap, const 
             h->refs      = 1;
             h->cls       = cls;
             h->occ_shift = D.h->occ_shift;
+            store_layout(h, L);
         }
         c->child = reinterpret_cast<unsigned long long>(base);
         if (split)

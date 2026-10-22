@@ -26,7 +26,10 @@ struct alignas(16) DbHeader
     uint32_t refs;      // heap databases: tasks and frames still using it
     uint32_t cls;       // heap size class, kStackDb or kStaticDb
     uint32_t occ_shift; // an occurrence is tx << occ_shift | pos (the same for every database of a run)
-    uint32_t pad[5];
+    // Byte offsets of occ, tx_len, primary, occ_begin, prefix, utils and items (db_layout's, set by store_layout):
+    // a view reads them instead of recomputing the layout.
+    uint32_t at[7];
+    uint32_t pad[2];
 };
 
 __host__ __device__ inline uint64_t align16(uint64_t x)
@@ -63,6 +66,18 @@ __host__ __device__ inline DbLayout db_layout(uint64_t n_tx, uint64_t n_items, u
     return L;
 }
 
+// Records L's offsets in the header (the database's size must stay below 4 GiB).
+__host__ __device__ inline void store_layout(DbHeader* h, const DbLayout& L)
+{
+    h->at[0] = static_cast<uint32_t>(L.occ);
+    h->at[1] = static_cast<uint32_t>(L.tx_len);
+    h->at[2] = static_cast<uint32_t>(L.primary);
+    h->at[3] = static_cast<uint32_t>(L.occ_begin);
+    h->at[4] = static_cast<uint32_t>(L.prefix);
+    h->at[5] = static_cast<uint32_t>(L.utils);
+    h->at[6] = static_cast<uint32_t>(L.items);
+}
+
 // Occurrence of a primary item in transaction `tx` at position `pos`, packed into 32 bits as REFIM does: the position
 // takes the low `shift` bits (sized from the longest transaction of the input).
 __host__ __device__ inline uint32_t make_occ(uint32_t tx, uint32_t pos, uint32_t shift)
@@ -85,16 +100,15 @@ struct Db
     __host__ __device__ static Db view(char* base)
     {
         Db d;
-        d.h              = reinterpret_cast<DbHeader*>(base);
-        const DbLayout L = db_layout(d.h->n_tx, d.h->n_items, d.h->n_primary, d.h->n_occ);
-        d.tx_off         = reinterpret_cast<uint32_t*>(base + L.tx_off);
-        d.occ            = reinterpret_cast<uint32_t*>(base + L.occ);
-        d.tx_len         = reinterpret_cast<uint32_t*>(base + L.tx_len);
-        d.primary        = reinterpret_cast<uint32_t*>(base + L.primary);
-        d.occ_begin      = reinterpret_cast<uint32_t*>(base + L.occ_begin);
-        d.prefix         = reinterpret_cast<Util*>(base + L.prefix);
-        d.utils          = reinterpret_cast<Util*>(base + L.utils);
-        d.items          = reinterpret_cast<Key*>(base + L.items);
+        d.h         = reinterpret_cast<DbHeader*>(base);
+        d.tx_off    = reinterpret_cast<uint32_t*>(base + sizeof(DbHeader));
+        d.occ       = reinterpret_cast<uint32_t*>(base + d.h->at[0]);
+        d.tx_len    = reinterpret_cast<uint32_t*>(base + d.h->at[1]);
+        d.primary   = reinterpret_cast<uint32_t*>(base + d.h->at[2]);
+        d.occ_begin = reinterpret_cast<uint32_t*>(base + d.h->at[3]);
+        d.prefix    = reinterpret_cast<Util*>(base + d.h->at[4]);
+        d.utils     = reinterpret_cast<Util*>(base + d.h->at[5]);
+        d.items     = reinterpret_cast<Key*>(base + d.h->at[6]);
         return d;
     }
 };

@@ -52,8 +52,9 @@ std::vector<char> root_database(const Dataset& data)
     const uint64_t        n_occ = count[n_prim];
     const refim::DbLayout L     = refim::db_layout(n_tx, n_items, n_prim, n_occ);
     // 32-bit occurrences (transaction above the position bits) and entry offsets, as REFIM packs them.
-    if (n_items > UINT32_MAX || n_occ > UINT32_MAX || !occurrences_fit(n_tx, data.max_length))
-        throw std::runtime_error("the dataset is too large for 32-bit occurrences and entry offsets");
+    if (n_items > UINT32_MAX || n_occ > UINT32_MAX || !occurrences_fit(n_tx, data.max_length) ||
+        L.bytes > UINT32_MAX)
+        throw std::runtime_error("the dataset is too large for 32-bit occurrences and offsets");
     const uint32_t shift = occurrence_pos_bits(data.max_length);
 
     std::vector<char> image(L.bytes, 0);
@@ -68,6 +69,7 @@ std::vector<char> root_database(const Dataset& data)
     h->refs                = 1;
     h->cls                 = refim::kStaticDb;
     h->occ_shift           = shift;
+    refim::store_layout(h, L);
     const refim::Db d      = refim::Db::view(base);
     std::copy(count.begin(), count.end(), d.occ_begin);
     std::copy(data.primary.begin(), data.primary.end(), d.primary);
@@ -379,8 +381,9 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
                  ms, control.wide_levels, total.wide_tasks, total.tasks, total.work[1], total.work[2], total.work[3],
                  total.steals_dsmem, total.steals_near, total.steals_far, 100 * total.busy_ns / wall_ns,
                  100 * total.idle_ns / wall_ns);
-    spdlog::info("Persistent: {} tail tasks pushed | largest lane subtree {} nodes, {} lane jobs handed to warps",
-                 total.work[31], total.work[24], total.work[32]);
+    spdlog::info("Persistent: {} tail tasks pushed | largest lane subtree {} nodes, {} lane jobs handed to warps ({} "
+                 "kept: queue full) | {} batches on a warp's own lanes (pool full)",
+                 total.work[31], total.work[24], total.work[32], total.work[34], total.work[33]);
     spdlog::info("Persistent: longest task {:.1f} ms: depth {}, {} items of a database of {} transactions (depth 255: "
                  "a tail task of that many values)",
                  total.max_task_ns / 1e6, total.max_task_info >> 56, total.max_task_info >> 40 & 0xffff,

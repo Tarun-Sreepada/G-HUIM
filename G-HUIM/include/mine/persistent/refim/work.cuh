@@ -62,6 +62,8 @@ struct LanePool
     uint32_t batch_depth[kPoolBatches]; // of the loop the batch's siblings come from
     uint32_t batch_free, pool_n, jobs[kPoolJobs];
     uint32_t wjobs[kMaxWarps][32], wjobs_n[kMaxWarps], wsrc[kMaxWarps], wpushed[kMaxWarps], wdepth[kMaxWarps];
+    uint8_t  wbig[kMaxWarps][kLaneItems]; // siblings a warp's own lanes gave up (over kLaneBudget nodes) ...
+    uint32_t wbig_n[kMaxWarps], wbig_from[kMaxWarps]; // ... and those the warp takes as frames: [0, from)
 };
 
 // Bytes of one scratch region for `items` items (Bound, then slot/mark/touched/count/chosen), 16-byte aligned.
@@ -173,7 +175,11 @@ struct Work
             control->debug[4] = h->bytes;
             control->debug[5] = uint64_t{h->refs} << 32 | h->cls;
         }
-        return check(h->bytes == db_layout(h->n_tx, h->n_items, h->n_primary, h->n_occ).bytes, set) &&
+        const DbLayout L = db_layout(h->n_tx, h->n_items, h->n_primary, h->n_occ);
+        return check(h->bytes == L.bytes, set) &&
+               check(h->at[0] == L.occ && h->at[1] == L.tx_len && h->at[2] == L.primary && h->at[3] == L.occ_begin &&
+                             h->at[4] == L.prefix && h->at[5] == L.utils && h->at[6] == L.items,
+                     set) &&
                check(db + h->bytes <= hi, set) && check(h->top < set.num_items, set) &&
                check(h->n_occ <= h->n_items, set) &&
                check(h->cls == kStaticDb  ? db == root
@@ -543,6 +549,9 @@ struct Work
         auto&     wsrc        = P.wsrc;
         auto&     wpushed     = P.wpushed;
         auto&     wdepth      = P.wdepth;
+        auto&     wbig        = P.wbig;
+        auto&     wbig_n      = P.wbig_n;
+        auto&     wbig_from   = P.wbig_from;
         enum : uint32_t
         {
             kWDone,
@@ -723,8 +732,10 @@ struct Work
                             miner.patterns = p0, miner.nodes = n0, miner.counted = k0, miner.deferred = d0;
                             own            = !requeue_job(b, k);
                             miner.budget   = ~0ull;
-                            if (own) // no room in the queue: mine it here after all
+                            if (own) { // no room in the queue: mine it here after all
                                 miner.mine(D, k, batch_items[b], batch_m[b]);
+                                add_stat(stats.work[34], 1);
+                            }
                             else
                                 add_stat(stats.work[32], 1);
                         }
@@ -1057,12 +1068,39 @@ struct Work
                                     kLaneLevels};
                     const Db       D  = Db::view(lane_db[warp]);
                     const uint64_t c0 = timer();
+                    if (leader) {
+                        add_stat(stats.work[33], 1);
+                        wbig_n[warp] = 0;
+                    }
+                    __syncwarp();
+                    // A sibling over kLaneBudget nodes is undone and taken by the warp as a frame above this loop's
+                    // (which stays, so its database does too), where its loops can be offered.
+                    miner.budget = kLaneBudget;
                     for (;;) {
                         const uint32_t k = atomicAdd(&lane_next[warp], 1u);
                         if (k >= lane_end[warp] || persistent::aborted(control))
                             break;
-                        miner.mine(D, k, lane_items[warp], lane_m[warp]);
+                        const uint64_t p0 = miner.patterns, n0 = miner.nodes, k0 = miner.counted;
+                        const uint32_t d0 = miner.deferred;
+                        if (!miner.mine(D, k, lane_items[warp], lane_m[warp])) {
+                            miner.patterns = p0, miner.nodes = n0, miner.counted = k0, miner.deferred = d0;
+                            wbig[warp][atomicAdd(&wbig_n[warp], 1u)] = static_cast<uint8_t>(k);
+                        }
                     }
+                    __syncwarp();
+                    if (leader) {
+                        const uint32_t n = min(wbig_n[warp], max_frames - wnf[warp]);
+                        for (uint32_t i = 0; i < n; ++i) {
+                            const uint32_t k = wbig[warp][i];
+                            frames[wnf[warp]++] = {lane_db[warp], k, k + 1, wdepth[warp], 2, 0, 1, 0};
+                        }
+                        wbig_from[warp] = n;
+                        add_stat(stats.work[32], n);
+                    }
+                    __syncwarp();
+                    miner.budget = ~0ull; // no frame left for these: the lanes mine them after all
+                    for (uint32_t i = wbig_from[warp] + g.rank(); i < wbig_n[warp]; i += 32)
+                        miner.mine(D, wbig[warp][i], lane_items[warp], lane_m[warp]);
                     add_time(stats.work[8], c0);
                     __syncwarp();
                     count_deferred(miner.deferred);
