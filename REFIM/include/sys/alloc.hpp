@@ -34,6 +34,8 @@ public:
 	// Cumulative counters over all arenas, for the debug log.
 	struct Stats {
 		std::size_t reused = 0, mapped = 0, bytes_mapped = 0;
+		// Bytes in chunks handed out by arenas (not sitting in a free list): now, and the most at any one time.
+		std::size_t bytes_in_use = 0, peak_in_use = 0;
 	};
 	static Stats stats();
 
@@ -53,6 +55,8 @@ private:
 	std::atomic<std::size_t> reused_{0}, mapped_{0}, bytes_mapped_{0};
 	static inline thread_local Arena* current_ = nullptr;
 	static inline bool huge_pages_ = true;
+	static inline std::atomic<std::size_t> in_use_{0}, peak_in_use_{0};
+	static void note_in_use(std::size_t total);
 };
 
 template <class T>

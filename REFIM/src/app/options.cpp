@@ -65,6 +65,8 @@ void declare_options(CLI::App& app, Options& o) {
 		->transform(CLI::CheckedTransformer(std::map<std::string, int>{{"auto", 0}, {"16", 16}, {"32", 32}, {"64", 64}}))
 		->default_str("auto");
 	app.add_flag("-S,--stats", o.stats, "Log search counters");
+	app.add_flag("-b,--bandwidth", o.bandwidth,
+				 "Log memory bandwidth per phase, local vs remote node (whole system; needs resctrl: sudo mount -t resctrl resctrl /sys/fs/resctrl)");
 	app.add_option("-l,--log-level", o.log_level, "trace, debug, info, warn, error, critical or off")
 		->capture_default_str()
 		->check(CLI::IsMember({"trace", "debug", "info", "warn", "error", "critical", "off"}));

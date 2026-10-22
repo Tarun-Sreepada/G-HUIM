@@ -85,6 +85,8 @@ public:
 	}
 
 	void set_stats(bool on) { search_.stats = on; }
+	// Log memory bandwidth per phase at info level (otherwise only at debug).
+	void set_bandwidth(bool on) { bandwidth_ = on; }
 	int threads() const { return search_.threads; }
 	// Count by default; collection must be enabled before mining to call save().
 	void mine(bool collect_patterns = false);
@@ -100,6 +102,7 @@ private:
 	std::string sep_;
 	SearchOptions search_;
 	int key_bits_ = 0, util_bits_ = 0;
+	bool bandwidth_ = false;
 	std::size_t pattern_count_ = 0;
 	std::vector<std::string> rename_;         // rename_[id] = original item name; index 0 unused
 	std::unique_ptr<FoundPatterns> patterns_;  // with collect_patterns

@@ -34,6 +34,7 @@ void configure(Refim& miner, const Options& o) {
 	miner.set_refine_min_drop(o.refine_min_drop);
 	miner.set_leaf(o.leaf == "on");
 	miner.set_stats(o.stats);
+	miner.set_bandwidth(o.bandwidth);
 	miner.set_widths(o.key_bits, o.util_bits);
 }
 

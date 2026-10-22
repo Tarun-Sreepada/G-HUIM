@@ -40,6 +40,8 @@ Arena::Stats Arena::stats() {
 		s.mapped += a->mapped_.load();
 		s.bytes_mapped += a->bytes_mapped_.load();
 	}
+	s.bytes_in_use = in_use_.load();
+	s.peak_in_use = peak_in_use_.load();
 	return s;
 }
 
@@ -60,7 +62,14 @@ void* Arena::map_chunk(std::size_t total, Arena* owner) {
 
 void Arena::unmap_chunk(void* base, std::size_t total) { ::munmap(base, total); }
 
+void Arena::note_in_use(std::size_t total) {
+	const std::size_t now = in_use_.fetch_add(total, std::memory_order_relaxed) + total;
+	std::size_t peak = peak_in_use_.load(std::memory_order_relaxed);
+	while (now > peak && !peak_in_use_.compare_exchange_weak(peak, now, std::memory_order_relaxed)) {}
+}
+
 void* Arena::allocate_chunk(std::size_t total) {
+	note_in_use(total);
 	Pool& pool = pools_[size_class(total)];
 	{
 		Lock guard(pool.lock);
@@ -77,6 +86,7 @@ void* Arena::allocate_chunk(std::size_t total) {
 }
 
 void Arena::release_chunk(void* base, std::size_t total) {
+	in_use_.fetch_sub(total, std::memory_order_relaxed);
 	Pool& pool = pools_[size_class(total)];
 	Lock guard(pool.lock);
 	pool.free.push_back(base);

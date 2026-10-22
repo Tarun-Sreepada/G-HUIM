@@ -70,7 +70,7 @@ void Refim::mine(bool collect_patterns) {
 	patterns_.reset();
 	rename_.clear();
 
-	PerfCounters perf;
+	PerfCounters perf(bandwidth_);
 	perf.start();
 	Transactions input = read_transactions(input_file_, sep_, min_util_, rename_, search_.threads);
 	perf.report("read");

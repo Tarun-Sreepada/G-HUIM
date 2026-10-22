@@ -6,6 +6,7 @@
 #include "sys/alloc.hpp"
 #include "sys/numa.hpp"
 #include "sys/parallel.hpp"
+#include "sys/perf.hpp"
 
 #include <barrier>
 #include <chrono>
@@ -72,6 +73,7 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 	std::vector<std::unique_ptr<Worker>> workers(threads);
 	std::vector<std::shared_ptr<const Level>> replicas(nodes);
 	std::barrier sync(threads);
+	std::vector<ThreadCounters::Values> counts(threads);
 	const std::size_t roots = root->primary.size();
 
 	const auto mine_start = std::chrono::steady_clock::now();
@@ -106,7 +108,9 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 			root.reset();
 			replicas.clear();
 		}
+		ThreadCounters counters;
 		workers[w]->run();
+		counts[w] = counters.read();
 	};
 	parallel_run(threads, body);
 	const double mine_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count();
@@ -124,7 +128,8 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 					 stats.leaves, stats.single, stats.single_patterns, stats.full_lower, stats.full_exact, stats.full_patterns);
 	if (spdlog::should_log(spdlog::level::debug)) {
 		const Arena::Stats a = Arena::stats();
-		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses", a.mapped, a.bytes_mapped >> 20, a.reused);
+		spdlog::debug("arenas: {} chunks mapped ({} MiB), {} reuses; peak {} MiB in use, {} MiB now", a.mapped, a.bytes_mapped >> 20,
+					  a.reused, a.peak_in_use >> 20, a.bytes_in_use >> 20);
 	}
 	std::size_t steals[3] = {}, offered = 0;
 	for (int w = 0; w < threads; ++w) {
@@ -137,9 +142,16 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 	if (spdlog::should_log(spdlog::level::debug)) {
 		double busy = 0;
 		for (int w = 0; w < threads; ++w) {
-			spdlog::debug("worker {}: {} patterns, steals {} same L3 / {} same node / {} remote ({} offered), busy {:.3f} s",
-						  w, workers[w]->pattern_count, scheduler.steals(w, kSameL3), scheduler.steals(w, kSameNode),
-						  scheduler.steals(w, kRemote), scheduler.offered_steals(w), workers[w]->busy_seconds);
+			const ThreadCounters::Values& c = counts[w];
+			std::string hw;
+			if (c.valid) hw = fmt::format(", IPC {:.2f}", c.instructions / std::max(c.cycles, 1.0));
+			if (c.fills)
+				hw += fmt::format(", {:.2f} demand misses past L2 per 1k instructions, {:.1f}% remote",
+								  1000 * c.demand_beyond_l2 / std::max(c.instructions, 1.0), 100 * c.demand_remote / std::max(c.demand_beyond_l2, 1.0));
+			spdlog::debug("worker {}{}: {} patterns, steals {} same L3 / {} same node / {} remote ({} offered), busy {:.3f} s{}", w,
+						  cpus.empty() ? std::string() : fmt::format(" (cpu {}, node {})", cpus[w].cpu, cpus[w].node),
+						  workers[w]->pattern_count, scheduler.steals(w, kSameL3), scheduler.steals(w, kSameNode),
+						  scheduler.steals(w, kRemote), scheduler.offered_steals(w), workers[w]->busy_seconds, hw);
 			busy += workers[w]->busy_seconds;
 		}
 		spdlog::debug("mine: {:.3f} s wall, workers busy {:.0f}%", mine_seconds, 100 * busy / (mine_seconds * threads));
