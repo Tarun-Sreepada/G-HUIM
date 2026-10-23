@@ -3,11 +3,14 @@
 #include <algorithm>
 #include <dirent.h>
 #include <fstream>
+#include <linux/mempolicy.h>
 #include <map>
 #include <sched.h>
 #include <sstream>
 #include <string>
 #include <string_view>
+#include <sys/syscall.h>
+#include <unistd.h>
 
 namespace {
 
@@ -100,4 +103,19 @@ bool pin_this_thread(int cpu) {
 	CPU_ZERO(&set);
 	CPU_SET(cpu, &set);
 	return sched_setaffinity(0, sizeof(set), &set) == 0;
+}
+
+int restrict_to_nodes(const std::vector<int>& nodes) {
+	cpu_set_t allowed, set;
+	CPU_ZERO(&set);
+	if (sched_getaffinity(0, sizeof(allowed), &allowed) != 0) return 0;
+	for (int cpu = 0; cpu < CPU_SETSIZE; ++cpu)
+		if (CPU_ISSET(cpu, &allowed) && std::find(nodes.begin(), nodes.end(), node_of(cpu)) != nodes.end()) CPU_SET(cpu, &set);
+	const int count = CPU_COUNT(&set);
+	if (count == 0) return 0;
+	unsigned long mask[16] = {};  // up to 1024 nodes
+	for (const int node : nodes)
+		if (node >= 0 && node < 1024) mask[node / 64] |= 1ul << (node % 64);
+	if (::syscall(SYS_set_mempolicy, MPOL_BIND, mask, 1024 + 1) != 0) return 0;
+	return sched_setaffinity(0, sizeof(set), &set) == 0 ? count : 0;
 }

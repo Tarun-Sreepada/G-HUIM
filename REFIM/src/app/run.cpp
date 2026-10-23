@@ -3,10 +3,13 @@
 #include "mine/refim.hpp"
 #include "mine/simd_mode.hpp"
 #include "sys/alloc.hpp"
+#include "sys/numa.hpp"
 
 #include <spdlog/spdlog.h>
 
+#include <sstream>
 #include <stdexcept>
+#include <vector>
 
 namespace {
 
@@ -20,6 +23,24 @@ std::string parse_sep(const std::string& arg) {
 // Measured crossover: huge pages win up to ~32 of 48 threads, then compaction stalls dominate.
 bool use_huge_pages(const std::string& thp, int threads) {
 	return thp == "on" || (thp == "auto" && 4 * threads <= 3 * Refim::max_threads());
+}
+
+// Restricts the process to --nodes before any thread starts; returns the CPUs left (0 = all nodes, unchanged).
+int restrict_nodes(const std::string& arg) {
+	if (arg == "all") return 0;
+	std::vector<int> nodes;
+	std::stringstream in(arg);
+	for (std::string id; std::getline(in, id, ',');) {
+		try {
+			nodes.push_back(std::stoi(id));
+		} catch (const std::exception&) {
+			throw std::runtime_error("--nodes " + arg + ": expected all or a comma-separated list of node ids");
+		}
+	}
+	const int cpus = restrict_to_nodes(nodes);
+	if (cpus == 0) throw std::runtime_error("--nodes " + arg + ": no usable CPU on those nodes");
+	spdlog::debug("nodes: {} ({} cpus)", arg, cpus);
+	return cpus;
 }
 
 void select_vector_kernels(const std::string& simd) {
@@ -41,8 +62,11 @@ void configure(Refim& miner, const Options& o) {
 }  // namespace
 
 void run(const Options& o) {
+	const int node_cpus = restrict_nodes(o.nodes);
 	int threads = o.threads;
-	if (threads == 0) threads = Refim::max_threads();
+	if (threads == 0) threads = node_cpus ? node_cpus : Refim::max_threads();
+	if (node_cpus && threads > node_cpus)
+		spdlog::warn("{} threads on {} cpus of --nodes {}: workers are not pinned", threads, node_cpus, o.nodes);
 	const bool huge_pages = use_huge_pages(o.thp, threads);
 	Arena::set_huge_pages(huge_pages);
 	Refim miner(o.input, o.min_util, parse_sep(o.sep), threads);

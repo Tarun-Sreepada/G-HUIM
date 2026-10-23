@@ -40,6 +40,8 @@ void declare_options(CLI::App& app, Options& o) {
 	app.add_option("-n,--numa", o.numa, "Pin workers, place memory per node, steal nearest-first")
 		->capture_default_str()
 		->check(CLI::IsMember({"on", "off"}));
+	app.add_option("-N,--nodes", o.nodes, "NUMA nodes to run and allocate on: all, or a comma-separated list of node ids (e.g. 0)")
+		->capture_default_str();
 	app.add_option("-v,--simd", o.simd, "Vector kernels: auto, avx512vbmi (8-bit item ids), avx512, avx2 or scalar")
 		->capture_default_str()
 		->check(CLI::IsMember({"auto", "avx512vbmi", "avx512", "avx2", "scalar"}));

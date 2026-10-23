@@ -28,3 +28,8 @@ std::vector<CpuInfo> pick_cpus(const Topology& topology, int n);
 
 // Pins the calling thread to one CPU; returns false if the kernel refused.
 bool pin_this_thread(int cpu);
+
+// Restricts the calling thread, and the threads it starts afterwards, to the CPUs of NUMA nodes `nodes`
+// (sysfs node ids) and binds their memory to those nodes. Returns the number of CPUs left, 0 if the
+// kernel refused or no allowed CPU is on those nodes (then nothing is changed).
+int restrict_to_nodes(const std::vector<int>& nodes);

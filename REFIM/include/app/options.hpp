@@ -5,6 +5,7 @@
 
 struct Options {
 	std::string input, output, sep = "space", log_level = "info", log_file, numa = "on", simd = "auto", thp = "auto";
+	std::string nodes = "all";  // NUMA nodes to run and allocate on: "all" or a comma-separated list of node ids
 	std::string compact = "on", leaf = "on";
 	long long min_util = 0;
 	int threads = 1, refine = -1;
