@@ -1,0 +1,147 @@
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 0, 'status': 'ok', 'patterns': 98539233, 'time_s': 14.3623, 'wall_s': 20.5, 'rss_mb': 3164.5390625}
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 1, 'status': 'ok', 'patterns': 98539233, 'time_s': 27.854, 'wall_s': 119.03, 'rss_mb': 10191.375}
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 2, 'status': 'ok', 'patterns': 98539233, 'time_s': 14.3696, 'wall_s': 20.54, 'rss_mb': 3164.5390625}
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 3, 'status': 'ok', 'patterns': 98539233, 'time_s': 28.011, 'wall_s': 110.22, 'rss_mb': 10191.375}
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 4, 'status': 'ok', 'patterns': 98539233, 'time_s': 14.2427, 'wall_s': 20.38, 'rss_mb': 3164.53515625}
+{'dataset': 'chess', 'minutil': 196972, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 5, 'status': 'ok', 'patterns': 98539233, 'time_s': 27.705, 'wall_s': 109.78, 'rss_mb': 10191.375}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 6, 'status': 'ok', 'patterns': 9970274, 'time_s': 2.036, 'wall_s': 2.64, 'rss_mb': 353.85546875}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 7, 'status': 'ok', 'patterns': 9970274, 'time_s': 3.652, 'wall_s': 11.72, 'rss_mb': 1014.0}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 24, 'status': 'ok', 'patterns': 9970274, 'time_s': 2.04086, 'wall_s': 2.65, 'rss_mb': 353.85546875}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 25, 'status': 'ok', 'patterns': 9970274, 'time_s': 3.651, 'wall_s': 11.78, 'rss_mb': 1013.625}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 9970274, 'time_s': 2.03443, 'wall_s': 2.64, 'rss_mb': 353.85546875}
+{'dataset': 'chess', 'minutil': 278319, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 27, 'status': 'ok', 'patterns': 9970274, 'time_s': 3.665, 'wall_s': 11.8, 'rss_mb': 1013.625}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 982465, 'time_s': 0.341322, 'wall_s': 0.4, 'rss_mb': 37.98828125}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 29, 'status': 'ok', 'patterns': 982465, 'time_s': 0.563, 'wall_s': 1.37, 'rss_mb': 107.625}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 30, 'status': 'ok', 'patterns': 982465, 'time_s': 0.341719, 'wall_s': 0.4, 'rss_mb': 37.98828125}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 31, 'status': 'ok', 'patterns': 982465, 'time_s': 0.559, 'wall_s': 1.36, 'rss_mb': 108.0}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 28, 'status': 'ok', 'patterns': 982465, 'time_s': 0.340756, 'wall_s': 0.4, 'rss_mb': 37.61328125}
+{'dataset': 'chess', 'minutil': 367187, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 30, 'status': 'ok', 'patterns': 982465, 'time_s': 0.555, 'wall_s': 1.34, 'rss_mb': 108.0}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 98710287, 'time_s': 12.9232, 'wall_s': 19.6, 'rss_mb': 3202.58984375}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 31, 'status': 'ok', 'patterns': 98710287, 'time_s': 27.358, 'wall_s': 116.05, 'rss_mb': 10836.08203125}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 29, 'status': 'ok', 'patterns': 98710287, 'time_s': 12.8754, 'wall_s': 19.56, 'rss_mb': 3202.59375}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 30, 'status': 'ok', 'patterns': 98710287, 'time_s': 27.24, 'wall_s': 116.9, 'rss_mb': 10836.046875}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 98710287, 'time_s': 12.8294, 'wall_s': 19.43, 'rss_mb': 3202.58984375}
+{'dataset': 'connect', 'minutil': 8291015, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 6, 'status': 'ok', 'patterns': 98710287, 'time_s': 26.736, 'wall_s': 114.84, 'rss_mb': 10836.18359375}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 24, 'status': 'ok', 'patterns': 9814086, 'time_s': 2.03177, 'wall_s': 2.7, 'rss_mb': 325.5703125}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 24, 'status': 'ok', 'patterns': 9814086, 'time_s': 4.056, 'wall_s': 12.74, 'rss_mb': 1148.00390625}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 7, 'status': 'ok', 'patterns': 9814086, 'time_s': 2.03158, 'wall_s': 2.7, 'rss_mb': 325.9453125}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 25, 'status': 'ok', 'patterns': 9814086, 'time_s': 4.069, 'wall_s': 12.82, 'rss_mb': 1150.90234375}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 27, 'status': 'ok', 'patterns': 9814086, 'time_s': 2.06256, 'wall_s': 2.73, 'rss_mb': 325.5703125}
+{'dataset': 'connect', 'minutil': 10587890, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 7, 'status': 'ok', 'patterns': 9814086, 'time_s': 4.041, 'wall_s': 12.84, 'rss_mb': 1154.13671875}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 963979, 'time_s': 0.544037, 'wall_s': 0.61, 'rss_mb': 118.1875}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 963979, 'time_s': 1.192, 'wall_s': 2.06, 'rss_mb': 184.68359375}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 27, 'status': 'ok', 'patterns': 963979, 'time_s': 0.544517, 'wall_s': 0.61, 'rss_mb': 117.76171875}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 27, 'status': 'ok', 'patterns': 963979, 'time_s': 1.179, 'wall_s': 2.06, 'rss_mb': 188.18359375}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 24, 'status': 'ok', 'patterns': 963979, 'time_s': 0.540688, 'wall_s': 0.61, 'rss_mb': 118.18359375}
+{'dataset': 'connect', 'minutil': 12474609, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 24, 'status': 'ok', 'patterns': 963979, 'time_s': 1.178, 'wall_s': 2.03, 'rss_mb': 188.69921875}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 99565209, 'time_s': 47.7883, 'wall_s': 53.32, 'rss_mb': 3010.05078125}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 4, 'status': 'ok', 'patterns': 99565209, 'time_s': 113.365, 'wall_s': 192.48, 'rss_mb': 9911.703125}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 28, 'status': 'ok', 'patterns': 99565209, 'time_s': 47.7064, 'wall_s': 53.47, 'rss_mb': 3010.046875}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 0, 'status': 'ok', 'patterns': 99565209, 'time_s': 113.576, 'wall_s': 191.92, 'rss_mb': 9911.30859375}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'ok', 'patterns': 99565209, 'time_s': 46.3305, 'wall_s': 52.08, 'rss_mb': 3010.046875}
+{'dataset': 'accidents', 'minutil': 3048925, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 24, 'status': 'ok', 'patterns': 99565209, 'time_s': 117.921, 'wall_s': 197.47, 'rss_mb': 9911.5546875}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 29, 'status': 'ok', 'patterns': 9980928, 'time_s': 13.9594, 'wall_s': 14.48, 'rss_mb': 450.8984375}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 26, 'status': 'ok', 'patterns': 9980928, 'time_s': 39.05, 'wall_s': 46.7, 'rss_mb': 1164.0859375}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 25, 'status': 'ok', 'patterns': 9980928, 'time_s': 13.8718, 'wall_s': 14.39, 'rss_mb': 450.52734375}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 7, 'status': 'ok', 'patterns': 9980928, 'time_s': 31.577, 'wall_s': 39.18, 'rss_mb': 1164.4453125}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 29, 'status': 'ok', 'patterns': 9980928, 'time_s': 13.8328, 'wall_s': 14.36, 'rss_mb': 450.5234375}
+{'dataset': 'accidents', 'minutil': 6015234, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 25, 'status': 'ok', 'patterns': 9980928, 'time_s': 38.416, 'wall_s': 46.1, 'rss_mb': 1163.9453125}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 29, 'status': 'ok', 'patterns': 989296, 'time_s': 5.74583, 'wall_s': 5.8, 'rss_mb': 366.0546875}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 29, 'status': 'ok', 'patterns': 989296, 'time_s': 16.505, 'wall_s': 17.31, 'rss_mb': 324.1796875}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 7, 'status': 'ok', 'patterns': 989296, 'time_s': 4.875, 'wall_s': 4.92, 'rss_mb': 366.4296875}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 26, 'status': 'ok', 'patterns': 989296, 'time_s': 15.981, 'wall_s': 16.77, 'rss_mb': 325.68359375}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 7, 'status': 'ok', 'patterns': 989296, 'time_s': 4.87095, 'wall_s': 4.92, 'rss_mb': 366.05859375}
+{'dataset': 'accidents', 'minutil': 10102148, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'ok', 'patterns': 989296, 'time_s': 15.594, 'wall_s': 16.38, 'rss_mb': 324.30078125}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 29, 'status': 'ok', 'patterns': 99834667, 'time_s': 7.27705, 'wall_s': 12.5, 'rss_mb': 2185.36328125}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 99834667, 'time_s': 17.707, 'wall_s': 93.77, 'rss_mb': 9420.0}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 28, 'status': 'ok', 'patterns': 99834667, 'time_s': 7.24999, 'wall_s': 12.28, 'rss_mb': 2185.73828125}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 7, 'status': 'ok', 'patterns': 99834667, 'time_s': 17.65, 'wall_s': 93.79, 'rss_mb': 9420.0}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 25, 'status': 'ok', 'patterns': 99834667, 'time_s': 7.2954, 'wall_s': 12.33, 'rss_mb': 2185.359375}
+{'dataset': 'mushroom', 'minutil': 15848, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 29, 'status': 'ok', 'patterns': 99834667, 'time_s': 17.844, 'wall_s': 94.81, 'rss_mb': 9420.0}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 26, 'status': 'ok', 'patterns': 9926067, 'time_s': 0.851072, 'wall_s': 1.33, 'rss_mb': 279.6796875}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 9926067, 'time_s': 1.958, 'wall_s': 9.28, 'rss_mb': 921.375}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 26, 'status': 'ok', 'patterns': 9926067, 'time_s': 0.854623, 'wall_s': 1.33, 'rss_mb': 280.0546875}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 26, 'status': 'ok', 'patterns': 9926067, 'time_s': 1.971, 'wall_s': 9.35, 'rss_mb': 921.375}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'ok', 'patterns': 9926067, 'time_s': 0.846791, 'wall_s': 1.32, 'rss_mb': 279.6796875}
+{'dataset': 'mushroom', 'minutil': 44806, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'ok', 'patterns': 9926067, 'time_s': 1.999, 'wall_s': 9.28, 'rss_mb': 921.375}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 994546, 'time_s': 0.120768, 'wall_s': 0.17, 'rss_mb': 38.953125}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 994546, 'time_s': 0.254, 'wall_s': 0.98, 'rss_mb': 101.625}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 28, 'status': 'ok', 'patterns': 994546, 'time_s': 0.119626, 'wall_s': 0.17, 'rss_mb': 39.328125}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 28, 'status': 'ok', 'patterns': 994546, 'time_s': 0.256, 'wall_s': 0.99, 'rss_mb': 101.625}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 25, 'status': 'ok', 'patterns': 994546, 'time_s': 0.120064, 'wall_s': 0.17, 'rss_mb': 39.32421875}
+{'dataset': 'mushroom', 'minutil': 101763, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 994546, 'time_s': 0.263, 'wall_s': 0.99, 'rss_mb': 101.625}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 25, 'status': 'ok', 'patterns': 99178466, 'time_s': 10.2604, 'wall_s': 18.16, 'rss_mb': 4266.28515625}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'failed rc=-15'}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 26, 'status': 'ok', 'patterns': 99178466, 'time_s': 10.2003, 'wall_s': 18.44, 'rss_mb': 4266.28515625}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 2, 'status': 'failed rc=-15'}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 5, 'status': 'ok', 'patterns': 99178466, 'time_s': 10.1461, 'wall_s': 18.06, 'rss_mb': 4266.28125}
+{'dataset': 'ecommerce', 'minutil': 403026, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 3, 'status': 'failed rc=-15'}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 9829103, 'time_s': 1.17526, 'wall_s': 1.94, 'rss_mb': 470.9765625}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'ok', 'patterns': 9829103, 'time_s': 11.645, 'wall_s': 22.09, 'rss_mb': 19906.5}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 2, 'status': 'ok', 'patterns': 9829103, 'time_s': 1.17758, 'wall_s': 1.93, 'rss_mb': 470.97265625}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 25, 'status': 'ok', 'patterns': 9829103, 'time_s': 11.634, 'wall_s': 22.04, 'rss_mb': 19906.5}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'ok', 'patterns': 9829103, 'time_s': 1.18107, 'wall_s': 1.95, 'rss_mb': 470.6015625}
+{'dataset': 'ecommerce', 'minutil': 529003, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 9829103, 'time_s': 11.484, 'wall_s': 21.96, 'rss_mb': 19906.5}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 31, 'status': 'ok', 'patterns': 975738, 'time_s': 0.149358, 'wall_s': 0.22, 'rss_mb': 56.62109375}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 6, 'status': 'ok', 'patterns': 975738, 'time_s': 9.244, 'wall_s': 11.4, 'rss_mb': 18912.0}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 31, 'status': 'ok', 'patterns': 975738, 'time_s': 0.150337, 'wall_s': 0.22, 'rss_mb': 56.2421875}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 31, 'status': 'ok', 'patterns': 975738, 'time_s': 9.067, 'wall_s': 11.11, 'rss_mb': 18912.0}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 30, 'status': 'ok', 'patterns': 975738, 'time_s': 0.1493, 'wall_s': 0.22, 'rss_mb': 56.24609375}
+{'dataset': 'ecommerce', 'minutil': 738476, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 30, 'status': 'ok', 'patterns': 975738, 'time_s': 9.016, 'wall_s': 11.06, 'rss_mb': 18912.0}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 1, 'status': 'ok', 'patterns': 82967568, 'time_s': 14.6753, 'wall_s': 25.45, 'rss_mb': 7208.99609375}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 2, 'status': 'failed rc=124'}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 3, 'status': 'ok', 'patterns': 82967568, 'time_s': 14.7874, 'wall_s': 25.57, 'rss_mb': 7208.625}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 5, 'status': 'failed rc=124'}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 6, 'status': 'ok', 'patterns': 82967568, 'time_s': 14.3343, 'wall_s': 25.11, 'rss_mb': 7209.00390625}
+{'dataset': 'chainstore', 'minutil': 89581, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 31, 'status': 'failed rc=124'}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 30, 'status': 'ok', 'patterns': 7790699, 'time_s': 4.2099, 'wall_s': 5.28, 'rss_mb': 710.984375}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 30, 'status': 'ok', 'patterns': 7790699, 'time_s': 771.26, 'wall_s': 782.44, 'rss_mb': 1605.23828125}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 28, 'status': 'ok', 'patterns': 7790699, 'time_s': 4.21423, 'wall_s': 5.34, 'rss_mb': 710.61328125}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 25, 'status': 'ok', 'patterns': 7790699, 'time_s': 780.116, 'wall_s': 791.28, 'rss_mb': 1605.66796875}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 7790699, 'time_s': 4.24312, 'wall_s': 5.44, 'rss_mb': 710.98828125}
+{'dataset': 'chainstore', 'minutil': 90968, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 28, 'status': 'ok', 'patterns': 7790699, 'time_s': 784.884, 'wall_s': 796.05, 'rss_mb': 1605.3125}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 1, 'status': 'ok', 'patterns': 646789, 'time_s': 3.07152, 'wall_s': 3.17, 'rss_mb': 301.06640625}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 26, 'status': 'ok', 'patterns': 646789, 'time_s': 774.762, 'wall_s': 775.81, 'rss_mb': 397.6484375}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 1, 'status': 'ok', 'patterns': 646789, 'time_s': 3.09697, 'wall_s': 3.2, 'rss_mb': 301.06640625}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 1, 'status': 'ok', 'patterns': 646789, 'time_s': 768.222, 'wall_s': 769.29, 'rss_mb': 398.02734375}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 3, 'status': 'ok', 'patterns': 646789, 'time_s': 3.11337, 'wall_s': 3.21, 'rss_mb': 300.69140625}
+{'dataset': 'chainstore', 'minutil': 92077, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 6, 'status': 'ok', 'patterns': 646789, 'time_s': 749.838, 'wall_s': 750.89, 'rss_mb': 398.015625}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 3, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 7, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 29, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 0, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 640000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 4, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 24, 'status': 'ok', 'patterns': 320, 'time_s': 715.267, 'wall_s': 715.27, 'rss_mb': 266.3984375}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 6, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 30, 'status': 'ok', 'patterns': 320, 'time_s': 712.063, 'wall_s': 712.07, 'rss_mb': 266.7734375}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 1, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 26, 'status': 'ok', 'patterns': 320, 'time_s': 713.595, 'wall_s': 713.6, 'rss_mb': 266.40234375}
+{'dataset': 'kosarak', 'minutil': 642000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 25, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 24, 'status': 'ok', 'patterns': 320, 'time_s': 367.386, 'wall_s': 367.39, 'rss_mb': 266.3984375}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 28, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 2, 'status': 'ok', 'patterns': 320, 'time_s': 366.559, 'wall_s': 366.56, 'rss_mb': 266.7734375}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 5, 'status': 'failed rc=124'}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 31, 'status': 'ok', 'patterns': 320, 'time_s': 367.853, 'wall_s': 367.86, 'rss_mb': 266.3984375}
+{'dataset': 'kosarak', 'minutil': 644000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 3, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 13332419, 'time_s': 349.499, 'wall_s': 351.02, 'rss_mb': 541.40234375}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 7, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 29, 'status': 'ok', 'patterns': 13332419, 'time_s': 348.161, 'wall_s': 349.73, 'rss_mb': 541.3984375}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 0, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 4, 'status': 'ok', 'patterns': 13332419, 'time_s': 349.666, 'wall_s': 351.16, 'rss_mb': 541.3984375}
+{'dataset': 'pumsb', 'minutil': 8800000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 24, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 2, 'status': 'ok', 'patterns': 5780427, 'time_s': 143.773, 'wall_s': 144.35, 'rss_mb': 347.6953125}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 31, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 27, 'status': 'ok', 'patterns': 5780427, 'time_s': 143.75, 'wall_s': 144.34, 'rss_mb': 347.32421875}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 29, 'status': 'failed rc=124'}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 4, 'status': 'ok', 'patterns': 5780427, 'time_s': 143.177, 'wall_s': 143.75, 'rss_mb': 347.32421875}
+{'dataset': 'pumsb', 'minutil': 9000000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 2, 'status': 'failed rc=143'}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 2953935, 'time_s': 74.3313, 'wall_s': 74.61, 'rss_mb': 213.26953125}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 4, 'status': 'failed rc=143'}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 30, 'status': 'ok', 'patterns': 2953935, 'time_s': 74.3047, 'wall_s': 74.59, 'rss_mb': 213.26953125}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'DPHIM', 'threads': 1, 'rep': 1, 'cpu': 26, 'status': 'failed rc=143'}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'REFIM', 'threads': 1, 'rep': 2, 'cpu': 27, 'status': 'ok', 'patterns': 2953935, 'time_s': 74.2871, 'wall_s': 74.57, 'rss_mb': 213.265625}
+{'dataset': 'pumsb', 'minutil': 9200000, 'miner': 'DPHIM', 'threads': 1, 'rep': 2, 'cpu': 30, 'status': 'failed rc=143'}
+{'dataset': 'BMS', 'minutil': 1989000, 'miner': 'REFIM', 'threads': 1, 'rep': 0, 'cpu': 27, 'status': 'ok', 'patterns': 77721485, 'time_s': 429.929, 'wall_s': 470.81, 'rss_mb': 19331.75390625}
+{'dataset': 'BMS', 'minutil': 1989000, 'miner': 'DPHIM', 'threads': 1, 'rep': 0, 'cpu': 6, 'status': 'failed rc=143'}
+{'dataset': 'BMS', 'minutil': 1989000, 'miner': 'REFIM', 'threads': 1, 'rep': 1, 'cpu': 1, 'status': 'ok', 'patterns': 77721485, 'time_s': 428.629, 'wall_s': 469.53, 'rss_mb': 19331.75390625}
