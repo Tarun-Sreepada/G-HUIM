@@ -3,6 +3,8 @@
 For 2026 DASFAA paper please refer to the following commit:
 [b08df0c](https://github.com/Tarun-Sreepada/G-HUIM/commit/b08df0c2de23f2949935fc2522f66ff672a396b7)
 
+Project in its current state has been improved with several optimizations, along with a multi-threaded CPU miner implementation as well.
+
 GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware (`G-HUIM/`), plus a CPU miner, REFIM (`REFIM/`).
 
 ---
