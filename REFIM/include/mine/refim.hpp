@@ -47,6 +47,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -83,6 +84,9 @@ public:
 		key_bits_ = key_bits;
 		util_bits_ = util_bits;
 	}
+
+	// GREFIM: root tasks come from the share this makes for the search's widths (SearchOptions::make_share).
+	void set_share(std::function<std::unique_ptr<RootShareBase>(int, int)> make) { search_.make_share = std::move(make); }
 
 	void set_stats(bool on) { search_.stats = on; }
 	// Log memory bandwidth per phase at info level (otherwise only at debug).

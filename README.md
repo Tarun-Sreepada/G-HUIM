@@ -5,7 +5,8 @@ For 2026 DASFAA paper please refer to the following commit:
 
 Project in its current state has been improved with several optimizations, along with a multi-threaded CPU miner implementation as well.
 
-GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware (`G-HUIM/`), plus a CPU miner, REFIM (`REFIM/`).
+GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware (`G-HUIM/`), a CPU miner, REFIM (`REFIM/`),
+and GREFIM (`GREFIM/`), which runs REFIM on every CPU core and every GPU (any vendor, through Vulkan) at once.
 
 ---
 
@@ -13,7 +14,9 @@ GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware (`G-HUIM/`), plus
 
 - CUDA toolkit 12.x, an sm_80 or newer GPU (G-HUIM only). The persistent engine groups blocks into
   thread-block clusters with DSMEM stealing on sm_90+; on sm_80/sm_86 each block is its own cluster
-- CMake ≥ 3.24, a C++20 host compiler and NVCC
+- Vulkan headers and loader, `glslc` (shaderc), and a Vulkan driver per GPU (GREFIM only; e.g. NVIDIA's driver,
+  Mesa RADV `vulkan-radeon` for AMD, ANV for Intel)
+- CMake ≥ 3.24, a C++20 host compiler and NVCC (G-HUIM only)
 - Network on first configure: pinned CLI11 and spdlog are fetched
 
 ---
@@ -25,12 +28,15 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -- -j"$(nproc)"
 ```
 
-Produces `build/G-HUIM` and `build/REFIM`. To build just one miner from the root:
+Produces `build/G-HUIM`, `build/REFIM` and `build/GREFIM`. `-DHUIM_BUILD_<MINER>=OFF` leaves a miner out:
 
 ```bash
-cmake -S . -B build -DHUIM_BUILD_GHUIM=OFF   # REFIM only (no CUDA needed)
-cmake -S . -B build -DHUIM_BUILD_REFIM=OFF   # G-HUIM only
+cmake -S . -B build -DHUIM_BUILD_GHUIM=OFF -DHUIM_BUILD_GREFIM=OFF   # REFIM only (no CUDA, no Vulkan)
+cmake -S . -B build -DHUIM_BUILD_REFIM=OFF -DHUIM_BUILD_GREFIM=OFF   # G-HUIM only
+cmake -S . -B build -DHUIM_BUILD_GHUIM=OFF                           # REFIM + GREFIM (no CUDA)
 ```
+
+GREFIM links REFIM's library, so REFIM's sources are always configured with it.
 
 Each project also builds alone
 (`cmake -S G-HUIM -B build-ghuim`, `cmake -S REFIM -B build-refim`). The GPU architecture is
@@ -91,6 +97,42 @@ How it works:
 - **`adaptive`** bins tasks by size and gives each bin its own kernel on its own stream (lane groups, a warp, a block, or many blocks per task). **`static`** gives every task one fixed-size block.
 - Small subtrees can be finished inside a lane group without allocating child databases, and large sparse databases get occurrence indexes.
 - Memory is planned from free device memory and your `--total-memory` / `--stack-capacity`; no fixed task cap.
+
+---
+
+## GREFIM (CPU + every GPU)
+
+```bash
+./build/GREFIM --list-devices                                           # GPUs found, and the CPU threads
+./build/GREFIM -i datasets/accidents_utility_spmf.txt -m 4000000          # every core and GPU
+./build/GREFIM -i datasets/accidents_utility_spmf.txt -m 4000000 -g 0 -c off   # one GPU only
+./build/GREFIM -i datasets/accidents_utility_spmf.txt -m 4000000 -g none       # CPU only
+```
+
+- The CPU reads the dataset and builds the root (REFIM). The root's subtrees (one per single item) go to a
+  shared pool: REFIM's workers take the largest, one at a time, and split them among themselves; each GPU
+  takes batches of the smallest, sized by guided self-scheduling on measured rates (`GREFIM/src/sched/pool.hpp`).
+- CPU workers default to all hardware threads but one per GPU, whose host thread keeps it fed.
+- The GPU engine (`GREFIM/src/gpu/engine.hpp`, `GREFIM/shaders/expand.comp`) is G-HUIM's adaptive BFS in Vulkan
+  compute: one workgroup per task, bounds in shared memory, compacted child databases with equal transactions
+  merged, next-level tasks written on the GPU, small subtrees counted in place by one subgroup, an occurrence
+  index on the root, big and small workgroups by database size, and one dispatch and wait per level. The arena
+  is double-ended (levels alternate ends, finished levels are overwritten); tasks that do not fit are retried
+  once the children that did are mined.
+- A slower GPU (integrated, next to a discrete one) joins only if the fast GPUs have enough work left for it to
+  pay off; otherwise it is reported as not used.
+- Limits: GPUs mine only when every utility fits 32 bits and itemsets are counted, not written (`-o` mines on
+  the CPU); the root's items must fit a GPU's shared memory.
+
+Accidents at minutil 4,000,000 on a Ryzen 5 5500GT (12 threads) + RTX 3070 + Radeon iGPU, all 42,482,244 itemsets:
+
+| Run | Time |
+|---|---|
+| REFIM, 12 threads | 4.2 s |
+| G-HUIM `--method adaptive` (CUDA) | 1.47 s |
+| GREFIM, RTX 3070 only | 1.4–1.5 s |
+| GREFIM, 10 CPU threads + RTX 3070 (+ iGPU, which sits out) | 1.4–1.6 s |
+| GREFIM, Radeon iGPU only | 16 s |
 
 ---
 
@@ -193,12 +235,12 @@ Numbers are single runs on a shared GPU, so gaps of a few percent are noise.
 
 ## Layout
 
-Two self-contained projects, each with its own `CMakeLists.txt`, `include/` and `src/`. Drivers are short
-lists of named steps, one small file per step.
+Three projects, each with its own `CMakeLists.txt`. Drivers are short lists of named steps, one small file per step.
 
 ```
 G-HUIM/   GPU miner: src/app (CLI, main steps), src/data (loading), src/mine/{bfs,dfs} (engines)
 REFIM/    CPU miner: src/app (options, run), src/io (reader steps), src/mine (search, workers), src/sys
+GREFIM/   CPU + GPU miner: src/vk (Vulkan devices), src/gpu (engine), src/sched (pool), src/share.cpp, shaders/
 experiments/   benchmark, comparison and plotting scripts
 microbenchmark/   14 single-purpose CUDA micro-benchmarks with a runner and plot script
 ```

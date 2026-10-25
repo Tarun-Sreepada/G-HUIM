@@ -6,9 +6,15 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <vector>
+
+// Root tasks shared with other engines (GREFIM): the width-specific RootShare (mine/share.hpp) derives from this.
+struct RootShareBase {
+	virtual ~RootShareBase() = default;
+};
 
 struct SearchOptions {
 	std::uint64_t min_util = 0;
@@ -20,6 +26,9 @@ struct SearchOptions {
 	double refine_min_drop = 0;  // skip a refinement round unless the last pass dropped this fraction of the candidates
 	bool stats = false;
 	bool collect_patterns = false;
+	// Optional, called with the search's (item bits, utility bits): workers then take root tasks from the RootShare
+	// it returns instead of being seeded with all of them.
+	std::function<std::unique_ptr<RootShareBase>(int, int)> make_share;
 };
 
 // The itemsets a search kept (SearchOptions::collect_patterns), in its widths.

@@ -6,6 +6,7 @@
 #include <atomic>
 #include <cstddef>
 #include <deque>
+#include <functional>
 #include <memory>
 #include <thread>
 #include <vector>
@@ -55,6 +56,10 @@ public:
 	explicit Scheduler(std::vector<std::vector<Victim>> victims)
 		: victims_(std::move(victims)), queues_(victims_.size()), steals_(victims_.size()) {}
 
+	// Optional source of further tasks, tried when a worker finds none to pop or steal. It must return false
+	// for good once it runs dry. Set before the workers start.
+	void set_source(std::function<bool(int, Task&)> source) { source_ = std::move(source); }
+
 	// Seeding before the workers start.
 	void seed(int worker, Task&& task) {
 		outstanding_.fetch_add(1, std::memory_order_relaxed);
@@ -80,6 +85,10 @@ public:
 	bool pop(int self, Task& out) {
 		while (true) {
 			if (try_get(self, out)) return true;
+			if (source_ && source_(self, out)) {
+				outstanding_.fetch_add(1, std::memory_order_relaxed);
+				return true;
+			}
 			idle_.fetch_add(1);
 			bool got = false;
 			for (int spin = 0; spin < 64 && !got; ++spin) {
@@ -162,6 +171,7 @@ private:
 	std::vector<std::vector<Victim>> victims_;
 	std::vector<Queue> queues_;
 	std::vector<Counter> steals_;
+	std::function<bool(int, Task&)> source_;
 	std::atomic<std::size_t> outstanding_{0};  // queued + running tasks
 	std::atomic<unsigned> epoch_{0};           // bumped on every push / completion, for waiting
 	std::atomic<int> idle_{0};

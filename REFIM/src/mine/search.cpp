@@ -2,6 +2,7 @@
 
 #include "io/output.hpp"
 #include "io/root.hpp"
+#include "mine/share.hpp"
 #include "mine/worker.hpp"
 #include "sys/alloc.hpp"
 #include "sys/numa.hpp"
@@ -11,6 +12,7 @@
 #include <barrier>
 #include <chrono>
 #include <memory>
+#include <stdexcept>
 #include <spdlog/spdlog.h>
 
 inline namespace REFIM_WIDTHS {
@@ -70,6 +72,20 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 	}
 
 	Scheduler scheduler(std::move(victims));
+	// GREFIM: root tasks come from the share, which also feeds the other engines.
+	std::unique_ptr<RootShareBase> share_owner = options.make_share ? options.make_share(REFIM_KEY_BITS, REFIM_UTIL_BITS) : nullptr;
+	RootShare* const share = dynamic_cast<RootShare*>(share_owner.get());
+	if (share_owner && !share) throw std::logic_error("make_share returned a share of other widths");
+	std::vector<std::shared_ptr<const Level>> worker_root(threads);  // the root copy of each worker's node
+	if (share) {
+		share->start(root, num_items);
+		scheduler.set_source([&](int w, Task& out) {
+			std::uint32_t slot;
+			if (!share->next(w, slot)) return false;
+			out = {worker_root[w], 0, slot, {}};
+			return true;
+		});
+	}
 	std::vector<std::unique_ptr<Worker>> workers(threads);
 	std::vector<std::shared_ptr<const Level>> replicas(nodes);
 	std::barrier sync(threads);
@@ -100,8 +116,11 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 		}
 		sync.arrive_and_wait();
 		const std::shared_ptr<const Level>& mine = nodes > 1 ? replicas[node] : root;
-		for (std::size_t k = roots; k-- > 0;)
-			if (k % threads == static_cast<std::size_t>(w)) scheduler.seed(w, {mine, 0, static_cast<std::uint32_t>(k), {}});
+		if (share)
+			worker_root[w] = mine;
+		else
+			for (std::size_t k = roots; k-- > 0;)
+				if (k % threads == static_cast<std::size_t>(w)) scheduler.seed(w, {mine, 0, static_cast<std::uint32_t>(k), {}});
 		sync.arrive_and_wait();
 		if (w == 0) {
 			spdlog::debug("mine: setup {:.3f} s", std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count());
@@ -111,9 +130,15 @@ SearchResult search(Transactions& input, const SearchOptions& options) {
 		ThreadCounters counters;
 		workers[w]->run();
 		counts[w] = counters.read();
+		worker_root[w].reset();
 	};
 	parallel_run(threads, body);
 	const double mine_seconds = std::chrono::duration<double>(std::chrono::steady_clock::now() - mine_start).count();
+	if (share) {
+		std::vector<Patterns> found;
+		result.pattern_count += share->finish(found);
+		for (auto& p : found) patterns->results.push_back(std::move(p));
+	}
 	SearchStats stats;
 	for (auto& w : workers) {
 		stats += w->stats;

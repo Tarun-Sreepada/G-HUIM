@@ -1,0 +1,412 @@
+#version 460
+// One task per workgroup: extend the prefix of database `db` with its item `k` (src/gpu/engine.hpp has the
+// layout). EFIM's steps, with every bound in shared memory:
+//   1. utility of the itemset; local utility of every item after k
+//   2. the child's items (local utility >= min_util), renamed 0..c-1 in order
+//   3. subtree utility of every child item, over the transactions with only child items kept
+//   3b. a small child (at most a subgroup of transactions, 32 items) is counted right here, whole: one
+//      subgroup walks its subtree depth first with a transaction per lane and bitmasks of items, as G-HUIM's
+//      count_small_subtree; no database or task is written
+//   4. the child's size: its transactions are the ones holding k and some child item after it, projected;
+//      equal neighbours merge (transactions stay in reverse-lexicographic order, so equal projections are
+//      adjacent, as in REFIM and G-HUIM)
+//   5. room for the child and its tasks (one per primary item but the last: the leaf shortcut counts that
+//      itemset, whose utility is its subtree utility, without a task); a task that gets no room goes to the
+//      retry list and counts nothing
+//   6. the child: merged transactions, then its tasks
+// A database may carry an occurrence index (header word 3: where it starts, 0 if none; the root has one):
+// then a task visits only the transactions holding its item. Children go to one of two next-level lists
+// by size, so big databases get big workgroups (two pipelines of this shader).
+// Every utility is at most the largest TWU, which the host checked fits 32 bits. Word offsets inside a
+// database are relative to it, so they stay small whatever the arena size.
+#extension GL_EXT_buffer_reference : require
+#extension GL_EXT_shader_explicit_arithmetic_types_int64 : require
+#extension GL_EXT_shader_atomic_int64 : require
+#extension GL_KHR_shader_subgroup_basic : require
+#extension GL_KHR_shader_subgroup_arithmetic : require
+#extension GL_KHR_shader_subgroup_ballot : require
+
+layout(local_size_x_id = 0) in;
+layout(constant_id = 1) const uint kMaxItems = 256;  // items of the largest database (the root), rounded up
+
+const uint kNone = 0xffffffffu;  // no child name; also a hole in a task list
+const uint kMaxSubgroups = 32;
+const uint kMaxLanes = 128;      // largest subgroup
+const uint kSmallItems = 32;     // items of a child counted in place (bits of a mask)
+
+layout(buffer_reference, std430, buffer_reference_align = 4) buffer Words { uint v[]; };
+layout(buffer_reference, std430, buffer_reference_align = 8) buffer Control {
+	uint64_t patterns;
+	uint64_t used;  // arena words this pass handed out
+	uint64_t next[2];  // next-level task slots handed out: small, big
+	uint retry[2];     // tasks in the retry list of each class
+};
+
+layout(push_constant, std430) uniform Push {
+	uint64_t arena;    // databases, addressed by word
+	uint64_t tasks;    // this level: (database word, item) pairs
+	uint64_t next;     // next level's tasks: small databases
+	uint64_t next_big; // and those with at least `big` transactions
+	uint64_t retry;    // tasks that got no room
+	uint64_t control;
+	uint count;        // tasks
+	uint min_util;
+	uint task_cap;     // next-level slots
+	uint start;        // where this pass's databases go: from here up, or (down != 0) down
+	uint down;
+	uint limit;        // arena words this pass may use
+	uint groups_x;     // workgroups per row of the dispatch
+	uint task_class;   // of this dispatch's tasks: 0 small, 1 big (its retry counter)
+	uint big;          // transactions that make a database big
+} pc;
+
+shared uint local_u[kMaxItems];  // local utility; after step 2, child name -> item
+shared uint subtree_u[kMaxItems];
+shared uint child_name[kMaxItems];
+shared uint s_util, s_items, s_trans, s_entries, s_db, s_slot, s_ok;
+shared uint s_part[kMaxSubgroups];
+shared uint s_last, s_heads, s_head_entries;  // carried between blocks of transactions
+shared uint s_kept, s_lane_tx[kMaxLanes];       // transactions with child items after k, the first ones
+
+Words at_word(uint word) { return Words(pc.arena + uint64_t(word) * 4); }
+
+// First entry in [lo, hi) of `db` holding `item` (a transaction's items ascend), or kNone.
+uint find_item(Words db, uint lo, uint hi, uint item) {
+	const uint end = hi;
+	while (lo < hi) {
+		const uint mid = (lo + hi) >> 1;
+		if (db.v[mid] < item) lo = mid + 1; else hi = mid;
+	}
+	return lo < end && db.v[lo] == item ? lo : kNone;
+}
+
+// Workgroup scans; every invocation must call them. Subgroups are full (the workgroup is a multiple of them).
+uint wg_exclusive_add(uint x, out uint total) {
+	const uint incl = subgroupInclusiveAdd(x);
+	if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) s_part[gl_SubgroupID] = incl;
+	barrier();
+	uint before = 0;
+	total = 0;
+	for (uint s = 0; s < gl_NumSubgroups; ++s) {
+		const uint v = s_part[s];
+		if (s < gl_SubgroupID) before += v;
+		total += v;
+	}
+	barrier();
+	return before + incl - x;
+}
+
+uint wg_exclusive_max(uint x, out uint total) {
+	const uint incl = subgroupInclusiveMax(x);
+	const uint excl = subgroupExclusiveMax(x);
+	if (gl_SubgroupInvocationID == gl_SubgroupSize - 1) s_part[gl_SubgroupID] = incl;
+	barrier();
+	uint before = 0;
+	total = 0;
+	for (uint s = 0; s < gl_NumSubgroups; ++s) {
+		const uint v = s_part[s];
+		if (s < gl_SubgroupID) before = max(before, v);
+		total = max(total, v);
+	}
+	barrier();
+	return max(before, excl);
+}
+
+// The parent database and the task's item.
+Words d;
+uint k, n_trans, n_items, n_entries, names, txs, items, utils;
+uint n_scan, scan_list;  // transactions to visit: scan_list[0, n_scan) if indexed (scan_list != 0), else all
+
+uint tx_at(uint i) { return scan_list != 0 ? d.v[scan_list + i] : i; }
+
+// Transaction i: the entry of k (kNone if absent), its end, and the itemset's utility in it.
+uint locate(uint i, out uint e, out uint curr) {
+	const uint b = items + d.v[txs + 3 * i];
+	e = b + d.v[txs + 3 * i + 1];
+	const uint p = find_item(d, b, e, k);
+	curr = p == kNone ? 0 : d.v[txs + 3 * i + 2] + d.v[utils + (p - items)];
+	return p;
+}
+
+uint kept_after(uint p, uint e) {
+	uint kept = 0;
+	for (uint j = p + 1; j < e; ++j) kept += child_name[d.v[j]] != kNone ? 1 : 0;
+	return kept;
+}
+
+// Whether transactions i and j project to the same child items.
+bool same_projection(uint i, uint j) {
+	uint ei, ci, ej, cj;
+	uint pi = locate(i, ei, ci), pj = locate(j, ej, cj);
+	++pi;
+	++pj;
+	for (;;) {
+		while (pi < ei && child_name[d.v[pi]] == kNone) ++pi;
+		while (pj < ej && child_name[d.v[pj]] == kNone) ++pj;
+		if (pi == ei || pj == ej) return pi == ei && pj == ej;
+		if (d.v[pi] != d.v[pj]) return false;
+		++pi;
+		++pj;
+	}
+}
+
+// The itemsets prefix + k + S, S a nonempty set of child items, that reach min_util: subgroup 0, lane l
+// holding the l-th kept transaction. Depth first over S in item order; a branch stops when its upper bound
+// (utility of the itemset plus the child items after it, over the lanes holding it) falls short, and when
+// the lanes holding every candidate already qualify alone, all completions count at once.
+uint64_t count_small_child() {
+	const uint lane = gl_SubgroupInvocationID;
+	uint e = 0, curr = 0;
+	int position[kSmallItems + 1];
+	uint utility[kSmallItems + 1], pending[kSmallItems + 1];
+	position[0] = lane < s_kept ? int(locate(s_lane_tx[lane], e, curr)) : -1;
+	utility[0] = curr;
+	uint64_t found = 0;
+	uint depth = 0;
+	for (;;) {
+		uint suffix = 0, upper = utility[depth];
+		if (position[depth] >= 0)
+			for (uint j = uint(position[depth]) + 1; j < e; ++j) {
+				const uint r = child_name[d.v[j]];
+				if (r == kNone) continue;
+				suffix |= 1u << r;
+				upper += d.v[utils + (j - items)];
+			}
+		const uint candidates = subgroupOr(suffix);
+		const uint total = subgroupAdd(utility[depth]), bound = subgroupAdd(upper);
+		const uint lower = subgroupAdd(suffix == candidates ? utility[depth] : 0);
+		pending[depth] = 0;
+		if (depth != 0 && lower >= pc.min_util) {
+			found += uint64_t(1) << bitCount(candidates);  // this itemset and every completion
+		} else if (bound >= pc.min_util) {
+			if (depth != 0 && total >= pc.min_util) ++found;
+			pending[depth] = candidates;
+		}
+		while (pending[depth] == 0 && depth != 0) --depth;
+		if (pending[depth] == 0) break;
+		const uint r = findLSB(pending[depth]);
+		pending[depth] &= pending[depth] - 1;
+		int pos = -1;
+		if (position[depth] >= 0) {
+			const uint at = find_item(d, uint(position[depth]) + 1, e, local_u[r]);
+			if (at != kNone) pos = int(at);
+		}
+		utility[depth + 1] = pos >= 0 ? utility[depth] + d.v[utils + (uint(pos) - items)] : 0;
+		position[++depth] = pos;
+	}
+	return found;
+}
+
+// Walks the transactions in blocks of the workgroup size. Each kept transaction (holding k and a child item
+// after it) either starts a merged child transaction (head) or merges into the run's head. With `write`,
+// heads write their transaction and the others then add their utilities into it.
+void merged_pass(bool write, Words child, uint c_txs, uint c_items, uint c_utils) {
+	if (gl_LocalInvocationID.x == 0) {
+		s_last = 0;
+		s_heads = 0;
+		s_head_entries = 0;
+	}
+	barrier();
+	for (uint i0 = 0; i0 < n_scan; i0 += gl_WorkGroupSize.x) {
+		const uint i = i0 + gl_LocalInvocationID.x;
+		uint p = kNone, e = 0, curr = 0, kept = 0;
+		if (i < n_scan) {
+			p = locate(tx_at(i), e, curr);
+			if (p != kNone) kept = kept_after(p, e);
+		}
+		uint block_last, block_heads, block_entries;
+		const uint prev = max(s_last, wg_exclusive_max(kept != 0 ? i + 1 : 0, block_last));  // previous kept + 1
+		const bool head = kept != 0 && (prev == 0 || !same_projection(tx_at(i), tx_at(prev - 1)));
+		const uint heads_before = wg_exclusive_add(head ? 1 : 0, block_heads);
+		const uint entries_before = wg_exclusive_add(head ? kept : 0, block_entries);
+		const uint t = s_heads + heads_before - (head ? 0 : 1);  // a merging transaction's run head is the last before it
+		if (write && head) {
+			uint w = s_head_entries + entries_before;
+			child.v[c_txs + 3 * t] = w;
+			child.v[c_txs + 3 * t + 1] = kept;
+			child.v[c_txs + 3 * t + 2] = curr;
+			for (uint j = p + 1; j < e; ++j) {
+				const uint r = child_name[d.v[j]];
+				if (r == kNone) continue;
+				child.v[c_items + w] = r;
+				child.v[c_utils + w] = d.v[utils + (j - items)];
+				++w;
+			}
+		}
+		memoryBarrierBuffer();
+		barrier();
+		if (write && kept != 0 && !head) {
+			atomicAdd(child.v[c_txs + 3 * t + 2], curr);
+			uint w = child.v[c_txs + 3 * t];
+			for (uint j = p + 1; j < e; ++j) {
+				if (child_name[d.v[j]] == kNone) continue;
+				atomicAdd(child.v[c_utils + w], d.v[utils + (j - items)]);
+				++w;
+			}
+		}
+		memoryBarrierBuffer();
+		barrier();
+		if (gl_LocalInvocationID.x == 0) {
+			s_last = max(s_last, block_last);
+			s_heads += block_heads;
+			s_head_entries += block_entries;
+		}
+		barrier();
+	}
+}
+
+void main() {
+	const uint task = gl_WorkGroupID.y * pc.groups_x + gl_WorkGroupID.x;
+	if (task >= pc.count) return;
+	Words tasks = Words(pc.tasks);
+	const uint db = tasks.v[2 * task];
+	k = tasks.v[2 * task + 1];
+	if (db == kNone) return;
+	d = at_word(db);
+	n_trans = d.v[0];
+	n_items = d.v[1];
+	n_entries = d.v[2];
+	names = 4;
+	txs = names + n_items;
+	items = txs + 3 * n_trans;
+	utils = items + n_entries;
+	scan_list = 0;
+	n_scan = n_trans;
+	if (d.v[3] != 0) {
+		const uint first = d.v[d.v[3] + k];
+		n_scan = d.v[d.v[3] + k + 1] - first;
+		scan_list = d.v[3] + n_items + 1 + first;
+	}
+	const uint lid = gl_LocalInvocationID.x, size = gl_WorkGroupSize.x;
+
+	for (uint z = lid; z < n_items; z += size) local_u[z] = 0;
+	if (lid == 0) s_util = 0;
+	barrier();
+
+	// 1. Itemset utility and local utilities.
+	uint util = 0;
+	for (uint i = lid; i < n_scan; i += size) {
+		uint e, curr;
+		const uint p = locate(tx_at(i), e, curr);
+		if (p == kNone) continue;
+		util += curr;
+		uint rest = 0;
+		for (uint j = p + 1; j < e; ++j) rest += d.v[utils + (j - items)];
+		for (uint j = p + 1; j < e; ++j) atomicAdd(local_u[d.v[j]], curr + rest);
+	}
+	util = subgroupAdd(util);
+	if (subgroupElect()) atomicAdd(s_util, util);
+	barrier();
+
+	// 2. Child items. local_u[c] is overwritten only once item c (< z) has been read.
+	if (lid == 0) {
+		uint c = 0;
+		for (uint z = k + 1; z < n_items; ++z) {
+			if (local_u[z] >= pc.min_util) {
+				child_name[z] = c;
+				local_u[c] = z;
+				subtree_u[c] = 0;
+				++c;
+			} else {
+				child_name[z] = kNone;
+			}
+		}
+		s_items = c;
+	}
+	barrier();
+	const uint c = s_items;
+	if (c == 0) {
+		if (lid == 0 && s_util >= pc.min_util) atomicAdd(Control(pc.control).patterns, 1ul);
+		return;
+	}
+
+	// 3. Subtree utilities over the child items.
+	if (lid == 0) s_kept = 0;
+	barrier();
+	for (uint i = lid; i < n_scan; i += size) {
+		uint e, curr;
+		const uint p = locate(tx_at(i), e, curr);
+		if (p == kNone) continue;
+		uint suffix = 0;
+		for (uint j = e; j-- > p + 1;) {
+			const uint r = child_name[d.v[j]];
+			if (r == kNone) continue;
+			suffix += d.v[utils + (j - items)];
+			atomicAdd(subtree_u[r], curr + suffix);
+		}
+		if (suffix != 0 || (p + 1 < e && kept_after(p, e) != 0)) {
+			const uint at = atomicAdd(s_kept, 1u);
+			if (at < kMaxLanes) s_lane_tx[at] = tx_at(i);
+		}
+	}
+	barrier();
+
+	// 3b. A small child: count its subtree here.
+	if (s_kept <= gl_SubgroupSize && c <= kSmallItems) {
+		if (gl_SubgroupID != 0) return;
+		const uint64_t found = count_small_child() + (s_util >= pc.min_util ? 1 : 0);
+		if (subgroupElect() && found != 0) atomicAdd(Control(pc.control).patterns, found);
+		return;
+	}
+
+	// 4-5. Whether the child is needed, its merged size and room for it.
+	uint primaries = 0;
+	for (uint r = lid; r + 1 < c; r += size) primaries += subtree_u[r] >= pc.min_util ? 1 : 0;
+	uint all_primaries;
+	wg_exclusive_add(primaries, all_primaries);
+	if (all_primaries != 0) {
+		merged_pass(false, d, 0, 0, 0);
+		if (lid == 0) {
+			s_trans = s_heads;
+			s_entries = s_head_entries;
+		}
+	}
+	if (lid == 0) {
+		const uint found = (s_util >= pc.min_util ? 1 : 0) + (subtree_u[c - 1] >= pc.min_util ? 1 : 0);
+		s_ok = 0;
+		Control control = Control(pc.control);
+		if (all_primaries != 0) {
+			const uint words = (4 + c + 3 * s_trans + 2 * s_entries + 3) & ~3u;
+			const uint64_t used = atomicAdd(control.used, uint64_t(words));
+			const uint big = s_trans >= pc.big ? 1 : 0;
+			const uint64_t slot = atomicAdd(control.next[big], uint64_t(all_primaries));
+			if (used + words <= pc.limit && slot + all_primaries <= pc.task_cap) {
+				s_ok = 1;
+				s_db = pc.down != 0 ? pc.start - uint(used) - words : pc.start + uint(used);
+				s_slot = uint(slot) | big << 31;
+			} else {
+				Words retry = Words(pc.retry);
+				const uint r = atomicAdd(control.retry[pc.task_class], 1u);
+				retry.v[2 * r] = db;
+				retry.v[2 * r + 1] = k;
+				Words next = Words(big != 0 ? pc.next_big : pc.next);
+				for (uint64_t s = slot; s < slot + all_primaries && s < pc.task_cap; ++s) next.v[2 * uint(s)] = kNone;
+			}
+		}
+		if ((all_primaries == 0 || s_ok != 0) && found != 0) atomicAdd(control.patterns, uint64_t(found));
+	}
+	barrier();
+	if (s_ok == 0) return;
+
+	// 6. The child database, then its tasks.
+	Words child = at_word(s_db);
+	const uint c_txs = 4 + c, c_items = c_txs + 3 * s_trans, c_utils = c_items + s_entries;
+	for (uint r = lid; r < c; r += size) child.v[4 + r] = d.v[names + local_u[r]];
+	if (lid == 0) {
+		child.v[0] = s_trans;
+		child.v[1] = c;
+		child.v[2] = s_entries;
+		child.v[3] = 0;
+	}
+	merged_pass(true, child, c_txs, c_items, c_utils);
+	if (lid == 0) {
+		Words next = Words((s_slot >> 31) != 0 ? pc.next_big : pc.next);
+		uint s = s_slot & 0x7fffffffu;
+		for (uint r = 0; r + 1 < c; ++r) {
+			if (subtree_u[r] < pc.min_util) continue;
+			next.v[2 * s] = s_db;
+			next.v[2 * s + 1] = r;
+			++s;
+		}
+	}
+}

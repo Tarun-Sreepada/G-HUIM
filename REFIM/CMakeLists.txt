@@ -26,9 +26,8 @@ endif()
 find_package(Threads REQUIRED)
 
 # Sources: io/ reads the dataset and writes itemsets, mine/ is the search, sys/ holds NUMA,
-# allocation and threading helpers.
-add_executable(REFIM
-    src/main.cpp
+# allocation and threading helpers. Everything but main() is the library refim_core, which GREFIM links too.
+add_library(refim_core STATIC
     src/app/options.cpp
     src/app/logging.cpp
     src/app/run.cpp
@@ -47,9 +46,12 @@ add_executable(REFIM
     src/sys/alloc.cpp
     src/sys/numa.cpp
     src/sys/perf.cpp)
-target_include_directories(REFIM PRIVATE include ${CMAKE_CURRENT_BINARY_DIR}/generated)
-target_link_libraries(REFIM PRIVATE Threads::Threads CLI11::CLI11 spdlog::spdlog)
+target_include_directories(refim_core PUBLIC include ${CMAKE_CURRENT_BINARY_DIR}/generated)
+target_link_libraries(refim_core PUBLIC Threads::Threads CLI11::CLI11 spdlog::spdlog)
 set(REFIM_COMPILE_OPTIONS -Wall -Wextra $<$<CONFIG:Release>:-O3 -march=native>)
+target_compile_options(refim_core PRIVATE ${REFIM_COMPILE_OPTIONS})
+add_executable(REFIM src/main.cpp)
+target_link_libraries(REFIM PRIVATE refim_core)
 target_compile_options(REFIM PRIVATE ${REFIM_COMPILE_OPTIONS})
 
 # The search (and the root database it starts from) is compiled once per (item bits, utility bits) pair, each
@@ -87,7 +89,7 @@ foreach(widths IN LISTS REFIM_WIDTHS)
     target_link_libraries(${variant} PRIVATE Threads::Threads spdlog::spdlog)
     target_compile_options(${variant} PRIVATE ${REFIM_COMPILE_OPTIONS})
     target_compile_definitions(${variant} PRIVATE REFIM_KEY_BITS=${CMAKE_MATCH_1} REFIM_UTIL_BITS=${CMAKE_MATCH_2})
-    target_link_libraries(REFIM PRIVATE ${variant})
+    target_link_libraries(refim_core PRIVATE ${variant})
     list(APPEND REFIM_VARIANTS ${variant})
     string(APPEND REFIM_BUILT_WIDTHS " X(${CMAKE_MATCH_1}, ${CMAKE_MATCH_2})")
 endforeach()
@@ -103,8 +105,8 @@ file(CONFIGURE OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/generated/mine/built_widths.hp
 # REFIM build option: link-time optimisation.
 option(REFIM_LTO "Link-time optimisation for REFIM" ON)
 if(CMAKE_BUILD_TYPE STREQUAL "Release" AND REFIM_LTO)
-    foreach(target IN ITEMS REFIM ${REFIM_VARIANTS})
+    foreach(target IN ITEMS REFIM refim_core ${REFIM_VARIANTS})
         target_compile_options(${target} PRIVATE -flto=auto -fno-fat-lto-objects)
     endforeach()
-    target_link_options(REFIM PRIVATE -flto=auto)
+    target_link_options(refim_core INTERFACE -flto=auto)
 endif()
