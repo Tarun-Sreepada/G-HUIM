@@ -38,6 +38,37 @@
 
 namespace ghuim::persistent {
 
+// The block's thread-block cluster. Clusters are sm_90+; below that every block is a cluster of one (no DSMEM).
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+struct Cluster
+{
+    __device__ uint32_t num_blocks() const { return 1; }
+    __device__ uint32_t block_rank() const { return 0; }
+    __device__ void     sync() const { __syncthreads(); }
+    template <typename T> __device__ T* map_shared_rank(T* p, uint32_t) const { return p; }
+};
+__device__ inline Cluster this_cluster() { return {}; }
+#else
+using Cluster = cooperative_groups::cluster_group;
+__device__ inline Cluster this_cluster() { return cooperative_groups::this_cluster(); }
+#endif
+
+// Host: whether the current device runs thread-block clusters (sm_90+); without them a cluster is one block.
+inline bool clusters_supported()
+{
+    int device = 0, major = 0;
+    if (cudaGetDevice(&device) != cudaSuccess ||
+        cudaDeviceGetAttribute(&major, cudaDevAttrComputeCapabilityMajor, device) != cudaSuccess)
+        return false;
+    return major >= 9;
+}
+
+// Host: the cluster size to launch with on the current device: `want`, or 1 where clusters are unsupported.
+inline uint32_t supported_cluster_size(uint32_t want)
+{
+    return clusters_supported() ? want : 1;
+}
+
 namespace cg = cooperative_groups;
 
 constexpr uint32_t kStealTries   = 4; // random global victims tried per round before backing off
@@ -101,7 +132,7 @@ __device__ inline uint32_t next_random(uint32_t& rng)
 // Thread 0's view of the deques: its own two, and how to reach everyone else's.
 template <typename Task> struct Deques
 {
-    cg::cluster_group            cluster;
+    Cluster                      cluster;
     Deque<Task, Scope::kCluster> local; // capacity 0: no local deque
     Deque<Task, Scope::kGpu>     global;
     PaddedDequeHeader*           headers;
@@ -283,7 +314,7 @@ template <typename Work> __global__ void __launch_bounds__(Work::kMaxThreads, 1)
                           static_cast<unsigned long long>(clock64() - start));
     };
     const Deques<Task> d{
-            cg::this_cluster(),
+            this_cluster(),
             {reinterpret_cast<DequeHeader*>(local_memory),
              reinterpret_cast<Task*>(local_memory + local_deque_bytes<Task>(p.local_capacity) -
                                      p.local_capacity * sizeof(Task)),
@@ -381,9 +412,11 @@ template <typename Work> __global__ void __launch_bounds__(Work::kMaxThreads, 1)
 // Host: the kernel accepts `smem` bytes of dynamic shared memory and clusters of any size up to 16.
 template <typename Work> cudaError_t prepare_megakernel(size_t smem)
 {
-    if (const cudaError_t e = cudaFuncSetAttribute(megakernel<Work>, cudaFuncAttributeNonPortableClusterSizeAllowed, 1);
-        e != cudaSuccess)
-        return e;
+    if (clusters_supported())
+        if (const cudaError_t e =
+                    cudaFuncSetAttribute(megakernel<Work>, cudaFuncAttributeNonPortableClusterSizeAllowed, 1);
+            e != cudaSuccess)
+            return e;
     return cudaFuncSetAttribute(megakernel<Work>, cudaFuncAttributeMaxDynamicSharedMemorySize, static_cast<int>(smem));
 }
 
@@ -408,19 +441,21 @@ namespace detail {
 inline cudaLaunchConfig_t launch_config(const LaunchShape& shape, uint32_t clusters, cudaLaunchAttribute (&attrs)[2],
                                         bool cooperative, cudaStream_t stream)
 {
-    attrs[0].id               = cudaLaunchAttributeClusterDimension;
-    attrs[0].val.clusterDim.x = shape.cluster_size;
-    attrs[0].val.clusterDim.y = 1;
-    attrs[0].val.clusterDim.z = 1;
-    attrs[1].id               = cudaLaunchAttributeCooperative;
-    attrs[1].val.cooperative  = 1;
+    // Cooperative first, so a device without clusters launches with it alone.
+    attrs[0].id               = cudaLaunchAttributeCooperative;
+    attrs[0].val.cooperative  = 1;
+    attrs[1].id               = cudaLaunchAttributeClusterDimension;
+    attrs[1].val.clusterDim.x = shape.cluster_size;
+    attrs[1].val.clusterDim.y = 1;
+    attrs[1].val.clusterDim.z = 1;
+    const bool         cluster = clusters_supported();
     cudaLaunchConfig_t cfg{};
     cfg.gridDim          = dim3(clusters * shape.cluster_size);
     cfg.blockDim         = dim3(shape.block);
     cfg.dynamicSmemBytes = shape.smem;
     cfg.stream           = stream;
-    cfg.attrs            = attrs;
-    cfg.numAttrs         = cooperative ? 2 : 1;
+    cfg.attrs            = cooperative ? attrs : attrs + 1;
+    cfg.numAttrs         = (cooperative ? 1 : 0) + (cluster ? 1 : 0);
     return cfg;
 }
 
@@ -429,6 +464,17 @@ inline cudaLaunchConfig_t launch_config(const LaunchShape& shape, uint32_t clust
 // Host: how many clusters of this shape the GPU keeps resident at once (0: the shape does not fit).
 template <typename Work> uint32_t max_active_clusters(const LaunchShape& shape)
 {
+    if (!clusters_supported()) { // a cluster is one block
+        int device = 0, sms = 0, per_sm = 0;
+        if (shape.cluster_size != 1 || cudaGetDevice(&device) != cudaSuccess ||
+            cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, device) != cudaSuccess ||
+            cudaOccupancyMaxActiveBlocksPerMultiprocessor(&per_sm, megakernel<Work>, static_cast<int>(shape.block),
+                                                          shape.smem) != cudaSuccess) {
+            cudaGetLastError();
+            return 0;
+        }
+        return static_cast<uint32_t>(sms * per_sm);
+    }
     cudaLaunchAttribute      attrs[2];
     const cudaLaunchConfig_t cfg      = detail::launch_config(shape, 1, attrs, false, nullptr);
     int                      clusters = 0;

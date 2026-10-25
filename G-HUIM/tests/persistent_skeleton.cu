@@ -196,6 +196,7 @@ struct Options
     uint32_t roots = 4, depth = 22, units = 256, skew = 6;
     double   branch  = 1.6;
     int      block   = 0;                                  // 0: the largest the kernel allows
+    bool     cluster_set = false; // --cluster given: on a device without clusters, skip instead of using 1
     uint32_t cluster = 2, clusters = 0, local_deque = 256; // 2: the largest cluster that still covers every SM
     uint32_t target_per_block = 4;
     uint64_t grain            = 0; // 0: units << skew (any task fits a block)
@@ -230,7 +231,7 @@ Options parse(int argc, char** argv)
         else if (a == "--block")
             o.block = std::atoi(next());
         else if (a == "--cluster")
-            o.cluster = std::strtoul(next(), nullptr, 10);
+            o.cluster = std::strtoul(next(), nullptr, 10), o.cluster_set = true;
         else if (a == "--clusters")
             o.clusters = std::strtoul(next(), nullptr, 10);
         else if (a == "--local-deque")
@@ -295,7 +296,12 @@ int main(int argc, char** argv)
     CHECK(cudaDeviceGetAttribute(&sms, cudaDevAttrMultiProcessorCount, dev));
     const size_t smem = local_deque_bytes<Node>(o.local_deque);
     CHECK(prepare_megakernel<SyntheticTree>(smem));
-    const LaunchShape launch{o.cluster, static_cast<uint32_t>(o.block ? o.block : max_block_size<SyntheticTree>()),
+    const uint32_t cluster = supported_cluster_size(o.cluster);
+    if (cluster != o.cluster && o.cluster_set) {
+        std::printf("skipped: --cluster %u needs thread-block clusters (sm_90+)\n", o.cluster);
+        return 77; // CTest SKIP_RETURN_CODE
+    }
+    const LaunchShape launch{cluster, static_cast<uint32_t>(o.block ? o.block : max_block_size<SyntheticTree>()),
                              smem};
     const uint32_t    fit = max_active_clusters<SyntheticTree>(launch);
     if (fit == 0) {

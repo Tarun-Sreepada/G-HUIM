@@ -156,5 +156,5 @@ if(BUILD_TESTING)
     add_test(NAME persistent_skeleton_clusters COMMAND persistent_skeleton --depth 18 --cluster 8 --timeout-ms 5000)
     add_test(NAME persistent_skeleton_global_only COMMAND persistent_skeleton --depth 18 --local-deque 0 --timeout-ms 5000)
     set_tests_properties(persistent_skeleton persistent_skeleton_clusters persistent_skeleton_global_only
-                         PROPERTIES LABELS gpu TIMEOUT 60)
+                         PROPERTIES LABELS gpu TIMEOUT 60 SKIP_RETURN_CODE 77)
 endif()

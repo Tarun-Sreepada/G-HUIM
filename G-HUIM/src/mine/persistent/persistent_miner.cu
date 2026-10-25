@@ -131,7 +131,7 @@ MiningResult mine_persistent(const Dataset& data, const MiningOptions& options)
     const uint32_t smem_mode    = (1 + warps) * region_bytes <= avail ? 2 : region_bytes <= avail ? 1 : 0;
     const size_t   smem = deque_bytes + (smem_mode == 2 ? 1 + warps : smem_mode) * region_bytes + pool_bytes;
     check_cuda(prepare_megakernel<Work>(smem), "configure megakernel");
-    const LaunchShape shape{kClusterSize, block, smem};
+    const LaunchShape shape{supported_cluster_size(kClusterSize), block, smem};
     const uint32_t    clusters = max_active_clusters<Work>(shape);
     if (clusters == 0)
         throw std::runtime_error("the persistent megakernel does not fit on the device");

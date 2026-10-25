@@ -13,6 +13,14 @@ enum class Scope
     kGpu
 };
 
+// Thread-block clusters are sm_90+. Below that a cluster is one block, so its deque is reached only by its own
+// block and CTA scope suffices.
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 900
+#define GHUIM_CLUSTER_SCOPE "cta"
+#else
+#define GHUIM_CLUSTER_SCOPE "cluster"
+#endif
+
 #define GHUIM_SCOPED(body_cluster, body_gpu)                                                                           \
     if constexpr (S == Scope::kCluster)                                                                                \
         body_cluster;                                                                                                  \
@@ -22,7 +30,7 @@ enum class Scope
 template <Scope S = Scope::kGpu> __device__ inline uint64_t load_relaxed(const uint64_t* p)
 {
     uint64_t v;
-    GHUIM_SCOPED(asm volatile("ld.relaxed.cluster.u64 %0, [%1];"
+    GHUIM_SCOPED(asm volatile("ld.relaxed." GHUIM_CLUSTER_SCOPE ".u64 %0, [%1];"
                               : "=l"(v)
                               : "l"(p)
                               : "memory"),
@@ -36,7 +44,7 @@ template <Scope S = Scope::kGpu> __device__ inline uint64_t load_relaxed(const u
 template <Scope S = Scope::kGpu> __device__ inline uint64_t load_acquire(const uint64_t* p)
 {
     uint64_t v;
-    GHUIM_SCOPED(asm volatile("ld.acquire.cluster.u64 %0, [%1];"
+    GHUIM_SCOPED(asm volatile("ld.acquire." GHUIM_CLUSTER_SCOPE ".u64 %0, [%1];"
                               : "=l"(v)
                               : "l"(p)
                               : "memory"),
@@ -63,7 +71,7 @@ __device__ inline uint32_t load_acquire(const uint32_t* p)
 
 template <Scope S = Scope::kGpu> __device__ inline void store_relaxed(uint64_t* p, uint64_t v)
 {
-    GHUIM_SCOPED(asm volatile("st.relaxed.cluster.u64 [%0], %1;" ::"l"(p), "l"(v)
+    GHUIM_SCOPED(asm volatile("st.relaxed." GHUIM_CLUSTER_SCOPE ".u64 [%0], %1;" ::"l"(p), "l"(v)
                               : "memory"),
                  asm volatile("st.relaxed.gpu.u64 [%0], %1;" ::"l"(p), "l"(v)
                               : "memory"));
@@ -71,7 +79,7 @@ template <Scope S = Scope::kGpu> __device__ inline void store_relaxed(uint64_t* 
 
 template <Scope S = Scope::kGpu> __device__ inline void store_release(uint64_t* p, uint64_t v)
 {
-    GHUIM_SCOPED(asm volatile("st.release.cluster.u64 [%0], %1;" ::"l"(p), "l"(v)
+    GHUIM_SCOPED(asm volatile("st.release." GHUIM_CLUSTER_SCOPE ".u64 [%0], %1;" ::"l"(p), "l"(v)
                               : "memory"),
                  asm volatile("st.release.gpu.u64 [%0], %1;" ::"l"(p), "l"(v)
                               : "memory"));
@@ -82,7 +90,7 @@ template <Scope S = Scope::kGpu>
 __device__ inline uint64_t cas_acq_rel(uint64_t* p, uint64_t expected, uint64_t desired)
 {
     uint64_t old;
-    GHUIM_SCOPED(asm volatile("atom.acq_rel.cluster.cas.b64 %0, [%1], %2, %3;"
+    GHUIM_SCOPED(asm volatile("atom.acq_rel." GHUIM_CLUSTER_SCOPE ".cas.b64 %0, [%1], %2, %3;"
                               : "=l"(old)
                               : "l"(p), "l"(expected), "l"(desired)
                               : "memory"),
@@ -109,10 +117,11 @@ __device__ inline uint32_t fetch_add_acq_rel(uint32_t* p, uint32_t v)
 
 template <Scope S = Scope::kGpu> __device__ inline void fence_sc()
 {
-    GHUIM_SCOPED(asm volatile("fence.sc.cluster;" ::: "memory"), asm volatile("fence.sc.gpu;" ::: "memory"));
+    GHUIM_SCOPED(asm volatile("fence.sc." GHUIM_CLUSTER_SCOPE ";" ::: "memory"), asm volatile("fence.sc.gpu;" ::: "memory"));
 }
 
 #undef GHUIM_SCOPED
+#undef GHUIM_CLUSTER_SCOPE
 
 // Timing counters (cycle counts in BlockStats), compiled in with -DGHUIM_TIMERS=ON.
 #ifdef GHUIM_TIMERS

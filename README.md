@@ -11,7 +11,8 @@ GPU-accelerated High-Utility Itemset Mining on NVIDIA hardware (`G-HUIM/`), plus
 
 ## Requirements
 
-- CUDA toolkit 12.x, an sm_80 or newer GPU (G-HUIM only)
+- CUDA toolkit 12.x, an sm_80 or newer GPU (G-HUIM only). The persistent engine groups blocks into
+  thread-block clusters with DSMEM stealing on sm_90+; on sm_80/sm_86 each block is its own cluster
 - CMake ≥ 3.24, a C++20 host compiler and NVCC
 - Network on first configure: pinned CLI11 and spdlog are fetched
 
@@ -24,7 +25,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -- -j"$(nproc)"
 ```
 
-Produces `build/G-HUIM` and `build/REFIM`. Each project also builds alone
+Produces `build/G-HUIM` and `build/REFIM`. To build just one miner from the root:
+
+```bash
+cmake -S . -B build -DHUIM_BUILD_GHUIM=OFF   # REFIM only (no CUDA needed)
+cmake -S . -B build -DHUIM_BUILD_REFIM=OFF   # G-HUIM only
+```
+
+Each project also builds alone
 (`cmake -S G-HUIM -B build-ghuim`, `cmake -S REFIM -B build-refim`). The GPU architecture is
 auto-detected; override with `-DCMAKE_CUDA_ARCHITECTURES=...`.
 
